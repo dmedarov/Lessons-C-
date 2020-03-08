@@ -1,0 +1,63 @@
+using System;
+
+namespace ConsoleApp5
+{
+    class Program
+    {
+        static void Main()
+        {
+            Console.WriteLine("Hello,what is your name?");
+            Console.WriteLine(" ");
+            string name = Console.ReadLine();
+            Console.WriteLine(" ");
+            string welcome = " it is a pleasure for me. I'm your old friend HP EliteBook :) !";
+            Console.Write("Hello, " + name + welcome);
+            Console.WriteLine(" ");
+
+            for (int z = 0; z < 10000; z++)
+            {
+                Console.WriteLine("Please input number between 1 and 100.");
+
+
+                int a = int.Parse(Console.ReadLine());
+
+                if (a < 100)
+                {
+                    if (a >= 1)
+                    {
+                        Console.WriteLine(" The answer of the question 'int b = a / 4' " + " is " + a / 4);
+                        Console.WriteLine(" ");
+                        Console.WriteLine(" The answer of the question 'double c = a / 4.0' " + " is " + a / 4.0);
+                        Console.WriteLine(" ");
+                        Console.WriteLine(" The answer of the question 'int odd = 3 % 2' " + " is " + 3 % 2);
+                        Console.WriteLine(" ");
+                        Console.WriteLine(" The answer of the question 'int even = 4 % 2' " + " is " + 4 % 2);
+                        Console.WriteLine(" ");
+                        Console.WriteLine(" The answer of the question 'int error = a / 0' " + " is " + "Attempted to divide by zero.");
+                        Console.WriteLine(" ");
+                        Console.WriteLine(" The answer of the question 'int error = 3 % 0' " + " is " + "Attempted to divide by zero.");
+                        System.Threading.Thread.Sleep(10000);
+                        Console.Clear();
+                    }
+                    else
+                    {
+                        Console.WriteLine(" ");
+                        Console.WriteLine(name + " you have entered wrong number");
+                        System.Threading.Thread.Sleep(3000);
+                        Console.Clear();
+                    }
+
+                }
+                else
+                {
+                    Console.WriteLine(" ");
+                    Console.WriteLine(name + " you have entered wrong number");
+                    System.Threading.Thread.Sleep(3000);
+                    Console.Clear();
+
+                }
+            }
+        }
+
+    }
+}
