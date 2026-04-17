@@ -1,0 +1,12 @@
+services:
+  car-pool:
+    build: .
+    container_name: car-pool-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - car_pool_data:/data
+    restart: unless-stopped
+
+volumes:
+  car_pool_data:
