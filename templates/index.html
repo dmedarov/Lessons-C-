@@ -50,11 +50,11 @@
               <h5 class="card-title">Нова резервация</h5>
               <form id="reservationForm">
                 <select class="form-select mb-2" id="carId" required></select>
-                <input class="form-control mb-2" id="employeeName" placeholder="Служител" required />
                 <input class="form-control mb-2" id="startTime" type="datetime-local" required />
                 <input class="form-control mb-2" id="endTime" type="datetime-local" required />
                 <input class="form-control mb-2" id="purpose" placeholder="Цел" />
                 <button class="btn btn-success w-100" type="submit">Създай (pending)</button>
+                <div class="form-text">Резервацията се записва на името на логнатия потребител.</div>
               </form>
             </div>
           </div>
@@ -145,8 +145,8 @@
         currentUser = data.user;
         sessionBadge.className = `badge ${currentRole === "fleet_admin" ? "bg-danger" : "bg-primary"}`;
         sessionBadge.textContent = `Logged as ${currentUser} (${currentRole})`;
-        document.getElementById("employeeName").value = currentUser;
         showMessage("Успешен login.");
+        await fetchReservations();
       }
 
       async function fetchCars() {
@@ -193,10 +193,12 @@
       }
 
       async function fetchReservations() {
-        const res = await fetch("/reservations");
-        const data = await res.json();
         const body = document.querySelector("#reservationsTable tbody");
         body.innerHTML = "";
+        if (!accessToken) return;
+        const res = await fetch("/reservations", { headers: authHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
 
         for (const item of data.items) {
           const actions = [];
@@ -243,7 +245,6 @@
         e.preventDefault();
         const payload = {
           car_id: Number(document.getElementById("carId").value),
-          employee_name: document.getElementById("employeeName").value || currentUser || "Unknown",
           start_time: toIso(document.getElementById("startTime").value),
           end_time: toIso(document.getElementById("endTime").value),
           purpose: document.getElementById("purpose").value || null,

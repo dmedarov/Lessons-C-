@@ -10,7 +10,8 @@ RUN useradd --create-home --uid 10001 appuser
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py .
+COPY app.py config.py db.py security.py schemas.py ./
+COPY routers ./routers
 COPY templates ./templates
 
 RUN mkdir -p /data && chown -R appuser:appuser /app /data
