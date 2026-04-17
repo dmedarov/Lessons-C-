@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from pathlib import Path
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Iterator, Optional
 
 from fastapi import FastAPI, HTTPException, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = os.getenv("DB_PATH", "/data/fleet.db")
 
 app = FastAPI(title="Corporate Car Pool Reservation")
@@ -75,6 +78,11 @@ def init_db() -> None:
         )
 
 
+
+
+@app.get("/", include_in_schema=False)
+def ui() -> FileResponse:
+    return FileResponse(BASE_DIR / "templates" / "index.html")
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
