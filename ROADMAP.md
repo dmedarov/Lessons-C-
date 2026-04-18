@@ -156,7 +156,7 @@
    reset password от админ
    смяна на роля
    audit history за user actions
-   отделна admin страница вместо в общия dashboard
+   по-богат admin surface върху новата отделна admin страница
 2. Readiness checks, structured logs и traceable incident debugging.
 3. Calendar week/day views и utilization analytics.
 4. Scheduled reminder notifications преди start/end на резервация.

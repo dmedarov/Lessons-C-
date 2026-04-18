@@ -17,6 +17,7 @@
 - Пагинация при списъка с резервации.
 - `health` endpoint за Docker healthcheck.
 - Responsive dashboard UI без външни CDN зависимости.
+- Отделна admin страница за approvals, users, blackout windows и continuity actions.
 - Бърз operational overview: активни коли, pending заявки, активни курсове и непрочетени нотификации.
 - Ясни status тагове, филтри и действия в контекста на всеки запис.
 - Реален месечен календарен изглед за планиране и натоварване по дни.
@@ -44,6 +45,7 @@ docker compose up --build -d
 ```
 
 - `http://localhost:8000/` — UI
+- `http://localhost:8000/admin` — Admin UI
 - `http://localhost:8000/docs` — Swagger UI
 - `http://localhost:8000/health`
 
@@ -179,7 +181,7 @@ alembic revision -m "describe change"
 
 - Refresh token-и няма — клиентът прави нов login след `expires_in`.
 - Rate limiting и CORS са извън скоупа.
-- По-сериозен admin модул е следващата голяма стъпка: admin reset password, role change UI, user audit history surface и отделна admin страница.
+- По-сериозен admin модул е следващата голяма стъпка: admin reset password, role change UI и user audit history surface.
 
 ## План за развитие
 

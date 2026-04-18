@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/static/styles.css" />
     <script defer src="/static/app.js"></script>
   </head>
-  <body>
+  <body data-surface="employee">
     <div class="page-shell">
       <header class="topbar">
         <div class="brand">
@@ -20,9 +20,10 @@
 
         <nav class="topbar__nav">
           <a href="#calendarStudio">Calendar</a>
-          <a href="#reservationsDeck">Operations</a>
+          <a href="#reservationsDeck">Trips</a>
           <a href="#fleetDeck">Fleet</a>
           <a href="#notificationDeck">Notifications</a>
+          <a href="/admin">Admin</a>
           <a href="/docs" target="_blank" rel="noreferrer">API</a>
         </nav>
 
@@ -34,11 +35,11 @@
 
       <section class="hero">
         <div class="hero__primary">
-          <p class="eyebrow">Corporate pool car platform</p>
-          <h1>Спокойно управление на заявки, активни курсове и връщания.</h1>
+          <p class="eyebrow">Employee desk</p>
+          <h1>Заявки, курсове и връщане на автомобил.</h1>
           <p class="hero__lead">
-            FleetFlow е вътрешен operational desk за компании, които искат служителят да вижда само
-            следващото си действие, а fleet admin да управлява флот, потребители и lifecycle без шум.
+            Компактен работен изглед за служители: виждаш само собствените си заявки, предстоящите слотове,
+            нотификациите и следващото действие без излишни панели.
           </p>
 
           <div class="hero__actions">
@@ -146,14 +147,14 @@
             <div class="glass-card__header">
               <div>
                 <p class="panel__eyebrow">Lifecycle</p>
-                <h2>Какво следим</h2>
+                <h2>Какво виждаш тук</h2>
               </div>
             </div>
 
             <ul class="rule-list">
-              <li>Employee подава заявка и вижда само собствените си резервации и нотификации.</li>
-              <li>Fleet admin вижда глобалната опашка, одобрява, следи активните курсове и връщанията.</li>
-              <li>Notification layer показва само събития с operational стойност: заявка, решение, start, return, cancel.</li>
+              <li>Подаване на нова заявка с конкретен слот и цел на пътуването.</li>
+              <li>Проследяване на одобрени заявки, активни курсове и върнати автомобили.</li>
+              <li>Личен inbox с решения, reminders и lifecycle събития само за твоя профил.</li>
             </ul>
           </section>
         </div>

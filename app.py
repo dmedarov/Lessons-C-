@@ -34,6 +34,10 @@ def create_app() -> FastAPI:
     def ui() -> FileResponse:
         return FileResponse(settings.base_dir / "templates" / "index.html")
 
+    @app.get("/admin", include_in_schema=False)
+    def admin_ui() -> FileResponse:
+        return FileResponse(settings.base_dir / "templates" / "admin.html")
+
     @app.get("/health", tags=["meta"])
     def health() -> dict[str, str]:
         return {"status": "ok"}

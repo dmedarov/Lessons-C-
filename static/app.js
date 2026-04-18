@@ -1,6 +1,7 @@
 const state = {
   token: null,
   hasAdmin: true,
+  surface: document.body.dataset.surface || "employee",
   currentRole: null,
   currentUser: null,
   carFilter: "active",
@@ -10,6 +11,7 @@ const state = {
   reservations: [],
   notifications: [],
   users: [],
+  blackouts: [],
   calendarDate: startOfMonth(new Date()),
   selectedDateKey: dateKey(new Date()),
 };
@@ -55,6 +57,17 @@ const els = {
   newDisplayName: document.getElementById("newDisplayName"),
   newRole: document.getElementById("newRole"),
   newUserPassword: document.getElementById("newUserPassword"),
+  handoffForm: document.getElementById("handoffForm"),
+  handoffUserId: document.getElementById("handoffUserId"),
+  handoffReason: document.getElementById("handoffReason"),
+  handoffDemoteSelf: document.getElementById("handoffDemoteSelf"),
+  blackoutForm: document.getElementById("blackoutForm"),
+  blackoutCarId: document.getElementById("blackoutCarId"),
+  blackoutKind: document.getElementById("blackoutKind"),
+  blackoutStartTime: document.getElementById("blackoutStartTime"),
+  blackoutEndTime: document.getElementById("blackoutEndTime"),
+  blackoutReason: document.getElementById("blackoutReason"),
+  blackoutsList: document.getElementById("blackoutsList"),
   plate: document.getElementById("plate"),
   model: document.getElementById("model"),
   carsGrid: document.getElementById("carsGrid"),
@@ -129,6 +142,11 @@ function authHeaders() {
 function toggleHidden(node, hidden) {
   if (!node) return;
   node.classList.toggle("hidden", hidden);
+}
+
+function bind(node, eventName, handler) {
+  if (!node) return;
+  node.addEventListener(eventName, handler);
 }
 
 function clearErrors() {
@@ -260,6 +278,7 @@ function setSession(user, token) {
 function renderShell() {
   const authenticated = Boolean(state.token && state.currentUser);
   const adminMode = state.currentRole === "fleet_admin";
+  const adminSurface = state.surface === "admin";
 
   toggleHidden(els.setupPanel, state.hasAdmin || authenticated);
   toggleHidden(els.loginPanel, !state.hasAdmin || authenticated);
@@ -268,9 +287,12 @@ function renderShell() {
   toggleHidden(els.reservationPanel, !authenticated);
   toggleHidden(els.passwordPanel, !authenticated);
   toggleHidden(els.summaryDeck, !authenticated);
-  toggleHidden(els.userCreatePanel, !authenticated || !adminMode);
-  toggleHidden(els.carPanel, !authenticated || !adminMode);
-  toggleHidden(els.usersDeck, !authenticated || !adminMode);
+  toggleHidden(els.userCreatePanel, !authenticated || !adminMode || !adminSurface);
+  toggleHidden(els.carPanel, !authenticated || !adminMode || !adminSurface);
+  toggleHidden(els.usersDeck, !authenticated || !adminMode || !adminSurface);
+  toggleHidden(els.handoffForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
+  toggleHidden(els.blackoutForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
+  toggleHidden(els.blackoutsList?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
 
   if (!state.hasAdmin && !authenticated) {
     els.sessionBadge.className = "status-pill status-pill--muted";
@@ -291,9 +313,13 @@ function renderShell() {
   els.sessionModePill.className = `status-pill ${isAdmin ? "status-pill--admin" : "status-pill--employee"}`;
   els.sessionModePill.textContent = isAdmin ? "fleet_admin" : "employee";
   els.sessionMeta.textContent = `${state.currentUser.display_name} (${state.currentUser.username})`;
-  els.heroCaption.textContent = isAdmin
-    ? "Admin режимът дава глобален изглед към чакащи заявки, активни курсове, флот и потребители."
-    : "Employee режимът показва само собствените ти заявки, нотификации и следващото практично действие.";
+  if (els.heroCaption) {
+    els.heroCaption.textContent = isAdmin
+      ? adminSurface
+        ? "Отделната admin страница събира approvals, blackout-и, handoff и user control на едно място."
+        : "За административни действия отвори отделната Admin страница от горната навигация."
+      : "Employee режимът показва само собствените ти заявки, нотификации и следващото практично действие.";
+  }
 }
 
 function updateOverview() {
@@ -325,8 +351,11 @@ function updateSummary() {
   if (adminMode) {
     const pending = state.reservations.filter((item) => item.status === "pending").length;
     const activeTrips = state.reservations.filter((item) => item.status === "checked_out").length;
-    els.modeHeading.textContent = "Admin mission deck";
-    els.modeCopy.textContent = "Една повърхност за решения, fleet control, user management и operational visibility.";
+    const adminSurface = state.surface === "admin";
+    els.modeHeading.textContent = adminSurface ? "Admin control surface" : "Admin on employee desk";
+    els.modeCopy.textContent = adminSurface
+      ? "Отделна admin страница за approvals, fleet control, blackout windows и continuity actions."
+      : "Това е общият desk. За потребители, handoff и blackout-и използвай отделната Admin страница.";
     els.nextSignalTitle.textContent = pending
       ? `${pending} чакащи заявки`
       : activeTrips
@@ -441,6 +470,11 @@ function renderUsers() {
             ? `<button class="action-btn action-btn--toggle" type="button" data-user-action="deactivate" data-user-id="${user.id}" ${isSelf ? "data-self=true" : ""}>Деактивирай</button>`
             : `<button class="action-btn action-btn--toggle" type="button" data-user-action="activate" data-user-id="${user.id}">Активирай</button>`
         }
+        ${
+          !isSelf && user.active
+            ? `<button class="action-btn action-btn--approve" type="button" data-handoff-candidate="${user.id}">Handoff</button>`
+            : ""
+        }
       </div>
     `;
     els.usersGrid.appendChild(card);
@@ -489,9 +523,67 @@ function renderCars() {
 
 function renderCarSelect() {
   const cars = state.cars.filter((car) => car.active);
-  els.carId.innerHTML = cars.length
+  const markup = cars.length
     ? cars.map((car) => `<option value="${car.id}">${car.plate_number} · ${car.model}</option>`).join("")
     : `<option value="">Няма активни автомобили</option>`;
+  if (els.carId) {
+    els.carId.innerHTML = markup;
+  }
+  if (els.blackoutCarId) {
+    els.blackoutCarId.innerHTML = markup;
+  }
+}
+
+function renderBlackouts() {
+  if (!els.blackoutsList) return;
+  els.blackoutsList.innerHTML = "";
+
+  if (state.currentRole !== "fleet_admin") {
+    els.blackoutsList.innerHTML = `
+      <article class="empty-state">
+        <strong>Blackout-и са видими само за admin.</strong>
+      </article>
+    `;
+    return;
+  }
+
+  if (!state.blackouts.length) {
+    els.blackoutsList.innerHTML = `
+      <article class="empty-state">
+        <strong>Няма активни blackout-и.</strong>
+        <p>Когато автомобил е в сервиз или поддръжка, прозорецът ще се появи тук.</p>
+      </article>
+    `;
+    return;
+  }
+
+  const cars = carMap();
+  state.blackouts.forEach((item) => {
+    const car = cars.get(item.car_id);
+    const card = document.createElement("article");
+    card.className = "notification-card";
+    card.innerHTML = `
+      <div class="notification-card__head">
+        <strong>${car ? `${car.plate_number} · ${car.model}` : `Car ${item.car_id}`}</strong>
+        <span class="status-tag status-tag--returned">${item.kind}</span>
+      </div>
+      <p>${item.reason || "Без конкретизирана причина"}</p>
+      <div class="notification-card__foot">
+        <span class="muted">${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</span>
+        ${item.active ? `<button class="action-btn action-btn--toggle" type="button" data-blackout-disable="${item.id}">Деактивирай</button>` : ""}
+      </div>
+    `;
+    els.blackoutsList.appendChild(card);
+  });
+}
+
+function renderHandoffCandidates() {
+  if (!els.handoffUserId) return;
+  const options = state.users
+    .filter((user) => user.active && (!state.currentUser || user.id !== state.currentUser.id))
+    .map((user) => `<option value="${user.id}">${user.display_name} · ${user.role}</option>`)
+    .join("");
+  els.handoffUserId.innerHTML = options || `<option value="">Няма подходящ потребител</option>`;
 }
 
 function reservationContext(item) {
@@ -686,6 +778,7 @@ async function loadCars() {
   state.cars = data.items;
   renderCars();
   renderCarSelect();
+  await loadBlackouts();
 }
 
 async function loadReservations() {
@@ -727,10 +820,29 @@ async function loadUsers() {
   if (state.currentRole !== "fleet_admin") {
     state.users = [];
     renderUsers();
+    renderHandoffCandidates();
     return;
   }
   state.users = await apiFetch("/users", { headers: authHeaders() });
   renderUsers();
+  renderHandoffCandidates();
+}
+
+async function loadBlackouts() {
+  if (state.currentRole !== "fleet_admin" || !state.cars.length) {
+    state.blackouts = [];
+    renderBlackouts();
+    return;
+  }
+
+  const requests = state.cars.map((car) =>
+    apiFetch(`/cars/${car.id}/blackouts`, { headers: authHeaders() }).then((items) =>
+      items.map((item) => ({ ...item, car_id: car.id }))
+    )
+  );
+  const batches = await Promise.all(requests);
+  state.blackouts = batches.flat();
+  renderBlackouts();
 }
 
 async function refreshData() {
@@ -910,10 +1022,13 @@ function handleLogout() {
   state.notifications = [];
   state.reservations = [];
   state.users = [];
+  state.blackouts = [];
   els.loginForm.reset();
   renderNotifications();
   renderReservations();
   renderUsers();
+  renderBlackouts();
+  renderHandoffCandidates();
   updateOverview();
   updateSummary();
   showMessage("Сесията приключи", "Излязохте успешно.", "success");
@@ -1020,6 +1135,64 @@ async function handleCarCreate(event) {
   }
 }
 
+async function handleHandoff(event) {
+  event.preventDefault();
+  if (!els.handoffUserId || !els.handoffUserId.value) {
+    showMessage("Липсва потребител", "Избери активен потребител за admin handoff.");
+    return;
+  }
+
+  try {
+    const data = await apiFetch(`/users/${Number(els.handoffUserId.value)}/handoff-admin`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        demote_self: Boolean(els.handoffDemoteSelf?.checked),
+        reason: els.handoffReason?.value?.trim() || null,
+      }),
+    });
+    showMessage(
+      "Admin ownership е обновен",
+      `${data.next_admin.display_name} вече има admin достъп.`,
+      "success"
+    );
+    if (els.handoffForm) {
+      els.handoffForm.reset();
+    }
+    await refreshData();
+  } catch (error) {
+    showMessage("Неуспешен handoff", error.message);
+  }
+}
+
+async function handleBlackoutCreate(event) {
+  event.preventDefault();
+  if (!els.blackoutCarId?.value || !els.blackoutStartTime?.value || !els.blackoutEndTime?.value) {
+    showMessage("Непълни данни", "Избери автомобил и blackout интервал.");
+    return;
+  }
+
+  try {
+    await apiFetch(`/cars/${Number(els.blackoutCarId.value)}/blackouts`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        kind: els.blackoutKind?.value || "maintenance",
+        start_time: toIso(els.blackoutStartTime.value),
+        end_time: toIso(els.blackoutEndTime.value),
+        reason: els.blackoutReason?.value?.trim() || null,
+      }),
+    });
+    if (els.blackoutForm) {
+      els.blackoutForm.reset();
+    }
+    showMessage("Blackout е добавен", "Автомобилът вече е блокиран за този интервал.", "success");
+    await refreshData();
+  } catch (error) {
+    showMessage("Неуспешен blackout", error.message);
+  }
+}
+
 async function toggleCar(carId) {
   const car = state.cars.find((item) => item.id === carId);
   if (!car) return;
@@ -1043,6 +1216,19 @@ async function toggleUser(userId, action) {
       headers: authHeaders(),
     });
     showMessage("Потребителят е обновен", "Списъкът с потребители е актуализиран.", "success");
+    await refreshData();
+  } catch (error) {
+    showMessage("Неуспешна промяна", error.message);
+  }
+}
+
+async function deactivateBlackout(blackoutId) {
+  try {
+    await apiFetch(`/cars/blackouts/${blackoutId}/deactivate`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    showMessage("Blackout е обновен", "Прозорецът вече е неактивен.", "success");
     await refreshData();
   } catch (error) {
     showMessage("Неуспешна промяна", error.message);
@@ -1115,13 +1301,23 @@ function wireToolbar(buttons, key, callback) {
 }
 
 function initDefaults() {
-  els.startTime.min = nextLocalSlot(0);
-  els.endTime.min = nextLocalSlot(30);
-  els.startTime.value = nextLocalSlot(30);
-  els.endTime.value = nextLocalSlot(120);
+  if (els.startTime) {
+    els.startTime.min = nextLocalSlot(0);
+    els.endTime.min = nextLocalSlot(30);
+    els.startTime.value = nextLocalSlot(30);
+    els.endTime.value = nextLocalSlot(120);
+  }
+  if (els.blackoutStartTime) {
+    els.blackoutStartTime.value = nextLocalSlot(30);
+  }
+  if (els.blackoutEndTime) {
+    els.blackoutEndTime.value = nextLocalSlot(180);
+  }
   renderShell();
   renderNotifications();
   renderUsers();
+  renderBlackouts();
+  renderHandoffCandidates();
   renderCars();
   renderCarSelect();
   renderReservations();
@@ -1131,31 +1327,33 @@ function initDefaults() {
   updateSummary();
 }
 
-els.bootstrapForm.addEventListener("submit", handleBootstrap);
-els.loginForm.addEventListener("submit", handleLogin);
-els.logoutBtn.addEventListener("click", handleLogout);
-els.logoutBtnSecondary.addEventListener("click", handleLogout);
-els.reservationForm.addEventListener("submit", handleReservationCreate);
-els.passwordForm.addEventListener("submit", handlePasswordChange);
-els.userForm.addEventListener("submit", handleUserCreate);
-els.carForm.addEventListener("submit", handleCarCreate);
-els.markAllReadBtn.addEventListener("click", markAllRead);
+bind(els.bootstrapForm, "submit", handleBootstrap);
+bind(els.loginForm, "submit", handleLogin);
+bind(els.logoutBtn, "click", handleLogout);
+bind(els.logoutBtnSecondary, "click", handleLogout);
+bind(els.reservationForm, "submit", handleReservationCreate);
+bind(els.passwordForm, "submit", handlePasswordChange);
+bind(els.userForm, "submit", handleUserCreate);
+bind(els.carForm, "submit", handleCarCreate);
+bind(els.handoffForm, "submit", handleHandoff);
+bind(els.blackoutForm, "submit", handleBlackoutCreate);
+bind(els.markAllReadBtn, "click", markAllRead);
 
-els.startTime.addEventListener("change", () => {
+bind(els.startTime, "change", () => {
   els.endTime.min = els.startTime.value || nextLocalSlot(30);
 });
 
-els.monthPrev.addEventListener("click", () => {
+bind(els.monthPrev, "click", () => {
   state.calendarDate = addMonths(state.calendarDate, -1);
   renderCalendar();
 });
 
-els.monthNext.addEventListener("click", () => {
+bind(els.monthNext, "click", () => {
   state.calendarDate = addMonths(state.calendarDate, 1);
   renderCalendar();
 });
 
-els.todayFocus.addEventListener("click", () => {
+bind(els.todayFocus, "click", () => {
   state.calendarDate = startOfMonth(new Date());
   setSelectedDate(dateKey(new Date()));
 });
@@ -1170,6 +1368,8 @@ document.addEventListener("click", (event) => {
   const reservationButton = event.target.closest("[data-reservation-action]");
   const notificationButton = event.target.closest("[data-notification-read]");
   const userButton = event.target.closest("[data-user-action]");
+  const blackoutButton = event.target.closest("[data-blackout-disable]");
+  const handoffButton = event.target.closest("[data-handoff-candidate]");
 
   if (calendarButton) {
     setSelectedDate(calendarButton.dataset.dateKey);
@@ -1185,6 +1385,13 @@ document.addEventListener("click", (event) => {
   }
   if (userButton) {
     toggleUser(Number(userButton.dataset.userId), userButton.dataset.userAction);
+  }
+  if (blackoutButton) {
+    deactivateBlackout(Number(blackoutButton.dataset.blackoutDisable));
+  }
+  if (handoffButton && els.handoffUserId) {
+    els.handoffUserId.value = handoffButton.dataset.handoffCandidate;
+    showMessage("Handoff кандидат е избран", "Прегледай настройките и потвърди прехвърлянето.", "success");
   }
 });
 

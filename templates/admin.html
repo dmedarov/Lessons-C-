@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="bg">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FleetFlow Admin | Fleet and user control</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script defer src="/static/app.js"></script>
+  </head>
+  <body data-surface="admin">
+    <div class="page-shell page-shell--admin">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand__mark">F</div>
+          <div>
+            <p class="eyebrow">Admin control</p>
+            <strong>FleetFlow</strong>
+          </div>
+        </div>
+
+        <nav class="topbar__nav">
+          <a href="/#calendarStudio">Employee Desk</a>
+          <a href="#reservationsDeck">Approvals</a>
+          <a href="#fleetDeck">Fleet</a>
+          <a href="#usersDeck">Users</a>
+          <a href="/docs" target="_blank" rel="noreferrer">API</a>
+        </nav>
+
+        <div class="topbar__actions">
+          <a class="ghost-link" href="/health" target="_blank" rel="noreferrer">Health</a>
+          <span class="status-pill status-pill--muted" id="sessionBadge">Admin login</span>
+        </div>
+      </header>
+
+      <section class="hero hero--compact">
+        <div class="hero__primary">
+          <p class="eyebrow">Fleet administration</p>
+          <h1>Потребители, флот, blackouts и одобрения.</h1>
+          <p class="hero__lead">
+            Отделен администраторски surface за хората, които управляват наличността, сервизните прозорци,
+            правата и оперативната опашка.
+          </p>
+
+          <div class="stats-grid" id="overviewStats">
+            <article class="stat-card">
+              <span class="stat-card__label">Активни коли</span>
+              <strong class="stat-card__value">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-card__label">Pending</span>
+              <strong class="stat-card__value">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-card__label">Активни курсове</span>
+              <strong class="stat-card__value">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-card__label">Непрочетени</span>
+              <strong class="stat-card__value">0</strong>
+            </article>
+          </div>
+        </div>
+
+        <div class="hero__secondary">
+          <section class="glass-card glass-card--highlight">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Access</p>
+                <h2>Сесия</h2>
+              </div>
+            </div>
+
+            <div class="stack hidden" id="setupPanel">
+              <p class="hero__caption">Създай първи администратор, ако системата все още не е инициализирана.</p>
+              <form class="stack" id="bootstrapForm" novalidate>
+                <label class="field">
+                  <span>Потребител</span>
+                  <input id="bootstrapUsername" name="bootstrapUsername" autocomplete="username" />
+                  <small class="field__error" id="bootstrapUsernameError"></small>
+                </label>
+                <label class="field">
+                  <span>Име</span>
+                  <input id="bootstrapDisplayName" name="bootstrapDisplayName" autocomplete="name" />
+                  <small class="field__error" id="bootstrapDisplayNameError"></small>
+                </label>
+                <label class="field">
+                  <span>Парола</span>
+                  <input id="bootstrapPassword" name="bootstrapPassword" type="password" autocomplete="new-password" />
+                  <small class="field__error" id="bootstrapPasswordError"></small>
+                </label>
+                <button class="btn btn--primary" type="submit">Bootstrap admin</button>
+              </form>
+            </div>
+
+            <div class="stack hidden" id="loginPanel">
+              <p class="hero__caption" id="heroCaption">Влез с `fleet_admin`, за да отвориш административния control surface.</p>
+              <form class="stack" id="loginForm" novalidate>
+                <label class="field">
+                  <span>Потребител</span>
+                  <input id="username" name="username" autocomplete="username" />
+                  <small class="field__error" id="usernameError"></small>
+                </label>
+                <label class="field">
+                  <span>Парола</span>
+                  <input id="password" name="password" type="password" autocomplete="current-password" />
+                  <small class="field__error" id="passwordError"></small>
+                </label>
+                <div class="button-row">
+                  <button class="btn btn--primary" id="loginBtn" type="submit">Вход</button>
+                  <button class="btn btn--ghost hidden" id="logoutBtn" type="button">Изход</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="session-summary hidden" id="sessionPanel">
+              <div class="summary-row">
+                <div>
+                  <p class="panel__eyebrow">Current mode</p>
+                  <h3 id="sessionTitle">Admin control ready</h3>
+                </div>
+                <span class="status-pill status-pill--admin" id="sessionModePill">fleet_admin</span>
+              </div>
+              <p class="muted" id="sessionMeta"></p>
+              <button class="btn btn--ghost" id="logoutBtnSecondary" type="button">Изход</button>
+            </div>
+          </section>
+
+          <section class="glass-card">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Admin focus</p>
+                <h2>Текущи отговорности</h2>
+              </div>
+            </div>
+            <ul class="rule-list">
+              <li>Одобрение и отказ на чакащи заявки.</li>
+              <li>Регистрация на автомобили и сервизни blackout прозорци.</li>
+              <li>Създаване на потребители и прехвърляне на admin ownership.</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+
+      <main class="workspace workspace--admin">
+        <aside class="control-rail">
+          <section class="glass-card" id="notificationDeck">
+            <div class="glass-card__header glass-card__header--split">
+              <div>
+                <p class="panel__eyebrow">Inbox</p>
+                <h2>Нотификации</h2>
+              </div>
+              <button class="chip" id="markAllReadBtn" type="button">Прочети всички</button>
+            </div>
+            <div class="notifications-list" id="notificationsList"></div>
+          </section>
+
+          <section class="glass-card" id="userCreatePanel">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Users</p>
+                <h2>Нов потребител</h2>
+              </div>
+            </div>
+            <form class="stack" id="userForm" novalidate>
+              <label class="field">
+                <span>Потребител</span>
+                <input id="newUsername" name="newUsername" />
+                <small class="field__error" id="newUsernameError"></small>
+              </label>
+              <label class="field">
+                <span>Име</span>
+                <input id="newDisplayName" name="newDisplayName" />
+                <small class="field__error" id="newDisplayNameError"></small>
+              </label>
+              <label class="field">
+                <span>Роля</span>
+                <select id="newRole" name="newRole">
+                  <option value="employee">employee</option>
+                  <option value="fleet_admin">fleet_admin</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Начална парола</span>
+                <input id="newUserPassword" name="newUserPassword" type="password" autocomplete="new-password" />
+                <small class="field__error" id="newUserPasswordError"></small>
+              </label>
+              <button class="btn btn--ghost" type="submit">Създай потребител</button>
+            </form>
+          </section>
+
+          <section class="glass-card" id="handoffPanel">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Continuity</p>
+                <h2>Admin handoff</h2>
+              </div>
+            </div>
+            <form class="stack" id="handoffForm" novalidate>
+              <label class="field">
+                <span>Нов admin</span>
+                <select id="handoffUserId" name="handoffUserId"></select>
+              </label>
+              <label class="field">
+                <span>Причина</span>
+                <textarea id="handoffReason" name="handoffReason" rows="3" placeholder="Смяна на дежурство, отпуск, ротация..."></textarea>
+              </label>
+              <label class="checkbox-row">
+                <input id="handoffDemoteSelf" name="handoffDemoteSelf" type="checkbox" checked />
+                <span>Демотирай текущия admin до employee</span>
+              </label>
+              <button class="btn btn--ghost" type="submit">Предай admin ownership</button>
+            </form>
+          </section>
+
+          <section class="glass-card" id="carPanel">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Fleet</p>
+                <h2>Регистрация на автомобил</h2>
+              </div>
+            </div>
+            <form class="stack" id="carForm" novalidate>
+              <label class="field">
+                <span>Регистрационен номер</span>
+                <input id="plate" name="plate" />
+                <small class="field__error" id="plateError"></small>
+              </label>
+              <label class="field">
+                <span>Модел</span>
+                <input id="model" name="model" />
+                <small class="field__error" id="modelError"></small>
+              </label>
+              <button class="btn btn--ghost" type="submit">Добави автомобил</button>
+            </form>
+          </section>
+
+          <section class="glass-card" id="blackoutPanel">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Service</p>
+                <h2>Blackout прозорец</h2>
+              </div>
+            </div>
+            <form class="stack" id="blackoutForm" novalidate>
+              <label class="field">
+                <span>Автомобил</span>
+                <select id="blackoutCarId" name="blackoutCarId"></select>
+              </label>
+              <label class="field">
+                <span>Тип</span>
+                <select id="blackoutKind" name="blackoutKind">
+                  <option value="maintenance">maintenance</option>
+                  <option value="service">service</option>
+                  <option value="inspection">inspection</option>
+                  <option value="blocked">blocked</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Начало</span>
+                <input id="blackoutStartTime" name="blackoutStartTime" type="datetime-local" />
+              </label>
+              <label class="field">
+                <span>Край</span>
+                <input id="blackoutEndTime" name="blackoutEndTime" type="datetime-local" />
+              </label>
+              <label class="field">
+                <span>Причина</span>
+                <textarea id="blackoutReason" name="blackoutReason" rows="3"></textarea>
+              </label>
+              <button class="btn btn--ghost" type="submit">Добави blackout</button>
+            </form>
+          </section>
+
+          <section class="glass-card" id="passwordPanel">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Security</p>
+                <h2>Смяна на парола</h2>
+              </div>
+            </div>
+            <form class="stack" id="passwordForm" novalidate>
+              <label class="field">
+                <span>Текуща парола</span>
+                <input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" />
+                <small class="field__error" id="currentPasswordError"></small>
+              </label>
+              <label class="field">
+                <span>Нова парола</span>
+                <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" />
+                <small class="field__error" id="newPasswordError"></small>
+              </label>
+              <button class="btn btn--ghost" type="submit">Обнови паролата</button>
+            </form>
+          </section>
+        </aside>
+
+        <section class="content-rail">
+          <div class="alert-strip hidden" id="message" role="alert" tabindex="-1">
+            <div>
+              <strong id="messageTitle">Има проблем</strong>
+              <p id="messageText"></p>
+            </div>
+            <ul id="messageList"></ul>
+          </div>
+
+          <section class="summary-deck" id="summaryDeck">
+            <article class="glass-card summary-card">
+              <p class="panel__eyebrow">Mode</p>
+              <h2 id="modeHeading">Admin workspace</h2>
+              <p class="section-copy" id="modeCopy">Отделен surface за правата, сервизните ограничения и глобалния operational контрол.</p>
+            </article>
+            <article class="glass-card summary-card">
+              <p class="panel__eyebrow">Next signal</p>
+              <h2 id="nextSignalTitle">Очаква login</h2>
+              <p class="section-copy" id="nextSignalCopy">След вход ще видиш чакащите approvals, blackout-и и admin continuity действия.</p>
+            </article>
+          </section>
+
+          <section class="glass-card" id="reservationsDeck">
+            <div class="glass-card__header glass-card__header--split">
+              <div>
+                <p class="panel__eyebrow">Approvals</p>
+                <h2>Резервации и lifecycle</h2>
+              </div>
+              <div class="toolbar">
+                <button class="chip chip--active" type="button" data-scope="smart">Всички</button>
+                <button class="chip" type="button" data-scope="mine">Само мои</button>
+                <button class="chip chip--active" type="button" data-status="all">Всички</button>
+                <button class="chip" type="button" data-status="pending">Pending</button>
+                <button class="chip" type="button" data-status="approved">Approved</button>
+                <button class="chip" type="button" data-status="checked_out">Active</button>
+                <button class="chip" type="button" data-status="returned">Returned</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Автомобил</th>
+                    <th>Заявител</th>
+                    <th>Период</th>
+                    <th>Статус</th>
+                    <th>Контекст</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
+                <tbody id="reservationsTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="split-deck">
+            <section class="glass-card" id="fleetDeck">
+              <div class="glass-card__header glass-card__header--split">
+                <div>
+                  <p class="panel__eyebrow">Fleet</p>
+                  <h2>Наличност</h2>
+                </div>
+                <div class="toolbar">
+                  <button class="chip chip--active" type="button" data-car-filter="active">Само активни</button>
+                  <button class="chip" type="button" data-car-filter="all">Всички</button>
+                </div>
+              </div>
+              <div class="fleet-grid" id="carsGrid"></div>
+            </section>
+
+            <section class="glass-card" id="blackoutsDeck">
+              <div class="glass-card__header">
+                <div>
+                  <p class="panel__eyebrow">Maintenance</p>
+                  <h2>Активни blackout-и</h2>
+                </div>
+              </div>
+              <div class="notifications-list" id="blackoutsList"></div>
+            </section>
+          </section>
+
+          <section class="glass-card" id="usersDeck">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Users</p>
+                <h2>Потребители</h2>
+              </div>
+            </div>
+            <div class="users-grid" id="usersGrid"></div>
+          </section>
+
+          <section class="studio-card" id="calendarStudio">
+            <div class="studio-card__header">
+              <div>
+                <p class="panel__eyebrow">Calendar</p>
+                <h2>Глобален календар</h2>
+                <p class="section-copy">Календарен изглед за approvals, активни курсове и service windows.</p>
+              </div>
+              <div class="calendar-toolbar">
+                <div class="segmented">
+                  <button class="segmented__btn" id="monthPrev" type="button">‹</button>
+                  <button class="segmented__btn segmented__btn--wide" id="todayFocus" type="button">Днес</button>
+                  <button class="segmented__btn" id="monthNext" type="button">›</button>
+                </div>
+                <strong class="calendar-toolbar__label" id="calendarMonthLabel">Месец</strong>
+              </div>
+            </div>
+
+            <div class="calendar-layout">
+              <div class="calendar-board">
+                <div class="calendar-weekdays">
+                  <span>Пн</span>
+                  <span>Вт</span>
+                  <span>Ср</span>
+                  <span>Чт</span>
+                  <span>Пт</span>
+                  <span>Сб</span>
+                  <span>Нд</span>
+                </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
+              </div>
+
+              <aside class="day-panel">
+                <div class="day-panel__header">
+                  <p class="panel__eyebrow">Selected day</p>
+                  <h3 id="selectedDateLabel">Избери ден</h3>
+                  <p class="muted" id="selectedDateMeta">Ще видиш approvals, active trips и върнати автомобили за този ден.</p>
+                </div>
+                <div class="legend">
+                  <span><i class="legend__dot legend__dot--pending"></i> Pending</span>
+                  <span><i class="legend__dot legend__dot--approved"></i> Approved</span>
+                  <span><i class="legend__dot legend__dot--active"></i> Active trip</span>
+                  <span><i class="legend__dot legend__dot--returned"></i> Returned</span>
+                </div>
+                <div class="day-timeline" id="dayTimeline"></div>
+              </aside>
+            </div>
+          </section>
+
+          <section class="glass-card hidden" id="reservationPanel">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Quick booking</p>
+                <h2>Нова заявка</h2>
+              </div>
+            </div>
+            <form class="stack" id="reservationForm" novalidate>
+              <label class="field">
+                <span>Автомобил</span>
+                <select id="carId" name="carId"></select>
+                <small class="field__error" id="carIdError"></small>
+              </label>
+              <label class="field">
+                <span>Начало</span>
+                <input id="startTime" name="startTime" type="datetime-local" />
+                <small class="field__error" id="startTimeError"></small>
+              </label>
+              <label class="field">
+                <span>Край</span>
+                <input id="endTime" name="endTime" type="datetime-local" />
+                <small class="field__error" id="endTimeError"></small>
+              </label>
+              <label class="field">
+                <span>Цел</span>
+                <textarea id="purpose" name="purpose" rows="4"></textarea>
+                <small class="field__error" id="purposeError"></small>
+              </label>
+              <button class="btn btn--primary" type="submit">Подай заявка</button>
+            </form>
+          </section>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

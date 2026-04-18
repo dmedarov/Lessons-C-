@@ -516,5 +516,8 @@ def test_protected_routes_require_auth(client: TestClient) -> None:
 def test_health_and_ui(client: TestClient) -> None:
     assert client.get("/health").json() == {"status": "ok"}
     res = client.get("/")
+    admin_res = client.get("/admin")
     assert res.status_code == 200
+    assert admin_res.status_code == 200
     assert "text/html" in res.headers["content-type"]
+    assert "text/html" in admin_res.headers["content-type"]
