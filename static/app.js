@@ -679,6 +679,7 @@ function renderNotifications() {
 }
 
 function renderUsers() {
+  if (!els.usersGrid) return;
   els.usersGrid.innerHTML = "";
 
   if (state.currentRole !== "fleet_admin") {

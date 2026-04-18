@@ -761,6 +761,10 @@ def test_health_and_ui(client: TestClient) -> None:
     assert "/static/i18n.js" in admin_res.text
     assert 'id="notificationBadge"' in res.text
     assert 'id="notificationBadge"' in admin_res.text
+    assert 'id="userCreatePanel"' not in res.text
+    assert 'id="usersGrid"' not in res.text
+    assert 'class="glass-card hidden" id="userCreatePanel"' in admin_res.text
+    assert 'class="glass-card hidden" id="usersDeck"' in admin_res.text
 
 
 def test_dev_cors_preflight_allows_local_clients(client: TestClient) -> None:

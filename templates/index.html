@@ -241,69 +241,6 @@
             </form>
           </section>
 
-          <section class="glass-card hidden" id="userCreatePanel">
-            <div class="glass-card__header">
-              <div>
-                <p class="panel__eyebrow">Admin</p>
-                <h2>Нов потребител</h2>
-              </div>
-            </div>
-
-            <form class="stack" id="userForm" novalidate>
-              <label class="field">
-                <span>Потребител</span>
-                <input id="newUsername" name="newUsername" placeholder="maria.petrova" />
-                <small class="field__error" id="newUsernameError"></small>
-              </label>
-
-              <label class="field">
-                <span>Име</span>
-                <input id="newDisplayName" name="newDisplayName" placeholder="Maria Petrova" />
-                <small class="field__error" id="newDisplayNameError"></small>
-              </label>
-
-              <label class="field">
-                <span>Роля</span>
-                <select id="newRole" name="newRole">
-                  <option value="employee">Служител</option>
-                  <option value="fleet_admin">Администратор</option>
-                </select>
-              </label>
-
-              <label class="field">
-                <span>Начална парола</span>
-                <input id="newUserPassword" name="newUserPassword" type="password" autocomplete="new-password" />
-                <small class="field__error" id="newUserPasswordError"></small>
-              </label>
-
-              <button class="btn btn--ghost" type="submit">Създай потребител</button>
-            </form>
-          </section>
-
-          <section class="glass-card hidden" id="carPanel">
-            <div class="glass-card__header">
-              <div>
-                <p class="panel__eyebrow">Fleet</p>
-                <h2>Регистрация на автомобил</h2>
-              </div>
-            </div>
-
-            <form class="stack" id="carForm" novalidate>
-              <label class="field">
-                <span>Регистрационен номер</span>
-                <input id="plate" name="plate" placeholder="CB1234AB" />
-                <small class="field__error" id="plateError"></small>
-              </label>
-
-              <label class="field">
-                <span>Модел</span>
-                <input id="model" name="model" placeholder="Skoda Octavia" />
-                <small class="field__error" id="modelError"></small>
-              </label>
-
-              <button class="btn btn--ghost" type="submit">Добави към флота</button>
-            </form>
-          </section>
         </aside>
 
         <section class="content-rail">
@@ -434,16 +371,6 @@
             </section>
           </section>
 
-          <section class="glass-card hidden" id="usersDeck">
-            <div class="glass-card__header">
-              <div>
-                <p class="panel__eyebrow">Admin visibility</p>
-                <h2>Потребители</h2>
-              </div>
-            </div>
-
-            <div class="users-grid" id="usersGrid"></div>
-          </section>
         </section>
       </main>
     </div>
