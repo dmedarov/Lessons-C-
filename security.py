@@ -107,7 +107,27 @@ def get_auth_context(authorization: Optional[str] = Header(default=None)) -> Aut
     prefix = "Bearer "
     if not authorization.startswith(prefix):
         raise HTTPException(status_code=401, detail="Authorization must be Bearer token")
-    return verify_token(authorization[len(prefix):].strip())
+    token_auth = verify_token(authorization[len(prefix):].strip())
+
+    # Re-bind the signed token to the current database state so role changes
+    # and user deactivation take effect immediately.
+    from db import get_conn
+
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id, username, display_name, role, active FROM users WHERE id=?",
+            (token_auth.user_id,),
+        ).fetchone()
+
+    if not row or not row["active"]:
+        raise HTTPException(status_code=401, detail="User is inactive or no longer exists")
+
+    return AuthContext(
+        user_id=int(row["id"]),
+        username=str(row["username"]),
+        display_name=str(row["display_name"]),
+        role=row["role"],
+    )
 
 
 def require_admin(auth: AuthContext = Depends(get_auth_context)) -> AuthContext:

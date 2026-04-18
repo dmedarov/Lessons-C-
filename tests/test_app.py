@@ -7,6 +7,8 @@ from typing import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
+import db
+
 
 @pytest.fixture()
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
@@ -219,3 +221,40 @@ def test_deactivated_car_rejects_new_reservations(client: TestClient) -> None:
         headers=_auth(employee),
     )
     assert res.status_code == 409
+
+
+def test_deactivated_user_token_is_rejected(client: TestClient) -> None:
+    admin = _login(client, "admin", "admin123")
+
+    with db.get_conn() as conn:
+        conn.execute("UPDATE users SET active=0 WHERE username='admin'")
+
+    res = client.post("/cars", json={"plate_number": "CB7000AA", "model": "Audi A4"}, headers=_auth(admin))
+    assert res.status_code == 401
+
+
+def test_role_change_removes_admin_access_for_existing_token(client: TestClient) -> None:
+    admin = _login(client, "admin", "admin123")
+
+    with db.get_conn() as conn:
+        conn.execute("UPDATE users SET role='employee' WHERE username='admin'")
+
+    res = client.post("/cars", json={"plate_number": "CB8000AA", "model": "Audi A6"}, headers=_auth(admin))
+    assert res.status_code == 403
+
+
+def test_start_time_must_be_future(client: TestClient) -> None:
+    admin = _login(client, "admin", "admin123")
+    employee = _login(client, "ivan", "employee123")
+    car_id = _create_car(client, admin, plate="CB9000AA")
+
+    res = client.post(
+        "/reservations",
+        json={
+            "car_id": car_id,
+            "start_time": "2000-01-01T09:00:00+00:00",
+            "end_time": "2099-01-01T11:00:00+00:00",
+        },
+        headers=_auth(employee),
+    )
+    assert res.status_code == 400

@@ -1,6 +1,6 @@
 # Lessons-C- / Car Pool Reservation API
 
-Чист, модулен пример за резервация на пул от служебни автомобили — FastAPI + SQLite, контейнеризиран с Docker. Фокус върху реалистична сигурност и чист код.
+Чист, модулен пример за резервация на пул от служебни автомобили — FastAPI + SQLite, контейнеризиран с Docker. Фокус върху реалистична сигурност, работещ контейнер и удобен вътрешен UI за служители и fleet admin.
 
 ## Какво прави
 
@@ -11,19 +11,41 @@
 - Audit log за всяко действие по резервация.
 - Пагинация при списъка с резервации.
 - `health` endpoint за Docker healthcheck.
+- Responsive dashboard UI без външни CDN зависимости.
+- Бърз operational overview: активни коли, pending/approved заявки, следващи курсове.
+- Ясни status тагове, филтри и действия в контекста на всеки запис.
 
 ## Бърз старт
 
+1. Подготви `.env` файл:
+
 ```bash
-SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" \
-docker compose up --build
+cp .env.example .env
+```
+
+2. Сложи реален secret в `.env`, например:
+
+```bash
+python -c 'import secrets; print(secrets.token_urlsafe(32))'
+```
+
+3. Стартирай контейнера:
+
+```bash
+docker compose up --build -d
 ```
 
 - `http://localhost:8000/` — UI
 - `http://localhost:8000/docs` — Swagger UI
 - `http://localhost:8000/health`
 
-> В `dev` режим (`APP_ENV=dev`) ако не подадеш `SECRET_KEY`, приложението генерира временен ключ — токените няма да оцелеят след рестарт. За prod `SECRET_KEY` е задължителен.
+Спиране:
+
+```bash
+docker compose down
+```
+
+> За production остави `APP_ENV=prod` и използвай дълъг случаен `SECRET_KEY`. Ако искаш бърза dev среда, можеш да смениш `APP_ENV=dev` в `.env`.
 
 ## Архитектура
 
@@ -38,6 +60,7 @@ routers/
   cars.py           # /cars + deactivate/activate (admin)
   reservations.py   # /reservations + approve/reject/cancel
 templates/index.html
+static/
 tests/test_app.py
 conftest.py         # путва project root в sys.path
 ```
@@ -69,7 +92,9 @@ conftest.py         # путва project root в sys.path
 6. **`datetime.now(timezone.utc)`** — без deprecated `utcnow()`, всичко е timezone-aware.
 7. **Lifespan handler** вместо deprecated `@app.on_event`.
 8. **Audit log** — всяко действие по резервация се логва с actor + reason.
-9. **Docker non-root user** + slim base image + HEALTHCHECK.
+9. **Docker multi-stage build** + non-root user + HEALTHCHECK.
+10. **Local static assets** — UI-то не зависи от външна CDN връзка.
+11. **Role-aware dashboard** — employee вижда бърз booking flow, admin вижда и контрол на наличността.
 
 ## Тестове
 

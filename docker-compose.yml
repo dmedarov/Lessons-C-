@@ -1,16 +1,19 @@
 services:
   car-pool:
     build: .
-    container_name: car-pool-api
+    container_name: car-pool-app
+    init: true
     ports:
       - "8000:8000"
     environment:
-      SECRET_KEY: "${SECRET_KEY:-dev-insecure-change-me}"
       APP_ENV: "${APP_ENV:-dev}"
+      SECRET_KEY: "${SECRET_KEY:-dev-insecure-change-me}"
       TOKEN_TTL_SECONDS: "${TOKEN_TTL_SECONDS:-3600}"
       DB_PATH: "/data/fleet.db"
     volumes:
       - car_pool_data:/data
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
 volumes:

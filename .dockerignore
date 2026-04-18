@@ -1,0 +1,14 @@
+.git
+.github
+.pytest_cache
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+.DS_Store
+tests
+README.md
+ROADMAP.md
+Lesson1

@@ -35,6 +35,8 @@ def create_reservation(
     payload: ReservationCreate,
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict:
+    if payload.start_time <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="start_time must be in the future")
     if payload.end_time <= payload.start_time:
         raise HTTPException(status_code=400, detail="end_time must be after start_time")
     if payload.end_time <= datetime.now(timezone.utc):

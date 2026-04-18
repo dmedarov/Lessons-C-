@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from config import settings
 from db import init_db
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Corporate Car Pool Reservation", version="1.0.0", lifespan=lifespan)
+    app.mount("/static", StaticFiles(directory=settings.base_dir / "static"), name="static")
     app.include_router(auth_router.router)
     app.include_router(cars_router.router)
     app.include_router(reservations_router.router)
