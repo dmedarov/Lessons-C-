@@ -898,5 +898,13 @@ auditable and safe enough for real company operations.
 - **Verification:** `pytest` (`24 passed` at shipment), Python/JS syntax checks,
   `git diff --check`, Docker healthcheck and admin reset/audit endpoint smoke.
 
+### 2026-04-19 - Dedicated employee/admin surfaces (`0a5a57f`)
+
+- **Shipped:** Removed duplicated admin creation/user-management controls from
+  the employee desk and made admin-only panels in `/admin` hidden by default
+  until auth/role gating runs.
+- **Verification:** `pytest` (`24 passed` at shipment), `node --check`,
+  `git diff --check`, Docker healthcheck and HTML smoke for `/` + `/admin`.
+
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._
