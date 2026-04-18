@@ -1,6 +1,6 @@
 # Lessons-C- / Car Pool Reservation API
 
-Чист, модулен пример за резервация на пул от служебни автомобили — FastAPI + SQLite, контейнеризиран с Docker. Фокус върху реалистична сигурност, работещ контейнер и удобен вътрешен UI за служители и fleet admin.
+Чист, модулен пример за резервация на пул от служебни автомобили — FastAPI, Docker и dual-database setup за SQLite в dev и PostgreSQL в production. Фокус върху реалистична сигурност, работещ контейнер и удобен вътрешен UI за служители и fleet admin.
 
 ## Какво прави
 
@@ -14,6 +14,8 @@
 - Responsive dashboard UI без външни CDN зависимости.
 - Бърз operational overview: активни коли, pending/approved заявки, следващи курсове.
 - Ясни status тагове, филтри и действия в контекста на всеки запис.
+- Реален месечен календарен изглед за планиране и натоварване по дни.
+- PostgreSQL-ready режим чрез `DATABASE_URL`.
 
 ## Бърз старт
 
@@ -47,12 +49,28 @@ docker compose down
 
 > За production остави `APP_ENV=prod` и използвай дълъг случаен `SECRET_KEY`. Ако искаш бърза dev среда, можеш да смениш `APP_ENV=dev` в `.env`.
 
+## Production с PostgreSQL
+
+1. Попълни `.env` с реални стойности за `SECRET_KEY`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` и `DATABASE_URL`.
+
+2. Стартирай production-ready стека:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build -d
+```
+
+3. Спиране:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml down
+```
+
 ## Архитектура
 
 ```
 app.py              # FastAPI factory + lifespan
-config.py           # Настройки от env (SECRET_KEY, DB_PATH, TOKEN_TTL_SECONDS)
-db.py               # SQLite connection, schema, transaction helper, seed
+config.py           # Настройки от env (SECRET_KEY, DB_PATH, DATABASE_URL, TOKEN_TTL_SECONDS)
+db.py               # SQLite/PostgreSQL adapters, schema, transaction helper, dev seed
 security.py         # HMAC-подписани токени, PBKDF2 пароли, auth deps
 schemas.py          # Pydantic request/response модели
 routers/
@@ -63,6 +81,7 @@ templates/index.html
 static/
 tests/test_app.py
 conftest.py         # путва project root в sys.path
+docker-compose.postgres.yml
 ```
 
 ## Login
@@ -95,6 +114,8 @@ conftest.py         # путва project root в sys.path
 9. **Docker multi-stage build** + non-root user + HEALTHCHECK.
 10. **Local static assets** — UI-то не зависи от външна CDN връзка.
 11. **Role-aware dashboard** — employee вижда бърз booking flow, admin вижда и контрол на наличността.
+12. **Dual backend strategy** — SQLite за лек dev старт, PostgreSQL чрез `DATABASE_URL` за production.
+13. **Demo users only in dev** — production startup не seed-ва примерни акаунти.
 
 ## Тестове
 
@@ -107,7 +128,7 @@ pytest -q
 
 ## Ограничения на този пример
 
-- SQLite — ок за single-instance, за multi-writer/production премини на PostgreSQL + Alembic.
+- PostgreSQL режимът е готов за контейнерен production setup, но schema migration история все още липсва; следващата стъпка е Alembic.
 - Refresh token-и няма — клиентът прави нов login след `expires_in`.
 - Rate limiting и CORS са извън скоупа.
 

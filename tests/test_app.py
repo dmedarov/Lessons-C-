@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import os
 from pathlib import Path
 from typing import Iterator
@@ -14,8 +15,8 @@ import db
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     monkeypatch.setenv("DB_PATH", str(tmp_path / "fleet.db"))
     monkeypatch.setenv("SECRET_KEY", "test-secret-key")
-
-    import importlib
+    monkeypatch.setenv("APP_ENV", "dev")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
 
     import app as app_module
     import config
@@ -36,6 +37,36 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
 
     with TestClient(app_module.app) as c:
         yield c
+
+
+def test_database_url_switches_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://fleetflow:secret@postgres:5432/fleetflow")
+
+    import config
+
+    importlib.reload(config)
+    assert config.settings.db_backend == "postgres"
+
+
+def test_prod_init_db_does_not_seed_demo_users(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "prod.db"))
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    import config
+
+    importlib.reload(config)
+    importlib.reload(db)
+
+    db.init_db()
+
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()
+
+    assert row["n"] == 0
 
 
 def _login(client: TestClient, username: str, password: str) -> str:

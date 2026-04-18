@@ -67,27 +67,30 @@ def create_reservation(
         if overlapping:
             raise HTTPException(status_code=409, detail="Car is already reserved for part of this period")
 
-        cur = conn.execute(
-            """
+        query = """
             INSERT INTO reservations(
                 car_id, created_by_id, employee_name, start_time, end_time,
                 purpose, status, created_at, updated_at
             )
             VALUES(?, ?, ?, ?, ?, ?, 'pending', ?, ?)
-            """,
-            (
-                payload.car_id,
-                auth.user_id,
-                auth.display_name,
-                start_iso,
-                end_iso,
-                payload.purpose,
-                now,
-                now,
-            ),
+        """
+        params = (
+            payload.car_id,
+            auth.user_id,
+            auth.display_name,
+            start_iso,
+            end_iso,
+            payload.purpose,
+            now,
+            now,
         )
-        _log(conn, cur.lastrowid, auth.user_id, "created", payload.purpose)
-        row = conn.execute("SELECT * FROM reservations WHERE id=?", (cur.lastrowid,)).fetchone()
+        if conn.backend == "postgres":
+            reservation_id = conn.execute(f"{query} RETURNING id", params).fetchone()["id"]
+        else:
+            reservation_id = conn.execute(query, params).lastrowid
+
+        _log(conn, reservation_id, auth.user_id, "created", payload.purpose)
+        row = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
         return dict(row)
 
 

@@ -17,14 +17,25 @@ def create_car(payload: CarCreate, _: AuthContext = Depends(require_admin)) -> d
     now = datetime.now(timezone.utc).isoformat()
     with get_conn() as conn:
         try:
-            cur = conn.execute(
-                "INSERT INTO cars(plate_number, model, created_at) VALUES(?, ?, ?)",
-                (payload.plate_number.upper().strip(), payload.model.strip(), now),
-            )
-        except sqlite3.IntegrityError as exc:
+            query = "INSERT INTO cars(plate_number, model, created_at) VALUES(?, ?, ?)"
+            params = (payload.plate_number.upper().strip(), payload.model.strip(), now)
+            if conn.backend == "postgres":
+                car_id = conn.execute(f"{query} RETURNING id", params).fetchone()["id"]
+            else:
+                car_id = conn.execute(query, params).lastrowid
+        except Exception as exc:
+            pg_integrity_error = None
+            try:
+                from psycopg import IntegrityError as pg_integrity_error
+            except ImportError:
+                pass
+            if not isinstance(exc, sqlite3.IntegrityError) and not (
+                pg_integrity_error and isinstance(exc, pg_integrity_error)
+            ):
+                raise
             raise HTTPException(status_code=409, detail="Car already exists") from exc
 
-        row = conn.execute("SELECT * FROM cars WHERE id=?", (cur.lastrowid,)).fetchone()
+        row = conn.execute("SELECT * FROM cars WHERE id=?", (car_id,)).fetchone()
         return dict(row)
 
 
