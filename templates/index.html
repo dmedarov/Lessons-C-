@@ -3,38 +3,55 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FleetFlow | Pool Car управление</title>
+    <title>FleetFlow | Executive pool car desk</title>
     <link rel="stylesheet" href="/static/styles.css" />
     <script defer src="/static/app.js"></script>
   </head>
   <body>
-    <div class="app-shell">
-      <header class="hero">
-        <div class="hero__copy">
-          <p class="eyebrow">Corporate Mobility Desk</p>
-          <h1>FleetFlow</h1>
-          <p class="hero__lead">
-            Вътрешен dashboard за служебни автомобили с ясна наличност, бързи заявки и одобрение без
-            излишно обикаляне из екрани.
-          </p>
-          <div class="hero__actions">
-            <a class="ghost-link" href="/docs" target="_blank" rel="noreferrer">API документация</a>
-            <a class="ghost-link" href="/health" target="_blank" rel="noreferrer">Health check</a>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand__mark">F</div>
+          <div>
+            <p class="eyebrow">Executive mobility</p>
+            <strong>FleetFlow</strong>
           </div>
         </div>
 
-        <section class="hero__panel">
-          <div class="hero__panel-head">
-            <span>Оперативен преглед</span>
-            <strong>Днес</strong>
+        <nav class="topbar__nav">
+          <a href="#calendarStudio">Calendar</a>
+          <a href="#reservationsDeck">Requests</a>
+          <a href="#fleetDeck">Fleet</a>
+          <a href="/docs" target="_blank" rel="noreferrer">API</a>
+        </nav>
+
+        <div class="topbar__actions">
+          <a class="ghost-link" href="/health" target="_blank" rel="noreferrer">Health</a>
+          <span class="status-pill status-pill--muted" id="sessionBadge">Не сте влезли</span>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div class="hero__primary">
+          <p class="eyebrow">Corporate car pool</p>
+          <h1>Управление на резервации с реален календарен изглед.</h1>
+          <p class="hero__lead">
+            FleetFlow събира наличност, одобрения и планиране в една спокойна работна повърхност, така че
+            служителите да резервират бързо, а fleet admin да вижда натоварването без да рови из таблици.
+          </p>
+
+          <div class="hero__actions">
+            <a class="btn btn--primary" href="#calendarStudio">Отвори календара</a>
+            <a class="btn btn--ghost" href="#reservationPanel">Нова резервация</a>
           </div>
+
           <div class="stats-grid" id="overviewStats">
             <article class="stat-card">
               <span class="stat-card__label">Активни коли</span>
               <strong class="stat-card__value">0</strong>
             </article>
             <article class="stat-card">
-              <span class="stat-card__label">Pending</span>
+              <span class="stat-card__label">Чакащи</span>
               <strong class="stat-card__value">0</strong>
             </article>
             <article class="stat-card">
@@ -42,25 +59,19 @@
               <strong class="stat-card__value">0</strong>
             </article>
             <article class="stat-card">
-              <span class="stat-card__label">Моите заявки</span>
+              <span class="stat-card__label">Моят изглед</span>
               <strong class="stat-card__value">0</strong>
             </article>
           </div>
-          <p class="hero__caption" id="heroCaption">
-            Влез с профил, за да управляваш резервации и наличности.
-          </p>
-        </section>
-      </header>
+        </div>
 
-      <main class="workspace">
-        <aside class="sidebar">
-          <section class="panel panel--accent">
-            <div class="panel__header">
+        <div class="hero__secondary">
+          <section class="glass-card glass-card--highlight">
+            <div class="glass-card__header">
               <div>
-                <p class="panel__eyebrow">Сесия</p>
-                <h2>Достъп</h2>
+                <p class="panel__eyebrow">Live mode</p>
+                <h2>Сесия и достъп</h2>
               </div>
-              <span class="status-pill status-pill--muted" id="sessionBadge">Не сте влезли</span>
             </div>
 
             <form class="stack" id="loginForm" novalidate>
@@ -86,13 +97,74 @@
               <button class="chip" type="button" data-demo-user="admin" data-demo-pass="admin123">Demo admin</button>
               <button class="chip" type="button" data-demo-user="ivan" data-demo-pass="employee123">Demo employee</button>
             </div>
-            <p class="panel__hint">Сесиите не се пазят в браузъра, което е по-безопасно за споделени фирмени устройства.</p>
+
+            <p class="hero__caption" id="heroCaption">
+              Влез с профил, за да управляваш резервации, календар и наличности.
+            </p>
           </section>
 
-          <section class="panel" id="carPanel">
-            <div class="panel__header">
+          <section class="glass-card">
+            <div class="glass-card__header">
               <div>
-                <p class="panel__eyebrow">Admin</p>
+                <p class="panel__eyebrow">Workflow</p>
+                <h2>Как работи</h2>
+              </div>
+            </div>
+
+            <ul class="rule-list">
+              <li>Календарът визуализира реални заявки по дни и пази фокуса върху натоварените моменти.</li>
+              <li>Employee подава заявка, а admin одобрява, отказва или отменя директно от текущия контекст.</li>
+              <li>Неактивните коли остават видими за fleet admin, но са извадени от нови резервации.</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+
+      <main class="workspace">
+        <aside class="control-rail">
+          <section class="glass-card" id="reservationPanel">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Booking</p>
+                <h2>Нова резервация</h2>
+              </div>
+            </div>
+
+            <form class="stack" id="reservationForm" novalidate>
+              <label class="field">
+                <span>Автомобил</span>
+                <select id="carId" name="carId"></select>
+                <small class="field__error" id="carIdError"></small>
+              </label>
+
+              <label class="field">
+                <span>Начало</span>
+                <input id="startTime" name="startTime" type="datetime-local" />
+                <small class="field__hint">Клик върху ден в календара може да попълни началния слот.</small>
+                <small class="field__error" id="startTimeError"></small>
+              </label>
+
+              <label class="field">
+                <span>Край</span>
+                <input id="endTime" name="endTime" type="datetime-local" />
+                <small class="field__hint">Краят трябва да е след началото.</small>
+                <small class="field__error" id="endTimeError"></small>
+              </label>
+
+              <label class="field">
+                <span>Цел на пътуването</span>
+                <textarea id="purpose" name="purpose" rows="4" placeholder="Клиентска среща, междуофисно пътуване, сервиз..."></textarea>
+                <small class="field__error" id="purposeError"></small>
+              </label>
+
+              <button class="btn btn--primary" type="submit">Подай заявка</button>
+            </form>
+          </section>
+
+          <section class="glass-card" id="carPanel">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Fleet admin</p>
                 <h2>Добави автомобил</h2>
               </div>
             </div>
@@ -110,51 +182,12 @@
                 <small class="field__error" id="modelError"></small>
               </label>
 
-              <button class="btn btn--primary" type="submit">Запази автомобил</button>
-            </form>
-          </section>
-
-          <section class="panel" id="reservationPanel">
-            <div class="panel__header">
-              <div>
-                <p class="panel__eyebrow">Booking</p>
-                <h2>Нова резервация</h2>
-              </div>
-            </div>
-
-            <form class="stack" id="reservationForm" novalidate>
-              <label class="field">
-                <span>Автомобил</span>
-                <select id="carId" name="carId"></select>
-                <small class="field__error" id="carIdError"></small>
-              </label>
-
-              <label class="field">
-                <span>Начало</span>
-                <input id="startTime" name="startTime" type="datetime-local" />
-                <small class="field__hint">Избери бъдещ начален час.</small>
-                <small class="field__error" id="startTimeError"></small>
-              </label>
-
-              <label class="field">
-                <span>Край</span>
-                <input id="endTime" name="endTime" type="datetime-local" />
-                <small class="field__hint">Краят трябва да е след началото.</small>
-                <small class="field__error" id="endTimeError"></small>
-              </label>
-
-              <label class="field">
-                <span>Цел на пътуването</span>
-                <textarea id="purpose" name="purpose" rows="3" placeholder="Клиентска среща, сервиз, междуофисно пътуване..."></textarea>
-                <small class="field__error" id="purposeError"></small>
-              </label>
-
-              <button class="btn btn--success" type="submit">Подай заявка</button>
+              <button class="btn btn--ghost" type="submit">Добави към флота</button>
             </form>
           </section>
         </aside>
 
-        <section class="content">
+        <section class="content-rail">
           <div class="alert-strip hidden" id="message" role="alert" tabindex="-1">
             <div>
               <strong id="messageTitle">Има проблем</strong>
@@ -163,79 +196,115 @@
             <ul id="messageList"></ul>
           </div>
 
-          <section class="panel panel--wide">
-            <div class="panel__header panel__header--split">
+          <section class="studio-card" id="calendarStudio">
+            <div class="studio-card__header">
               <div>
-                <p class="panel__eyebrow">Availability</p>
-                <h2>Флот</h2>
+                <p class="panel__eyebrow">Calendar studio</p>
+                <h2>Реален месечен изглед</h2>
+                <p class="section-copy">Календарът показва резервациите в текущия филтриран изглед и откроява натоварените дни.</p>
               </div>
-              <div class="toolbar">
-                <button class="chip chip--active" type="button" data-car-filter="active">Само активни</button>
-                <button class="chip" type="button" data-car-filter="all">Всички</button>
+
+              <div class="calendar-toolbar">
+                <div class="segmented">
+                  <button class="segmented__btn" id="monthPrev" type="button" aria-label="Предишен месец">‹</button>
+                  <button class="segmented__btn segmented__btn--wide" id="todayFocus" type="button">Днес</button>
+                  <button class="segmented__btn" id="monthNext" type="button" aria-label="Следващ месец">›</button>
+                </div>
+                <strong class="calendar-toolbar__label" id="calendarMonthLabel">Месец</strong>
               </div>
             </div>
 
-            <div class="fleet-grid" id="carsGrid"></div>
+            <div class="calendar-layout">
+              <div class="calendar-board">
+                <div class="calendar-weekdays">
+                  <span>Пн</span>
+                  <span>Вт</span>
+                  <span>Ср</span>
+                  <span>Чт</span>
+                  <span>Пт</span>
+                  <span>Сб</span>
+                  <span>Нд</span>
+                </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
+              </div>
+
+              <aside class="day-panel">
+                <div class="day-panel__header">
+                  <p class="panel__eyebrow">Selected day</p>
+                  <h3 id="selectedDateLabel">Избери ден</h3>
+                  <p class="muted" id="selectedDateMeta">Кликни върху клетка в календара, за да видиш заетостта и да подготвиш слот за резервация.</p>
+                </div>
+
+                <div class="legend">
+                  <span><i class="legend__dot legend__dot--pending"></i> Pending</span>
+                  <span><i class="legend__dot legend__dot--approved"></i> Approved</span>
+                  <span><i class="legend__dot legend__dot--rejected"></i> Rejected</span>
+                </div>
+
+                <div class="day-timeline" id="dayTimeline"></div>
+              </aside>
+            </div>
           </section>
 
-          <section class="panel panel--wide">
-            <div class="panel__header panel__header--split">
-              <div>
-                <p class="panel__eyebrow">Requests</p>
-                <h2>Резервации</h2>
+          <section class="split-deck">
+            <section class="glass-card" id="reservationsDeck">
+              <div class="glass-card__header glass-card__header--split">
+                <div>
+                  <p class="panel__eyebrow">Requests</p>
+                  <h2>Резервации</h2>
+                </div>
+                <div class="toolbar">
+                  <button class="chip chip--active" type="button" data-scope="smart">Стандартен изглед</button>
+                  <button class="chip" type="button" data-scope="mine">Само мои</button>
+                  <button class="chip chip--active" type="button" data-status="all">Всички</button>
+                  <button class="chip" type="button" data-status="pending">Pending</button>
+                  <button class="chip" type="button" data-status="approved">Approved</button>
+                </div>
               </div>
-              <div class="toolbar">
-                <button class="chip chip--active" type="button" data-scope="smart">Стандартен изглед</button>
-                <button class="chip" type="button" data-scope="mine">Само мои</button>
-                <button class="chip" type="button" data-status="all">Всички статуси</button>
-                <button class="chip" type="button" data-status="pending">Pending</button>
-                <button class="chip" type="button" data-status="approved">Approved</button>
-              </div>
-            </div>
 
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Автомобил</th>
-                    <th>Заявител</th>
-                    <th>Период</th>
-                    <th>Статус</th>
-                    <th>Причина</th>
-                    <th>Действия</th>
-                  </tr>
-                </thead>
-                <tbody id="reservationsTableBody"></tbody>
-              </table>
-            </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Автомобил</th>
+                      <th>Заявител</th>
+                      <th>Период</th>
+                      <th>Статус</th>
+                      <th>Причина</th>
+                      <th>Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reservationsTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="glass-card" id="fleetDeck">
+              <div class="glass-card__header glass-card__header--split">
+                <div>
+                  <p class="panel__eyebrow">Fleet</p>
+                  <h2>Наличност</h2>
+                </div>
+                <div class="toolbar">
+                  <button class="chip chip--active" type="button" data-car-filter="active">Само активни</button>
+                  <button class="chip" type="button" data-car-filter="all">Всички</button>
+                </div>
+              </div>
+
+              <div class="fleet-grid" id="carsGrid"></div>
+            </section>
           </section>
 
-          <section class="digest-grid">
-            <section class="panel">
-              <div class="panel__header">
-                <div>
-                  <p class="panel__eyebrow">Forward look</p>
-                  <h2>Следващи курсове</h2>
-                </div>
+          <section class="glass-card">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Forward look</p>
+                <h2>Следващи курсове</h2>
               </div>
-              <div class="agenda-list" id="agendaList"></div>
-            </section>
+            </div>
 
-            <section class="panel">
-              <div class="panel__header">
-                <div>
-                  <p class="panel__eyebrow">Rules</p>
-                  <h2>Как работи</h2>
-                </div>
-              </div>
-              <ul class="rule-list">
-                <li>Служителят подава заявка, а admin я одобрява или отказва.</li>
-                <li>Системата блокира застъпващи се резервации за активни автомобили.</li>
-                <li>Статусите са видими с ясни тагове, а действията са до самия запис.</li>
-                <li>Неактивните автомобили остават видими за admin, но не могат да се резервират.</li>
-              </ul>
-            </section>
+            <div class="agenda-list" id="agendaList"></div>
           </section>
         </section>
       </main>
