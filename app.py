@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -23,6 +24,15 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Corporate Car Pool Reservation", version="1.0.0", lifespan=lifespan)
+    if settings.cors_allow_origins:
+        wildcard_origins = "*" in settings.cors_allow_origins
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(settings.cors_allow_origins),
+            allow_credentials=not wildcard_origins,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type"],
+        )
     app.mount("/static", StaticFiles(directory=settings.base_dir / "static"), name="static")
     app.include_router(auth_router.router)
     app.include_router(cars_router.router)

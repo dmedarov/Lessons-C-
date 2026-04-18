@@ -24,6 +24,7 @@ class Settings:
     smtp_use_tls: bool
     slack_webhook_url: str | None
     teams_webhook_url: str | None
+    cors_allow_origins: tuple[str, ...]
 
     @property
     def db_backend(self) -> str:
@@ -37,6 +38,11 @@ class Settings:
             if app_env != "dev":
                 raise RuntimeError("SECRET_KEY env var is required outside dev")
             secret = secrets.token_urlsafe(32)
+
+        cors_raw = os.getenv("CORS_ALLOW_ORIGINS")
+        if cors_raw is None:
+            cors_raw = "*" if app_env == "dev" else ""
+        cors_allow_origins = tuple(origin.strip() for origin in cors_raw.split(",") if origin.strip())
 
         return cls(
             db_path=os.getenv("DB_PATH", "/data/fleet.db"),
@@ -55,6 +61,7 @@ class Settings:
             smtp_use_tls=os.getenv("SMTP_USE_TLS", "true").lower() != "false",
             slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL"),
             teams_webhook_url=os.getenv("TEAMS_WEBHOOK_URL"),
+            cors_allow_origins=cors_allow_origins,
         )
 
 
