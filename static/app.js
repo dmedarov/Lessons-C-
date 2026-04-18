@@ -6,15 +6,18 @@ function pluralRecord(count) {
   return window.FleetFlowI18n?.pluralRecord(count) || `${count} запис(а)`;
 }
 
+const surface = document.body.dataset.surface || "employee";
+
 const state = {
   token: null,
   hasAdmin: true,
-  surface: document.body.dataset.surface || "employee",
+  surface,
   currentRole: null,
   currentUser: null,
   carFilter: "active",
   scope: "smart",
-  status: "all",
+  status: surface === "admin" ? "pending" : "all",
+  notificationPollId: null,
   cars: [],
   reservations: [],
   notifications: [],
@@ -38,6 +41,7 @@ const els = {
   username: document.getElementById("username"),
   password: document.getElementById("password"),
   sessionBadge: document.getElementById("sessionBadge"),
+  notificationBadge: document.getElementById("notificationBadge"),
   sessionTitle: document.getElementById("sessionTitle"),
   sessionModePill: document.getElementById("sessionModePill"),
   sessionMeta: document.getElementById("sessionMeta"),
@@ -332,7 +336,31 @@ function setSession(user, token) {
   state.currentUser = user;
   state.currentRole = user ? user.role : null;
   state.token = token;
+  if (user && token) {
+    startNotificationPolling();
+  } else {
+    stopNotificationPolling();
+  }
   renderShell();
+}
+
+function startNotificationPolling() {
+  if (state.notificationPollId) return;
+  state.notificationPollId = window.setInterval(async () => {
+    if (!state.token) return;
+    try {
+      await loadNotifications();
+      updateOverview();
+    } catch (error) {
+      console.warn("Notification polling failed", error);
+    }
+  }, 30000);
+}
+
+function stopNotificationPolling() {
+  if (!state.notificationPollId) return;
+  window.clearInterval(state.notificationPollId);
+  state.notificationPollId = null;
 }
 
 function renderShell() {
@@ -394,6 +422,14 @@ function updateOverview() {
       node.textContent = value;
     }
   });
+}
+
+function updateNotificationBadge() {
+  if (!els.notificationBadge) return;
+  const unread = state.notifications.filter((item) => !item.read_at).length;
+  els.notificationBadge.textContent = unread > 99 ? "99+" : String(unread);
+  els.notificationBadge.classList.toggle("hidden", !unread);
+  els.notificationBadge.classList.toggle("notification-badge--pulse", unread > 0);
 }
 
 function updateSummary() {
@@ -489,6 +525,7 @@ function renderNotifications() {
     `;
     els.notificationsList.appendChild(card);
   });
+  updateNotificationBadge();
 }
 
 function renderUsers() {
@@ -870,10 +907,12 @@ async function loadNotifications() {
   if (!state.token) {
     state.notifications = [];
     renderNotifications();
+    updateNotificationBadge();
     return;
   }
   state.notifications = await apiFetch("/notifications", { headers: authHeaders() });
   renderNotifications();
+  updateNotificationBadge();
 }
 
 async function loadUsers() {
@@ -1085,6 +1124,7 @@ function handleLogout() {
   state.blackouts = [];
   els.loginForm.reset();
   renderNotifications();
+  updateNotificationBadge();
   renderReservations();
   renderUsers();
   renderBlackouts();

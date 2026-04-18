@@ -29,6 +29,7 @@
 
         <div class="topbar__actions">
           <a class="ghost-link" href="/health" target="_blank" rel="noreferrer">Health</a>
+          <span class="notification-badge hidden" id="notificationBadge" aria-label="Непрочетени нотификации">0</span>
           <span class="status-pill status-pill--muted" id="sessionBadge">Admin login</span>
         </div>
       </header>
@@ -326,8 +327,8 @@
               <div class="toolbar">
                 <button class="chip chip--active" type="button" data-scope="smart">Всички</button>
                 <button class="chip" type="button" data-scope="mine">Само мои</button>
-                <button class="chip chip--active" type="button" data-status="all">Всички</button>
-                  <button class="chip" type="button" data-status="pending">Чакащи</button>
+                <button class="chip" type="button" data-status="all">Всички</button>
+                <button class="chip chip--active" type="button" data-status="pending">Чакащи</button>
                   <button class="chip" type="button" data-status="approved">Одобрени</button>
                   <button class="chip" type="button" data-status="checked_out">Активни</button>
                   <button class="chip" type="button" data-status="returned">Върнати</button>

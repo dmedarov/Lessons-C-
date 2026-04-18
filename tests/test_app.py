@@ -523,3 +523,5 @@ def test_health_and_ui(client: TestClient) -> None:
     assert "text/html" in admin_res.headers["content-type"]
     assert "/static/i18n.js" in res.text
     assert "/static/i18n.js" in admin_res.text
+    assert 'id="notificationBadge"' in res.text
+    assert 'id="notificationBadge"' in admin_res.text

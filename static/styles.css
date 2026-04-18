@@ -122,6 +122,36 @@ a {
   color: var(--ink);
 }
 
+.notification-badge {
+  min-width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 9px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--danger), #e15d73);
+  box-shadow: 0 12px 24px rgba(184, 53, 79, 0.22);
+}
+
+.notification-badge--pulse {
+  animation: badge-pulse 520ms ease;
+}
+
+@keyframes badge-pulse {
+  0% {
+    transform: scale(0.92);
+  }
+  55% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .eyebrow,
 .panel__eyebrow {
   margin: 0 0 10px;
