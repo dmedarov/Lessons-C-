@@ -26,6 +26,8 @@ RUN useradd --create-home --uid 10001 appuser
 
 COPY --from=builder /opt/venv /opt/venv
 COPY app.py config.py db.py security.py schemas.py ./
+COPY alembic.ini ./
+COPY alembic ./alembic
 COPY routers ./routers
 COPY static ./static
 COPY templates ./templates

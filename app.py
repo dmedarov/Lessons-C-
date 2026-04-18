@@ -10,7 +10,9 @@ from config import settings
 from db import init_db
 from routers import auth as auth_router
 from routers import cars as cars_router
+from routers import notifications as notifications_router
 from routers import reservations as reservations_router
+from routers import users as users_router
 
 
 @asynccontextmanager
@@ -24,7 +26,9 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=settings.base_dir / "static"), name="static")
     app.include_router(auth_router.router)
     app.include_router(cars_router.router)
+    app.include_router(notifications_router.router)
     app.include_router(reservations_router.router)
+    app.include_router(users_router.router)
 
     @app.get("/", include_in_schema=False)
     def ui() -> FileResponse:

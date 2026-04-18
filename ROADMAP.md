@@ -1,82 +1,172 @@
-# Roadmap: Car Pool Reservation App
+# Roadmap: FleetFlow
 
-## Vision
-Леко и надеждно вътрешно приложение за резервации на служебни автомобили с ясна проследимост, роли и минимални конфликти.
+## Product North Star
+Вътрешно приложение за pool car управление, което е:
 
-## Фаза 1 (Стабилизиране) — 1-2 седмици
+- спокойно и ясно като executive tool, не като ERP
+- сигурно и предвидимо при role промени, деактивации и operational edge cases
+- устойчиво за production промени чрез миграции, audit trail и контролируем lifecycle
 
-### 1) Качество и тестове
-- Добавяне на автоматични тестове:
-  - unit тестове за валидации (времеви интервали, duplicate car),
-  - integration тестове за API endpoint-и,
-  - конкурентни тестове за конфликтни резервации.
-- Добавяне на `pytest` и тестов pipeline в GitHub Actions.
+## Design Principles
 
-### 2) Наблюдаемост
-- Структурирани логове (JSON) + request ID.
-- Ясни HTTP грешки с консистентен формат.
-- Базови метрики (брой заявки, latency, 4xx/5xx).
+- Една основна задача на екран: employee вижда бърз booking и собствените курсове; admin вижда флот, чакащи решения и operational visibility.
+- Ясен status model: заявка, одобрение, активен курс, връщане и уведомяване без скрити състояния.
+- Кратки и стойностни нотификации: без шум, без дублиране, без чувствителни данни.
+- Migration-first backend: schema промени минават през Alembic, не през ad-hoc ръчни SQL промени.
+- Security by default: пароли с slow hash, токени, rebinding към текущ user state, least-privilege UI.
 
-### 3) DX (Developer Experience)
-- `Makefile` цели (`make run`, `make test`, `make lint`).
-- `.env.example` и конфигурируеми настройки (DB_PATH, log level).
+## What Best Practice Research Suggests
 
-## Фаза 2 (Сигурност и достъп) — 2-3 седмици
+### Authentication and user management
+- OWASP Authentication Cheat Sheet препоръчва активна сесия + reauthentication за чувствителни действия, неясни auth грешки и силно логване на auth събития.
+- За нашия продукт това означава: bootstrap на първи admin, без demo users в production, моментно отнемане на достъп при deactivation, и password change с текуща парола.
 
-### 1) Аутентикация/авторизация
-- JWT login.
-- Роли: `employee`, `fleet_admin`.
-- Ограничаване на действията (само admin добавя/деактивира автомобили).
+### Notifications
+- Apple HIG насърчава concise, glanceable notifications и избягване на noise/duplicates.
+- За FleetFlow това означава: in-app inbox с кратки operational съобщения само при request, approval/rejection, start, return, cancel.
 
-### 2) Валидации и бизнес правила
-- Забрана за резервации в миналото.
-- Максимална продължителност на резервация (напр. 24 часа).
-- Blackout периоди (сервиз/ремонт).
+### Admin and operational UX
+- Apple HIG и Material guidance сочат към ясна визуална йерархия, спокойни повърхности, малко, но силни действия и status visibility.
+- GOV.UK notification banner guidance подсказва, че важните състояния трябва да са в контекста на текущата задача, а не смесени с validation errors.
+- За FleetFlow това означава: отделни admin/employee изгледи, status rail, notification center, и контекстни действия в самия ред/карта.
 
-### 3) Одит и проследимост
-- Audit trail: кой и кога създава/редактира/отменя резервация.
-- Soft delete за резервации и автомобили.
+### Database evolution
+- Alembic official docs препоръчват migration scripts като основен механизъм за change management, вместо приложението да “гадае” schema evolution в production.
+- За нас това означава: `alembic upgrade head` в production compose flow и versioned schema история.
 
-## Фаза 3 (Скалируемост) — 2-4 седмици
+## Delivery Roadmap
 
-### 1) База данни
-- Миграция SQLite -> PostgreSQL.
-- Alembic миграции и rollback стратегия.
+## Phase 1: Trusted Core
 
-### 2) API стабилност
-- Версиониране (`/api/v1`).
-- Rate limiting за write endpoint-и.
-- Idempotency key за POST `/reservations`.
+### Goal
+Да махнем demo поведението и да имаме реален access model.
 
-### 3) UI подобрения
-- Календарен изглед (седмица/ден).
-- Филтри по служител, период, автомобил.
-- „Моите резервации“ + бутон за отмяна.
+### Scope
+- bootstrap на първи `fleet_admin`
+- admin-created users
+- activate/deactivate users
+- промяна на парола с current password
+- role-aware auth context, rebinding на token към live DB state
 
-## Фаза 4 (Продукция и операции) — 1-2 седмици
+### Success metric
+- няма предварително seed-нати production акаунти
+- deactivated user губи достъп веднага
+- employee няма достъп до admin действия нито в API, нито в UI
 
-### 1) CI/CD
-- Автоматичен build + тест + scan на image.
-- Tag-ване на версии и release notes.
+## Phase 2: Operational Reservation Lifecycle
 
-### 2) Надеждност
-- Backup/restore план за DB.
-- Runbook за инциденти.
-- Health/readiness checks за оркестратор.
+### Goal
+Да превърнем “заявка” в пълен служебен процес.
 
-### 3) Security hardening
-- Dependabot / safety scan.
-- CSP/secure headers за UI.
-- Secrets management (не в git).
+### Scope
+- request
+- approve / reject
+- trip started / checked out
+- returned
+- cancel
+- audit log на всяка стъпка
+- видимост за това какво вижда employee 1, employee 2 и admin
 
-## Suggested backlog (първи 10 задачи)
-1. Добави `pytest` + 8 базови теста.
-2. Добави GitHub Action за тестове.
-3. Въведи Pydantic model за грешки (единен error format).
-4. Добави cancel endpoint за резервации.
-5. Добави JWT login endpoint.
-6. Добави role middleware/dependency.
-7. Добави поле `status` за резервация (`active/cancelled`).
-8. Добави audit таблица.
-9. Подготви PostgreSQL compose профил.
-10. Добави календарен UI компонент.
+### Success metric
+- втори служител не вижда чужди резервации
+- admin вижда global queue и lifecycle transitions
+- върната резервация вече не блокира бъдещ слот при overlap проверка
+
+## Phase 3: Calm Notification Layer
+
+### Goal
+Да има operational awareness без UI шум.
+
+### Scope
+- in-app notification center
+- unread/read state
+- event routing:
+  - admin получава нова заявка
+  - requester получава approve/reject
+  - admin получава start/return/cancel при employee actions
+- outbound hooks към email/Teams/Slack
+
+### Success metric
+- user вижда само релевантните за него събития
+- notification count не расте с дублиращи се съобщения за едно и също действие
+
+## Phase 3A: Admin Continuity
+
+### Goal
+Да няма single-point-of-failure при admin ownership и поддръжка на автомобили.
+
+### Scope
+- guarded admin handoff flow
+- user audit trail за административни действия
+- blackout windows за service/maintenance
+- reservation validation срещу активни blackout windows
+
+### Success metric
+- handoff не оставя системата без активен admin
+- blackout window винаги блокира конфликтна резервация
+- admin промени оставят trace за бъдещ audit surface
+
+## Phase 4: Apple-grade Interface System
+
+### Goal
+Да изглежда спокойно, точно и high-trust.
+
+### Scope
+- отделни admin и employee surfaces
+- ясна visual hierarchy
+- premium typography и по-малко, но по-силни action points
+- timeline и calendar като primary planning tools
+- notification banner за глобални operational messages
+- празни състояния, които насочват към следващото действие
+
+### Success metric
+- employee може да направи заявка без обучение
+- admin може да одобрява и управлява флота без да “лови” действия из интерфейса
+
+## Phase 5: Production Discipline
+
+### Goal
+Да можем да пускаме промени безопасно.
+
+### Scope
+- Alembic baseline и production upgrade flow
+- PostgreSQL-first production path
+- smoke tests след deploy
+- backup/restore playbook
+- structured logging и request correlation
+
+### Success metric
+- всяка schema промяна има revision
+- production boot минава през `alembic upgrade head`
+
+## Current Implementation Focus
+
+- реален auth/user management
+- lifecycle: request, approve, start, return, cancel
+- in-app notifications
+- outbound notifications към email/Slack/Teams
+- guarded admin handoff flow
+- service and maintenance blackout windows
+- admin vs employee views
+- Alembic baseline
+
+## Next Recommended Slices
+
+1. По-сериозен admin модул:
+   reset password от админ
+   смяна на роля
+   audit history за user actions
+   отделна admin страница вместо в общия dashboard
+2. Readiness checks, structured logs и traceable incident debugging.
+3. Calendar week/day views и utilization analytics.
+4. Scheduled reminder notifications преди start/end на резервация.
+5. Maintenance workflows с attachment-и и service provider metadata.
+
+## References
+
+- OWASP Authentication Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
+- Alembic Tutorial: https://alembic.sqlalchemy.org/en/latest/tutorial.html
+- Apple Human Interface Guidelines: https://developer.apple.com/design/human-interface-guidelines/
+- Apple Notifications HIG: https://developer.apple.com/design/human-interface-guidelines/notifications/
+- GOV.UK Notification Banner: https://design-system.service.gov.uk/components/notification-banner/
+- Material Design guidance: https://m3.material.io/

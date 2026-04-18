@@ -1,5 +1,6 @@
 const state = {
   token: null,
+  hasAdmin: true,
   currentRole: null,
   currentUser: null,
   carFilter: "active",
@@ -7,29 +8,58 @@ const state = {
   status: "all",
   cars: [],
   reservations: [],
+  notifications: [],
+  users: [],
   calendarDate: startOfMonth(new Date()),
   selectedDateKey: dateKey(new Date()),
 };
 
 const els = {
+  bootstrapForm: document.getElementById("bootstrapForm"),
+  bootstrapUsername: document.getElementById("bootstrapUsername"),
+  bootstrapDisplayName: document.getElementById("bootstrapDisplayName"),
+  bootstrapPassword: document.getElementById("bootstrapPassword"),
+  setupPanel: document.getElementById("setupPanel"),
+  loginPanel: document.getElementById("loginPanel"),
+  sessionPanel: document.getElementById("sessionPanel"),
   loginForm: document.getElementById("loginForm"),
   logoutBtn: document.getElementById("logoutBtn"),
+  logoutBtnSecondary: document.getElementById("logoutBtnSecondary"),
   username: document.getElementById("username"),
   password: document.getElementById("password"),
   sessionBadge: document.getElementById("sessionBadge"),
+  sessionTitle: document.getElementById("sessionTitle"),
+  sessionModePill: document.getElementById("sessionModePill"),
+  sessionMeta: document.getElementById("sessionMeta"),
   heroCaption: document.getElementById("heroCaption"),
-  carForm: document.getElementById("carForm"),
   reservationForm: document.getElementById("reservationForm"),
+  passwordForm: document.getElementById("passwordForm"),
+  userForm: document.getElementById("userForm"),
+  carForm: document.getElementById("carForm"),
+  reservationPanel: document.getElementById("reservationPanel"),
+  passwordPanel: document.getElementById("passwordPanel"),
+  userCreatePanel: document.getElementById("userCreatePanel"),
+  carPanel: document.getElementById("carPanel"),
+  usersDeck: document.getElementById("usersDeck"),
+  summaryDeck: document.getElementById("summaryDeck"),
+  markAllReadBtn: document.getElementById("markAllReadBtn"),
+  notificationsList: document.getElementById("notificationsList"),
+  usersGrid: document.getElementById("usersGrid"),
   carId: document.getElementById("carId"),
   startTime: document.getElementById("startTime"),
   endTime: document.getElementById("endTime"),
   purpose: document.getElementById("purpose"),
+  currentPassword: document.getElementById("currentPassword"),
+  newPassword: document.getElementById("newPassword"),
+  newUsername: document.getElementById("newUsername"),
+  newDisplayName: document.getElementById("newDisplayName"),
+  newRole: document.getElementById("newRole"),
+  newUserPassword: document.getElementById("newUserPassword"),
+  plate: document.getElementById("plate"),
+  model: document.getElementById("model"),
   carsGrid: document.getElementById("carsGrid"),
   reservationsTableBody: document.getElementById("reservationsTableBody"),
-  agendaList: document.getElementById("agendaList"),
   overviewStats: document.getElementById("overviewStats"),
-  carPanel: document.getElementById("carPanel"),
-  reservationPanel: document.getElementById("reservationPanel"),
   message: document.getElementById("message"),
   messageTitle: document.getElementById("messageTitle"),
   messageText: document.getElementById("messageText"),
@@ -42,9 +72,30 @@ const els = {
   monthPrev: document.getElementById("monthPrev"),
   monthNext: document.getElementById("monthNext"),
   todayFocus: document.getElementById("todayFocus"),
+  modeHeading: document.getElementById("modeHeading"),
+  modeCopy: document.getElementById("modeCopy"),
+  nextSignalTitle: document.getElementById("nextSignalTitle"),
+  nextSignalCopy: document.getElementById("nextSignalCopy"),
 };
 
-const fieldErrorIds = ["username", "password", "plate", "model", "carId", "startTime", "endTime", "purpose"];
+const fieldErrorIds = [
+  "bootstrapUsername",
+  "bootstrapDisplayName",
+  "bootstrapPassword",
+  "username",
+  "password",
+  "carId",
+  "startTime",
+  "endTime",
+  "purpose",
+  "currentPassword",
+  "newPassword",
+  "newUsername",
+  "newDisplayName",
+  "newUserPassword",
+  "plate",
+  "model",
+];
 
 function startOfMonth(value) {
   return new Date(value.getFullYear(), value.getMonth(), 1);
@@ -75,27 +126,32 @@ function authHeaders() {
   return headers;
 }
 
+function toggleHidden(node, hidden) {
+  if (!node) return;
+  node.classList.toggle("hidden", hidden);
+}
+
 function clearErrors() {
   fieldErrorIds.forEach((id) => {
-    const node = document.getElementById(`${id}Error`);
-    const input = document.getElementById(id);
-    if (node) {
-      node.textContent = "";
+    const errorNode = document.getElementById(`${id}Error`);
+    const inputNode = document.getElementById(id);
+    if (errorNode) {
+      errorNode.textContent = "";
     }
-    if (input) {
-      input.removeAttribute("aria-invalid");
+    if (inputNode) {
+      inputNode.removeAttribute("aria-invalid");
     }
   });
 }
 
 function setFieldError(id, message) {
-  const node = document.getElementById(`${id}Error`);
-  const input = document.getElementById(id);
-  if (node) {
-    node.textContent = message;
+  const errorNode = document.getElementById(`${id}Error`);
+  const inputNode = document.getElementById(id);
+  if (errorNode) {
+    errorNode.textContent = message;
   }
-  if (input) {
-    input.setAttribute("aria-invalid", "true");
+  if (inputNode) {
+    inputNode.setAttribute("aria-invalid", "true");
   }
 }
 
@@ -103,14 +159,14 @@ function showMessage(title, text, type = "error", details = []) {
   els.message.classList.remove("hidden");
   els.messageTitle.textContent = title;
   els.messageText.textContent = text;
-  els.message.style.borderColor = type === "success" ? "rgba(30, 130, 76, 0.18)" : "rgba(202, 60, 87, 0.18)";
-  els.message.style.background = type === "success" ? "rgba(239, 251, 244, 0.92)" : "rgba(255, 242, 246, 0.92)";
-  els.message.style.color = type === "success" ? "#19683d" : "#a52c47";
+  els.message.style.borderColor = type === "success" ? "rgba(35, 120, 78, 0.2)" : "rgba(184, 53, 79, 0.18)";
+  els.message.style.background = type === "success" ? "rgba(242, 251, 247, 0.92)" : "rgba(255, 244, 246, 0.92)";
+  els.message.style.color = type === "success" ? "#165538" : "#8f2740";
   els.messageList.innerHTML = "";
   details.forEach((detail) => {
-    const li = document.createElement("li");
-    li.textContent = detail;
-    els.messageList.appendChild(li);
+    const item = document.createElement("li");
+    item.textContent = detail;
+    els.messageList.appendChild(item);
   });
   els.message.focus();
 }
@@ -120,36 +176,13 @@ function hideMessage() {
   els.messageList.innerHTML = "";
 }
 
-function setSession(role, user, token) {
-  state.currentRole = role;
-  state.currentUser = user;
-  state.token = token;
-
-  if (!token) {
-    els.sessionBadge.className = "status-pill status-pill--muted";
-    els.sessionBadge.textContent = "Не сте влезли";
-    els.heroCaption.textContent = "Влез с профил, за да управляваш резервации, календар и наличности.";
-    els.carPanel.style.display = "none";
-    els.reservationPanel.style.display = "block";
-    return;
-  }
-
-  els.sessionBadge.className = `status-pill ${role === "fleet_admin" ? "status-pill--admin" : "status-pill--employee"}`;
-  els.sessionBadge.textContent = `${user} · ${role === "fleet_admin" ? "fleet_admin" : "employee"}`;
-  els.heroCaption.textContent =
-    role === "fleet_admin"
-      ? "Admin режимът показва пълната месечна картина, чакащите заявки и моментен контрол върху флота."
-      : "Employee режимът е фокусиран върху бързо планиране по дни и ясно проследяване на собствените заявки.";
-  els.carPanel.style.display = role === "fleet_admin" ? "block" : "none";
-  els.reservationPanel.style.display = "block";
-}
-
 function formatDateTime(value) {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("bg-BG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+  return new Intl.DateTimeFormat("bg-BG", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function formatMonthLabel(value) {
+  return new Intl.DateTimeFormat("bg-BG", { month: "long", year: "numeric" }).format(value);
 }
 
 function formatDayLabel(key) {
@@ -159,13 +192,6 @@ function formatDayLabel(key) {
     month: "long",
     year: "numeric",
   }).format(localDateFromKey(key));
-}
-
-function formatMonthLabel(value) {
-  return new Intl.DateTimeFormat("bg-BG", {
-    month: "long",
-    year: "numeric",
-  }).format(value);
 }
 
 function nextLocalSlot(minutesFromNow = 30) {
@@ -183,11 +209,11 @@ function localInputValue(date) {
 }
 
 function statusTag(status) {
-  return `<span class="status-tag status-tag--${status}">${status}</span>`;
+  return `<span class="status-tag status-tag--${status}">${status.replace("_", " ")}</span>`;
 }
 
 function calendarPill(item, car) {
-  const label = car ? `${car.plate_number}` : `Car ${item.car_id}`;
+  const label = car ? car.plate_number : `Car ${item.car_id}`;
   return `<span class="calendar-pill calendar-pill--${item.status}">${label}</span>`;
 }
 
@@ -206,21 +232,6 @@ function dayMap() {
   return map;
 }
 
-function setSelectedDate(key) {
-  state.selectedDateKey = key;
-  const selected = localDateFromKey(key);
-  const now = new Date();
-  if (selected >= new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
-    const start = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate(), 9, 0, 0, 0);
-    const end = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate(), 11, 0, 0, 0);
-    els.startTime.value = localInputValue(start);
-    els.endTime.value = localInputValue(end);
-    els.endTime.min = els.startTime.value;
-  }
-  renderCalendar();
-  renderDayTimeline();
-}
-
 async function apiFetch(url, options = {}) {
   const response = await fetch(url, options);
   let data = null;
@@ -232,28 +243,207 @@ async function apiFetch(url, options = {}) {
 
   if (!response.ok) {
     if (response.status === 401) {
-      setSession(null, null, null);
-      showMessage("Сесията е изтекла", "Моля, влез отново.", "error");
+      setSession(null, null);
     }
     throw new Error(data?.detail || "Неуспешна заявка към сървъра.");
   }
   return data;
 }
 
+function setSession(user, token) {
+  state.currentUser = user;
+  state.currentRole = user ? user.role : null;
+  state.token = token;
+  renderShell();
+}
+
+function renderShell() {
+  const authenticated = Boolean(state.token && state.currentUser);
+  const adminMode = state.currentRole === "fleet_admin";
+
+  toggleHidden(els.setupPanel, state.hasAdmin || authenticated);
+  toggleHidden(els.loginPanel, !state.hasAdmin || authenticated);
+  toggleHidden(els.sessionPanel, !authenticated);
+  toggleHidden(els.logoutBtn, !authenticated);
+  toggleHidden(els.reservationPanel, !authenticated);
+  toggleHidden(els.passwordPanel, !authenticated);
+  toggleHidden(els.summaryDeck, !authenticated);
+  toggleHidden(els.userCreatePanel, !authenticated || !adminMode);
+  toggleHidden(els.carPanel, !authenticated || !adminMode);
+  toggleHidden(els.usersDeck, !authenticated || !adminMode);
+
+  if (!state.hasAdmin && !authenticated) {
+    els.sessionBadge.className = "status-pill status-pill--muted";
+    els.sessionBadge.textContent = "Initial setup";
+    return;
+  }
+
+  if (!authenticated) {
+    els.sessionBadge.className = "status-pill status-pill--muted";
+    els.sessionBadge.textContent = "Очаква login";
+    return;
+  }
+
+  const isAdmin = state.currentRole === "fleet_admin";
+  els.sessionBadge.className = `status-pill ${isAdmin ? "status-pill--admin" : "status-pill--employee"}`;
+  els.sessionBadge.textContent = `${state.currentUser.display_name} · ${isAdmin ? "fleet_admin" : "employee"}`;
+  els.sessionTitle.textContent = isAdmin ? "Admin command ready" : "Employee workspace ready";
+  els.sessionModePill.className = `status-pill ${isAdmin ? "status-pill--admin" : "status-pill--employee"}`;
+  els.sessionModePill.textContent = isAdmin ? "fleet_admin" : "employee";
+  els.sessionMeta.textContent = `${state.currentUser.display_name} (${state.currentUser.username})`;
+  els.heroCaption.textContent = isAdmin
+    ? "Admin режимът дава глобален изглед към чакащи заявки, активни курсове, флот и потребители."
+    : "Employee режимът показва само собствените ти заявки, нотификации и следващото практично действие.";
+}
+
 function updateOverview() {
   const activeCars = state.cars.filter((car) => car.active).length;
   const pending = state.reservations.filter((item) => item.status === "pending").length;
-  const approved = state.reservations.filter((item) => item.status === "approved").length;
-  const mine =
-    state.currentRole === "fleet_admin"
-      ? state.reservations.filter((item) => item.employee_name === state.currentUser).length
-      : state.reservations.length;
+  const activeTrips = state.reservations.filter((item) => item.status === "checked_out").length;
+  const unread = state.notifications.filter((item) => !item.read_at).length;
 
-  [activeCars, pending, approved, mine].forEach((value, index) => {
+  [activeCars, pending, activeTrips, unread].forEach((value, index) => {
     const node = els.overviewStats.querySelectorAll(".stat-card__value")[index];
     if (node) {
       node.textContent = value;
     }
+  });
+}
+
+function updateSummary() {
+  if (!state.currentUser) {
+    els.modeHeading.textContent = "Влез в системата";
+    els.modeCopy.textContent = "След login ще видиш или личен operational desk, или глобален административен изглед.";
+    els.nextSignalTitle.textContent = "Очаква setup";
+    els.nextSignalCopy.textContent = state.hasAdmin
+      ? "Влез с наличен профил, за да заредиш данните."
+      : "Създай първия fleet admin, за да инициализираш системата.";
+    return;
+  }
+
+  const adminMode = state.currentRole === "fleet_admin";
+  if (adminMode) {
+    const pending = state.reservations.filter((item) => item.status === "pending").length;
+    const activeTrips = state.reservations.filter((item) => item.status === "checked_out").length;
+    els.modeHeading.textContent = "Admin mission deck";
+    els.modeCopy.textContent = "Една повърхност за решения, fleet control, user management и operational visibility.";
+    els.nextSignalTitle.textContent = pending
+      ? `${pending} чакащи заявки`
+      : activeTrips
+        ? `${activeTrips} активни курса`
+        : "Няма критични опашки";
+    els.nextSignalCopy.textContent = pending
+      ? "Прегледай pending редовете и вземи решение директно от таблицата."
+      : activeTrips
+        ? "Следи кои автомобили са в курс и кои още не са върнати."
+        : "Флотът е под контрол и няма чакащи решения.";
+    return;
+  }
+
+  const activeTrip = state.reservations.find((item) => item.status === "checked_out");
+  const nextApproved = [...state.reservations]
+    .filter((item) => item.status === "approved")
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0];
+
+  els.modeHeading.textContent = "Employee workspace";
+  els.modeCopy.textContent = "Личен изглед с ясна история на заявките, активните курсове и нотификациите, които те касаят.";
+  if (activeTrip) {
+    els.nextSignalTitle.textContent = "Имаш активен курс";
+    els.nextSignalCopy.textContent = `Автомобилът е в статус active trip до ${formatDateTime(activeTrip.end_time)}. При приключване го маркирай като върнат.`;
+    return;
+  }
+  if (nextApproved) {
+    els.nextSignalTitle.textContent = "Имаш одобрена заявка";
+    els.nextSignalCopy.textContent = `Следващият ти слот започва ${formatDateTime(nextApproved.start_time)}. Когато вземеш автомобила, маркирай го като active trip.`;
+    return;
+  }
+  els.nextSignalTitle.textContent = "Няма активен ангажимент";
+  els.nextSignalCopy.textContent = "Ако ти трябва автомобил, можеш да подадеш нова заявка отляво.";
+}
+
+function renderNotifications() {
+  els.notificationsList.innerHTML = "";
+
+  if (!state.token) {
+    els.notificationsList.innerHTML = `
+      <article class="empty-state">
+        <strong>Няма активна сесия.</strong>
+        <p>След вход тук ще виждаш само важните operational събития за теб.</p>
+      </article>
+    `;
+    return;
+  }
+
+  if (!state.notifications.length) {
+    els.notificationsList.innerHTML = `
+      <article class="empty-state">
+        <strong>Тихо табло.</strong>
+        <p>В момента няма нови уведомления за текущия потребител.</p>
+      </article>
+    `;
+    return;
+  }
+
+  state.notifications.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "notification-card";
+    card.innerHTML = `
+      <div class="notification-card__head">
+        <strong>${item.title}</strong>
+        ${item.read_at ? `<span class="status-pill status-pill--muted">read</span>` : `<span class="status-pill status-pill--employee">new</span>`}
+      </div>
+      <p>${item.body}</p>
+      <div class="notification-card__foot">
+        <span class="muted">${formatDateTime(item.created_at)}</span>
+        ${item.read_at ? "" : `<button class="action-btn action-btn--toggle" type="button" data-notification-read="${item.id}">Маркирай като прочетено</button>`}
+      </div>
+    `;
+    els.notificationsList.appendChild(card);
+  });
+}
+
+function renderUsers() {
+  els.usersGrid.innerHTML = "";
+
+  if (state.currentRole !== "fleet_admin") {
+    return;
+  }
+
+  if (!state.users.length) {
+    els.usersGrid.innerHTML = `
+      <article class="empty-state">
+        <strong>Няма потребители.</strong>
+        <p>Създай първите employee акаунти от панела вляво.</p>
+      </article>
+    `;
+    return;
+  }
+
+  state.users.forEach((user) => {
+    const card = document.createElement("article");
+    card.className = "user-card";
+    const isSelf = state.currentUser && user.id === state.currentUser.id;
+    card.innerHTML = `
+      <div class="user-card__head">
+        <div>
+          <strong>${user.display_name}</strong>
+          <p class="muted">${user.username}</p>
+        </div>
+        <span class="status-pill ${user.role === "fleet_admin" ? "status-pill--admin" : "status-pill--employee"}">${user.role}</span>
+      </div>
+      <div class="user-card__meta">
+        <span class="status-tag ${user.active ? "status-tag--approved" : "status-tag--cancelled"}">${user.active ? "active" : "inactive"}</span>
+        <span class="muted">създаден: ${formatDateTime(user.created_at)}</span>
+      </div>
+      <div class="car-card__actions">
+        ${
+          user.active
+            ? `<button class="action-btn action-btn--toggle" type="button" data-user-action="deactivate" data-user-id="${user.id}" ${isSelf ? "data-self=true" : ""}>Деактивирай</button>`
+            : `<button class="action-btn action-btn--toggle" type="button" data-user-action="activate" data-user-id="${user.id}">Активирай</button>`
+        }
+      </div>
+    `;
+    els.usersGrid.appendChild(card);
   });
 }
 
@@ -264,8 +454,8 @@ function renderCars() {
   if (!carsToShow.length) {
     els.carsGrid.innerHTML = `
       <article class="empty-state">
-        <strong>Няма автомобили за този филтър.</strong>
-        <p>Смени изгледа или добави нов автомобил като fleet admin.</p>
+        <strong>Няма автомобили за този изглед.</strong>
+        <p>${state.currentRole === "fleet_admin" ? "Регистрирай автомобил или смени филтъра." : "Изчакай fleet admin да добави наличност."}</p>
       </article>
     `;
     return;
@@ -280,9 +470,9 @@ function renderCars() {
           <strong class="car-card__title">${car.model}</strong>
           <p class="car-card__plate">${car.plate_number}</p>
         </div>
-        <span class="status-tag ${car.active ? "status-tag--approved" : "status-tag--cancelled"}">${car.active ? "активен" : "неактивен"}</span>
+        <span class="status-tag ${car.active ? "status-tag--approved" : "status-tag--cancelled"}">${car.active ? "active" : "inactive"}</span>
       </div>
-      <p class="mini-note">${car.active ? "Наличен за нови заявки." : "Скрит от нови резервации."}</p>
+      <p class="mini-note">${car.active ? "Наличен за нови заявки." : "Изваден от нови резервации."}</p>
       <div class="car-card__actions">
         ${
           state.currentRole === "fleet_admin"
@@ -304,15 +494,40 @@ function renderCarSelect() {
     : `<option value="">Няма активни автомобили</option>`;
 }
 
+function reservationContext(item) {
+  const details = [];
+  if (item.purpose) {
+    details.push(`<strong>${item.purpose}</strong>`);
+  }
+  if (item.decision_reason) {
+    details.push(`<div class="muted">${item.decision_reason}</div>`);
+  }
+  if (item.checked_out_at) {
+    details.push(`<div class="muted">Start: ${formatDateTime(item.checked_out_at)}</div>`);
+  }
+  if (item.returned_at) {
+    details.push(`<div class="muted">Return: ${formatDateTime(item.returned_at)}</div>`);
+  }
+  return details.join("");
+}
+
 function reservationActions(item) {
   const actions = [];
   const canAdmin = state.currentRole === "fleet_admin";
+  const isOwner = state.currentUser && item.created_by_id === state.currentUser.id;
+
   if (item.status === "pending" && canAdmin) {
-    actions.push(`<button class="action-btn action-btn--approve" type="button" data-decision="approve" data-id="${item.id}">Approve</button>`);
-    actions.push(`<button class="action-btn action-btn--reject" type="button" data-decision="reject" data-id="${item.id}">Reject</button>`);
+    actions.push(`<button class="action-btn action-btn--approve" type="button" data-reservation-action="approve" data-id="${item.id}">Approve</button>`);
+    actions.push(`<button class="action-btn action-btn--reject" type="button" data-reservation-action="reject" data-id="${item.id}">Reject</button>`);
   }
-  if (["pending", "approved"].includes(item.status) && state.token) {
-    actions.push(`<button class="action-btn action-btn--cancel" type="button" data-cancel-id="${item.id}">Cancel</button>`);
+  if (item.status === "approved" && (canAdmin || isOwner)) {
+    actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="start" data-id="${item.id}">Start trip</button>`);
+  }
+  if (item.status === "checked_out" && (canAdmin || isOwner)) {
+    actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="return" data-id="${item.id}">Return car</button>`);
+  }
+  if (["pending", "approved"].includes(item.status) && (canAdmin || isOwner)) {
+    actions.push(`<button class="action-btn action-btn--cancel" type="button" data-reservation-action="cancel" data-id="${item.id}">Cancel</button>`);
   }
   return actions.join("");
 }
@@ -322,12 +537,12 @@ function renderReservations() {
   els.reservationsTableBody.innerHTML = "";
 
   if (!state.token) {
-    els.reservationsTableBody.innerHTML = `<tr><td colspan="7" class="muted">Влез в системата, за да видиш резервациите.</td></tr>`;
+    els.reservationsTableBody.innerHTML = `<tr><td colspan="7" class="muted">Влез в системата, за да видиш operational потока.</td></tr>`;
     return;
   }
 
   if (!state.reservations.length) {
-    els.reservationsTableBody.innerHTML = `<tr><td colspan="7" class="muted">Няма резервации за текущия изглед.</td></tr>`;
+    els.reservationsTableBody.innerHTML = `<tr><td colspan="7" class="muted">${state.currentRole === "fleet_admin" ? "Няма резервации за текущия изглед." : "Нямаш видими резервации за текущия изглед."}</td></tr>`;
     return;
   }
 
@@ -346,50 +561,10 @@ function renderReservations() {
         <div class="muted">до ${formatDateTime(item.end_time)}</div>
       </td>
       <td>${statusTag(item.status)}</td>
-      <td>
-        <strong>${item.purpose || "Без описание"}</strong>
-        <div class="muted">${item.decision_reason || "Без решение/коментар"}</div>
-      </td>
+      <td>${reservationContext(item) || '<span class="muted">Без допълнителен контекст</span>'}</td>
       <td><div class="table-actions">${reservationActions(item)}</div></td>
     `;
     els.reservationsTableBody.appendChild(row);
-  });
-}
-
-function renderAgenda() {
-  const cars = carMap();
-  const items = [...state.reservations]
-    .filter((item) => ["pending", "approved"].includes(item.status))
-    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
-    .slice(0, 5);
-
-  els.agendaList.innerHTML = "";
-  if (!items.length) {
-    els.agendaList.innerHTML = `
-      <article class="empty-state">
-        <strong>Няма предстоящи курсове.</strong>
-        <p>Когато има активни заявки, те ще се покажат тук.</p>
-      </article>
-    `;
-    return;
-  }
-
-  items.forEach((item) => {
-    const car = cars.get(item.car_id);
-    const card = document.createElement("article");
-    card.className = "agenda-item";
-    card.innerHTML = `
-      <div class="agenda-item__head">
-        <div>
-          <strong>${car ? `${car.plate_number} · ${car.model}` : `Car ${item.car_id}`}</strong>
-          <p class="muted">${item.employee_name}</p>
-        </div>
-        ${statusTag(item.status)}
-      </div>
-      <p>${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</p>
-      <p>${item.purpose || "Без уточнена цел"}</p>
-    `;
-    els.agendaList.appendChild(card);
   });
 }
 
@@ -425,15 +600,12 @@ function renderCalendar() {
     button.innerHTML = `
       <div class="calendar-day__head">
         <span class="calendar-day__number">${current.getDate()}</span>
-        <span class="calendar-day__count">${items.length ? `${items.length} booking${items.length > 1 ? "s" : ""}` : ""}</span>
+        <span class="calendar-day__count">${items.length ? `${items.length} record${items.length > 1 ? "s" : ""}` : ""}</span>
       </div>
       <div class="calendar-day__list">
         ${items
           .slice(0, 3)
-          .map((item) => {
-            const car = cars.get(item.car_id);
-            return calendarPill(item, car);
-          })
+          .map((item) => calendarPill(item, cars.get(item.car_id)))
           .join("")}
       </div>
     `;
@@ -450,11 +622,11 @@ function renderDayTimeline() {
   els.dayTimeline.innerHTML = "";
 
   if (!selectedItems.length) {
-    els.selectedDateMeta.textContent = "Няма резервации за избрания ден. Ако денят е бъдещ, можеш да го използваш като старт за нова заявка.";
+    els.selectedDateMeta.textContent = "Няма lifecycle събития за този ден в текущия изглед.";
     els.dayTimeline.innerHTML = `
       <article class="empty-state">
         <strong>Спокоен ден.</strong>
-        <p>Няма заетост в този ден за текущия изглед.</p>
+        <p>Няма заявки или курсове в избрания ден.</p>
       </article>
     `;
     return;
@@ -481,23 +653,45 @@ function renderDayTimeline() {
   });
 }
 
+function setSelectedDate(key) {
+  state.selectedDateKey = key;
+  const selected = localDateFromKey(key);
+  const today = new Date();
+  if (selected >= new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+    const start = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate(), 9, 0, 0, 0);
+    const end = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate(), 11, 0, 0, 0);
+    els.startTime.value = localInputValue(start);
+    els.endTime.value = localInputValue(end);
+    els.endTime.min = els.startTime.value;
+  }
+  renderCalendar();
+  renderDayTimeline();
+}
+
+async function loadSetupStatus() {
+  const data = await apiFetch("/auth/setup-status");
+  state.hasAdmin = data.has_admin;
+  renderShell();
+}
+
+async function loadMe() {
+  if (!state.token) return;
+  const me = await apiFetch("/auth/me", { headers: authHeaders() });
+  setSession(me, state.token);
+}
+
 async function loadCars() {
   const query = state.currentRole === "fleet_admin" ? "?active_only=false" : "";
   const data = await apiFetch(`/cars${query}`);
   state.cars = data.items;
   renderCars();
   renderCarSelect();
-  updateOverview();
-  renderCalendar();
-  renderDayTimeline();
 }
 
 async function loadReservations() {
   if (!state.token) {
     state.reservations = [];
     renderReservations();
-    renderAgenda();
-    updateOverview();
     renderCalendar();
     renderDayTimeline();
     return;
@@ -515,20 +709,58 @@ async function loadReservations() {
   const data = await apiFetch(`/reservations${suffix}`, { headers: authHeaders() });
   state.reservations = data.items;
   renderReservations();
-  renderAgenda();
-  updateOverview();
   renderCalendar();
   renderDayTimeline();
+}
+
+async function loadNotifications() {
+  if (!state.token) {
+    state.notifications = [];
+    renderNotifications();
+    return;
+  }
+  state.notifications = await apiFetch("/notifications", { headers: authHeaders() });
+  renderNotifications();
+}
+
+async function loadUsers() {
+  if (state.currentRole !== "fleet_admin") {
+    state.users = [];
+    renderUsers();
+    return;
+  }
+  state.users = await apiFetch("/users", { headers: authHeaders() });
+  renderUsers();
 }
 
 async function refreshData() {
   try {
     hideMessage();
     await loadCars();
-    await loadReservations();
+    await Promise.all([loadReservations(), loadNotifications(), loadUsers()]);
+    updateOverview();
+    updateSummary();
   } catch (error) {
     showMessage("Неуспешно зареждане", error.message);
   }
+}
+
+function validateBootstrapForm() {
+  clearErrors();
+  let valid = true;
+  if (!els.bootstrapUsername.value.trim()) {
+    setFieldError("bootstrapUsername", "Въведи потребител.");
+    valid = false;
+  }
+  if (!els.bootstrapDisplayName.value.trim()) {
+    setFieldError("bootstrapDisplayName", "Въведи име.");
+    valid = false;
+  }
+  if (!els.bootstrapPassword.value || els.bootstrapPassword.value.length < 8) {
+    setFieldError("bootstrapPassword", "Паролата трябва да е поне 8 символа.");
+    valid = false;
+  }
+  return valid;
 }
 
 function validateLoginForm() {
@@ -540,20 +772,6 @@ function validateLoginForm() {
   }
   if (!els.password.value) {
     setFieldError("password", "Въведи парола.");
-    valid = false;
-  }
-  return valid;
-}
-
-function validateCarForm() {
-  clearErrors();
-  let valid = true;
-  if (!document.getElementById("plate").value.trim()) {
-    setFieldError("plate", "Регистрационният номер е задължителен.");
-    valid = false;
-  }
-  if (!document.getElementById("model").value.trim()) {
-    setFieldError("model", "Моделът е задължителен.");
     valid = false;
   }
   return valid;
@@ -589,70 +807,122 @@ function validateReservationForm() {
   return valid;
 }
 
+function validatePasswordForm() {
+  clearErrors();
+  let valid = true;
+  if (!els.currentPassword.value) {
+    setFieldError("currentPassword", "Въведи текущата парола.");
+    valid = false;
+  }
+  if (!els.newPassword.value || els.newPassword.value.length < 8) {
+    setFieldError("newPassword", "Новата парола трябва да е поне 8 символа.");
+    valid = false;
+  }
+  return valid;
+}
+
+function validateUserForm() {
+  clearErrors();
+  let valid = true;
+  if (!els.newUsername.value.trim()) {
+    setFieldError("newUsername", "Въведи потребител.");
+    valid = false;
+  }
+  if (!els.newDisplayName.value.trim()) {
+    setFieldError("newDisplayName", "Въведи име.");
+    valid = false;
+  }
+  if (!els.newUserPassword.value || els.newUserPassword.value.length < 8) {
+    setFieldError("newUserPassword", "Началната парола трябва да е поне 8 символа.");
+    valid = false;
+  }
+  return valid;
+}
+
+function validateCarForm() {
+  clearErrors();
+  let valid = true;
+  if (!els.plate.value.trim()) {
+    setFieldError("plate", "Регистрационният номер е задължителен.");
+    valid = false;
+  }
+  if (!els.model.value.trim()) {
+    setFieldError("model", "Моделът е задължителен.");
+    valid = false;
+  }
+  return valid;
+}
+
+async function loginWith(username, password) {
+  const data = await apiFetch("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  state.token = data.access_token;
+  await loadMe();
+  await refreshData();
+  showMessage("Успешен вход", `Добре дошъл, ${state.currentUser.display_name}.`, "success");
+}
+
+async function handleBootstrap(event) {
+  event.preventDefault();
+  if (!validateBootstrapForm()) {
+    showMessage("Има проблем", "Поправи данните за първия администратор.");
+    return;
+  }
+
+  const payload = {
+    username: els.bootstrapUsername.value.trim(),
+    display_name: els.bootstrapDisplayName.value.trim(),
+    password: els.bootstrapPassword.value,
+  };
+
+  try {
+    await apiFetch("/auth/bootstrap-admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    state.hasAdmin = true;
+    await loginWith(payload.username, payload.password);
+  } catch (error) {
+    showMessage("Setup не успя", error.message);
+  }
+}
+
 async function handleLogin(event) {
   event.preventDefault();
   if (!validateLoginForm()) {
-    showMessage("Има проблем", "Поправи маркираните полета преди вход.");
+    showMessage("Има проблем", "Поправи полетата за вход.");
     return;
   }
 
   try {
-    const data = await apiFetch("/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: els.username.value.trim(),
-        password: els.password.value,
-      }),
-    });
-    setSession(data.role, data.user, data.access_token);
-    showMessage("Успешен вход", `Добре дошъл, ${data.user}.`, "success");
-    await refreshData();
+    await loginWith(els.username.value.trim(), els.password.value);
   } catch (error) {
     showMessage("Неуспешен вход", error.message);
   }
 }
 
 function handleLogout() {
-  setSession(null, null, null);
-  clearErrors();
+  setSession(null, null);
+  state.notifications = [];
+  state.reservations = [];
+  state.users = [];
   els.loginForm.reset();
+  renderNotifications();
+  renderReservations();
+  renderUsers();
+  updateOverview();
+  updateSummary();
   showMessage("Сесията приключи", "Излязохте успешно.", "success");
-  refreshData();
-}
-
-async function handleCarCreate(event) {
-  event.preventDefault();
-  if (!validateCarForm()) {
-    showMessage("Има проблем", "Поправи данните за автомобила.");
-    return;
-  }
-
-  try {
-    await apiFetch("/cars", {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({
-        plate_number: document.getElementById("plate").value.trim(),
-        model: document.getElementById("model").value.trim(),
-      }),
-    });
-    els.carForm.reset();
-    showMessage("Автомобилът е добавен", "Флотът е обновен.", "success");
-    await refreshData();
-  } catch (error) {
-    showMessage("Неуспешно добавяне", error.message);
-  }
 }
 
 async function handleReservationCreate(event) {
   event.preventDefault();
-  if (!state.token) {
-    showMessage("Липсва сесия", "Първо влез в системата.");
-    return;
-  }
   if (!validateReservationForm()) {
-    showMessage("Има проблем", "Поправи данните за резервацията.");
+    showMessage("Има проблем", "Поправи данните за заявката.");
     return;
   }
 
@@ -667,10 +937,86 @@ async function handleReservationCreate(event) {
         purpose: els.purpose.value.trim() || null,
       }),
     });
+    els.reservationForm.reset();
+    els.startTime.value = nextLocalSlot(30);
+    els.endTime.value = nextLocalSlot(120);
     showMessage("Заявката е подадена", "Резервацията е записана като pending.", "success");
     await refreshData();
   } catch (error) {
-    showMessage("Неуспешна резервация", error.message);
+    showMessage("Неуспешна заявка", error.message);
+  }
+}
+
+async function handlePasswordChange(event) {
+  event.preventDefault();
+  if (!validatePasswordForm()) {
+    showMessage("Има проблем", "Поправи полетата за смяна на парола.");
+    return;
+  }
+
+  try {
+    await apiFetch("/users/me/password", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        current_password: els.currentPassword.value,
+        new_password: els.newPassword.value,
+      }),
+    });
+    els.passwordForm.reset();
+    showMessage("Паролата е обновена", "Новата парола е активна.", "success");
+  } catch (error) {
+    showMessage("Неуспешна смяна", error.message);
+  }
+}
+
+async function handleUserCreate(event) {
+  event.preventDefault();
+  if (!validateUserForm()) {
+    showMessage("Има проблем", "Поправи данните за новия потребител.");
+    return;
+  }
+
+  try {
+    await apiFetch("/users", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        username: els.newUsername.value.trim(),
+        display_name: els.newDisplayName.value.trim(),
+        password: els.newUserPassword.value,
+        role: els.newRole.value,
+      }),
+    });
+    els.userForm.reset();
+    showMessage("Потребителят е създаден", "Списъкът с потребители е обновен.", "success");
+    await refreshData();
+  } catch (error) {
+    showMessage("Неуспешно създаване", error.message);
+  }
+}
+
+async function handleCarCreate(event) {
+  event.preventDefault();
+  if (!validateCarForm()) {
+    showMessage("Има проблем", "Поправи данните за автомобила.");
+    return;
+  }
+
+  try {
+    await apiFetch("/cars", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        plate_number: els.plate.value.trim(),
+        model: els.model.value.trim(),
+      }),
+    });
+    els.carForm.reset();
+    showMessage("Автомобилът е регистриран", "Флотът е обновен.", "success");
+    await refreshData();
+  } catch (error) {
+    showMessage("Неуспешна регистрация", error.message);
   }
 }
 
@@ -690,32 +1036,68 @@ async function toggleCar(carId) {
   }
 }
 
-async function takeDecision(id, action) {
+async function toggleUser(userId, action) {
+  try {
+    await apiFetch(`/users/${userId}/${action}`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    showMessage("Потребителят е обновен", "Списъкът с потребители е актуализиран.", "success");
+    await refreshData();
+  } catch (error) {
+    showMessage("Неуспешна промяна", error.message);
+  }
+}
+
+async function reservationAction(id, action) {
+  const payload =
+    action === "approve"
+      ? { reason: "Approved via FleetFlow UI" }
+      : action === "reject"
+        ? { reason: "Rejected via FleetFlow UI" }
+        : action === "start"
+          ? { note: "Trip started via FleetFlow UI" }
+          : action === "return"
+            ? { note: "Vehicle returned via FleetFlow UI" }
+            : null;
+
   try {
     await apiFetch(`/reservations/${id}/${action}`, {
       method: "POST",
       headers: authHeaders(),
-      body: JSON.stringify({
-        reason: `${action === "approve" ? "Approved" : "Rejected"} via FleetFlow UI`,
-      }),
+      body: payload ? JSON.stringify(payload) : undefined,
     });
-    showMessage("Статусът е обновен", `Резервация #${id} е ${action === "approve" ? "одобрена" : "отказана"}.`, "success");
+    showMessage("Lifecycle е обновен", `Резервация #${id} премина през действие "${action}".`, "success");
     await refreshData();
   } catch (error) {
-    showMessage("Неуспешно решение", error.message);
+    showMessage("Неуспешно действие", error.message);
   }
 }
 
-async function cancelReservation(id) {
+async function markNotificationRead(notificationId) {
   try {
-    await apiFetch(`/reservations/${id}/cancel`, {
+    await apiFetch(`/notifications/${notificationId}/read`, {
       method: "POST",
       headers: authHeaders(),
     });
-    showMessage("Резервацията е отменена", `Резервация #${id} е отменена.`, "success");
-    await refreshData();
+    await loadNotifications();
+    updateOverview();
   } catch (error) {
-    showMessage("Неуспешна отмяна", error.message);
+    showMessage("Неуспешно обновяване", error.message);
+  }
+}
+
+async function markAllRead() {
+  if (!state.token) return;
+  try {
+    await apiFetch("/notifications/read-all", {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    await loadNotifications();
+    updateOverview();
+  } catch (error) {
+    showMessage("Неуспешно обновяване", error.message);
   }
 }
 
@@ -726,6 +1108,8 @@ function wireToolbar(buttons, key, callback) {
       button.classList.add("chip--active");
       state[key] = button.dataset[key];
       await callback();
+      updateSummary();
+      updateOverview();
     });
   });
 }
@@ -735,19 +1119,27 @@ function initDefaults() {
   els.endTime.min = nextLocalSlot(30);
   els.startTime.value = nextLocalSlot(30);
   els.endTime.value = nextLocalSlot(120);
-  setSession(null, null, null);
+  renderShell();
+  renderNotifications();
+  renderUsers();
   renderCars();
+  renderCarSelect();
   renderReservations();
-  renderAgenda();
   renderCalendar();
   renderDayTimeline();
   updateOverview();
+  updateSummary();
 }
 
+els.bootstrapForm.addEventListener("submit", handleBootstrap);
 els.loginForm.addEventListener("submit", handleLogin);
 els.logoutBtn.addEventListener("click", handleLogout);
-els.carForm.addEventListener("submit", handleCarCreate);
+els.logoutBtnSecondary.addEventListener("click", handleLogout);
 els.reservationForm.addEventListener("submit", handleReservationCreate);
+els.passwordForm.addEventListener("submit", handlePasswordChange);
+els.userForm.addEventListener("submit", handleUserCreate);
+els.carForm.addEventListener("submit", handleCarCreate);
+els.markAllReadBtn.addEventListener("click", markAllRead);
 
 els.startTime.addEventListener("change", () => {
   els.endTime.min = els.startTime.value || nextLocalSlot(30);
@@ -768,37 +1160,38 @@ els.todayFocus.addEventListener("click", () => {
   setSelectedDate(dateKey(new Date()));
 });
 
-document.querySelectorAll("[data-demo-user]").forEach((button) => {
-  button.addEventListener("click", () => {
-    els.username.value = button.dataset.demoUser;
-    els.password.value = button.dataset.demoPass;
-    els.loginForm.requestSubmit();
-  });
-});
-
 wireToolbar(document.querySelectorAll("[data-car-filter]"), "carFilter", loadCars);
 wireToolbar(document.querySelectorAll("[data-scope]"), "scope", loadReservations);
 wireToolbar(document.querySelectorAll("[data-status]"), "status", loadReservations);
 
 document.addEventListener("click", (event) => {
-  const toggleButton = event.target.closest("[data-toggle-car]");
-  const decisionButton = event.target.closest("[data-decision]");
-  const cancelButton = event.target.closest("[data-cancel-id]");
   const calendarButton = event.target.closest("[data-date-key]");
+  const toggleCarButton = event.target.closest("[data-toggle-car]");
+  const reservationButton = event.target.closest("[data-reservation-action]");
+  const notificationButton = event.target.closest("[data-notification-read]");
+  const userButton = event.target.closest("[data-user-action]");
 
-  if (toggleButton) {
-    toggleCar(Number(toggleButton.dataset.toggleCar));
-  }
-  if (decisionButton) {
-    takeDecision(Number(decisionButton.dataset.id), decisionButton.dataset.decision);
-  }
-  if (cancelButton) {
-    cancelReservation(Number(cancelButton.dataset.cancelId));
-  }
   if (calendarButton) {
     setSelectedDate(calendarButton.dataset.dateKey);
   }
+  if (toggleCarButton) {
+    toggleCar(Number(toggleCarButton.dataset.toggleCar));
+  }
+  if (reservationButton) {
+    reservationAction(Number(reservationButton.dataset.id), reservationButton.dataset.reservationAction);
+  }
+  if (notificationButton) {
+    markNotificationRead(Number(notificationButton.dataset.notificationRead));
+  }
+  if (userButton) {
+    toggleUser(Number(userButton.dataset.userId), userButton.dataset.userAction);
+  }
 });
 
-initDefaults();
-refreshData();
+async function initialize() {
+  initDefaults();
+  await loadSetupStatus();
+  await refreshData();
+}
+
+initialize();

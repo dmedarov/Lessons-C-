@@ -14,6 +14,16 @@ class Settings:
     token_ttl_seconds: int
     base_dir: Path
     app_env: str
+    notification_timeout_seconds: int
+    smtp_host: str | None
+    smtp_port: int
+    smtp_username: str | None
+    smtp_password: str | None
+    smtp_from_email: str | None
+    smtp_to_email: str | None
+    smtp_use_tls: bool
+    slack_webhook_url: str | None
+    teams_webhook_url: str | None
 
     @property
     def db_backend(self) -> str:
@@ -35,6 +45,16 @@ class Settings:
             token_ttl_seconds=int(os.getenv("TOKEN_TTL_SECONDS", "3600")),
             base_dir=Path(__file__).resolve().parent,
             app_env=app_env,
+            notification_timeout_seconds=int(os.getenv("NOTIFICATION_TIMEOUT_SECONDS", "5")),
+            smtp_host=os.getenv("SMTP_HOST"),
+            smtp_port=int(os.getenv("SMTP_PORT", "587")),
+            smtp_username=os.getenv("SMTP_USERNAME"),
+            smtp_password=os.getenv("SMTP_PASSWORD"),
+            smtp_from_email=os.getenv("SMTP_FROM_EMAIL"),
+            smtp_to_email=os.getenv("SMTP_TO_EMAIL"),
+            smtp_use_tls=os.getenv("SMTP_USE_TLS", "true").lower() != "false",
+            slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL"),
+            teams_webhook_url=os.getenv("TEAMS_WEBHOOK_URL"),
         )
 
 
