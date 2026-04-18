@@ -56,6 +56,41 @@ def _serialize_reservation(row: Any) -> dict[str, Any]:
     return payload
 
 
+def _reservation_conflict_rows(conn: DbConn, car_id: int, start_iso: str, end_iso: str) -> list[Any]:
+    return conn.execute(
+        """
+        SELECT
+            id, car_id, created_by_id, employee_name, start_time, end_time,
+            purpose, status, checked_out_at, returned_at
+        FROM reservations
+        WHERE car_id = ?
+          AND (
+                status = 'pending'
+             OR (status = 'approved' AND returned_at IS NULL)
+          )
+          AND start_time < ?
+          AND end_time > ?
+        ORDER BY start_time
+        """,
+        (car_id, end_iso, start_iso),
+    ).fetchall()
+
+
+def _blackout_conflict_rows(conn: DbConn, car_id: int, start_iso: str, end_iso: str) -> list[Any]:
+    return conn.execute(
+        """
+        SELECT id, car_id, kind, start_time, end_time, reason
+        FROM car_blackouts
+        WHERE car_id = ?
+          AND active = 1
+          AND start_time < ?
+          AND end_time > ?
+        ORDER BY start_time
+        """,
+        (car_id, end_iso, start_iso),
+    ).fetchall()
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_reservation(
     payload: ReservationCreate,
@@ -80,35 +115,10 @@ def create_reservation(
         if not car["active"]:
             raise HTTPException(status_code=409, detail="Car is inactive")
 
-        overlapping = conn.execute(
-            """
-            SELECT id FROM reservations
-            WHERE car_id = ?
-              AND (
-                    status = 'pending'
-                 OR (status = 'approved' AND returned_at IS NULL)
-              )
-              AND start_time < ?
-              AND end_time > ?
-            LIMIT 1
-            """,
-            (payload.car_id, end_iso, start_iso),
-        ).fetchone()
-        if overlapping:
+        if _reservation_conflict_rows(conn, payload.car_id, start_iso, end_iso):
             raise HTTPException(status_code=409, detail="Car is already reserved for part of this period")
 
-        blackout = conn.execute(
-            """
-            SELECT id FROM car_blackouts
-            WHERE car_id = ?
-              AND active = 1
-              AND start_time < ?
-              AND end_time > ?
-            LIMIT 1
-            """,
-            (payload.car_id, end_iso, start_iso),
-        ).fetchone()
-        if blackout:
+        if _blackout_conflict_rows(conn, payload.car_id, start_iso, end_iso):
             raise HTTPException(status_code=409, detail="Car is unavailable due to service or maintenance blackout")
 
         query = """
@@ -153,6 +163,56 @@ def create_reservation(
 
     dispatch_outbound_notifications(notification_ids)
     return response
+
+
+@router.get("/conflicts")
+def reservation_conflicts(
+    car_id: int = Query(..., ge=1),
+    start: datetime = Query(...),
+    end: datetime = Query(...),
+    auth: AuthContext = Depends(get_auth_context),
+) -> dict[str, Any]:
+    if end <= start:
+        raise HTTPException(status_code=400, detail="end must be after start")
+
+    start_iso = _to_utc_iso(start)
+    end_iso = _to_utc_iso(end)
+
+    with get_conn() as conn:
+        car = conn.execute("SELECT id FROM cars WHERE id=?", (car_id,)).fetchone()
+        if not car:
+            raise HTTPException(status_code=404, detail="Car not found")
+
+        reservation_items = []
+        for row in _reservation_conflict_rows(conn, car_id, start_iso, end_iso):
+            item = {
+                "type": "reservation",
+                "id": int(row["id"]),
+                "car_id": int(row["car_id"]),
+                "start_time": str(row["start_time"]),
+                "end_time": str(row["end_time"]),
+                "status": _presentation_status(row),
+            }
+            if auth.role == "fleet_admin":
+                item["employee_name"] = str(row["employee_name"])
+                item["purpose"] = row["purpose"]
+            reservation_items.append(item)
+
+        blackout_items = [
+            {
+                "type": "blackout",
+                "id": int(row["id"]),
+                "car_id": int(row["car_id"]),
+                "kind": str(row["kind"]),
+                "start_time": str(row["start_time"]),
+                "end_time": str(row["end_time"]),
+                "reason": row["reason"] if auth.role == "fleet_admin" else None,
+            }
+            for row in _blackout_conflict_rows(conn, car_id, start_iso, end_iso)
+        ]
+
+    items = sorted(reservation_items + blackout_items, key=lambda item: item["start_time"])
+    return {"items": items, "total": len(items)}
 
 
 def _decide(reservation_id: int, new_status: str, auth: AuthContext, reason: Optional[str]) -> dict[str, Any]:

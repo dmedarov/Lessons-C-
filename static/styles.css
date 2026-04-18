@@ -646,6 +646,11 @@ textarea {
   border-color: rgba(36, 107, 255, 0.32);
 }
 
+.calendar-day--conflict {
+  border-color: rgba(202, 60, 87, 0.44);
+  box-shadow: inset 0 0 0 1px rgba(202, 60, 87, 0.18);
+}
+
 .calendar-day__head {
   display: flex;
   justify-content: space-between;
@@ -716,6 +721,54 @@ textarea {
 .calendar-pill--returned {
   background: rgba(79, 107, 154, 0.12);
   color: #385274;
+}
+
+.conflict-preview {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(136, 152, 174, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.64);
+  color: var(--muted);
+  padding: 13px 14px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.conflict-preview strong {
+  color: var(--ink);
+}
+
+.conflict-preview ul {
+  display: grid;
+  gap: 7px;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+}
+
+.conflict-preview li {
+  display: grid;
+  gap: 3px;
+}
+
+.conflict-preview small {
+  color: var(--muted);
+}
+
+.conflict-preview--clear {
+  border-color: rgba(30, 130, 76, 0.22);
+  background: rgba(242, 251, 247, 0.9);
+}
+
+.conflict-preview--loading {
+  border-color: rgba(36, 107, 255, 0.22);
+  background: rgba(241, 246, 255, 0.88);
+}
+
+.conflict-preview--warning {
+  border-color: rgba(202, 60, 87, 0.24);
+  background: rgba(255, 244, 246, 0.9);
 }
 
 .legend {

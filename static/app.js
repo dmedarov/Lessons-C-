@@ -6,6 +6,15 @@ function pluralRecord(count) {
   return window.FleetFlowI18n?.pluralRecord(count) || `${count} запис(а)`;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 const surface = document.body.dataset.surface || "employee";
 
 const state = {
@@ -23,6 +32,13 @@ const state = {
   notifications: [],
   users: [],
   blackouts: [],
+  conflictPreview: {
+    requested: false,
+    loading: false,
+    error: null,
+    items: [],
+    requestId: 0,
+  },
   calendarDate: startOfMonth(new Date()),
   selectedDateKey: dateKey(new Date()),
 };
@@ -62,6 +78,7 @@ const els = {
   carId: document.getElementById("carId"),
   startTime: document.getElementById("startTime"),
   endTime: document.getElementById("endTime"),
+  conflictPreview: document.getElementById("conflictPreview"),
   purpose: document.getElementById("purpose"),
   currentPassword: document.getElementById("currentPassword"),
   newPassword: document.getElementById("newPassword"),
@@ -121,6 +138,8 @@ const fieldErrorIds = [
   "plate",
   "model",
 ];
+
+let conflictPreviewTimer = null;
 
 function startOfMonth(value) {
   return new Date(value.getFullYear(), value.getMonth(), 1);
@@ -312,6 +331,21 @@ function dayMap() {
     map.set(key, list);
   });
   return map;
+}
+
+function conflictDateKeys() {
+  const keys = new Set();
+  state.conflictPreview.items.forEach((item) => {
+    const start = new Date(item.start_time);
+    const end = new Date(item.end_time);
+    const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const final = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    while (cursor <= final) {
+      keys.add(dateKey(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  });
+  return keys;
 }
 
 async function apiFetch(url, options = {}) {
@@ -631,6 +665,83 @@ function renderCarSelect() {
   }
 }
 
+function renderConflictPreview() {
+  if (!els.conflictPreview) return;
+
+  const preview = state.conflictPreview;
+  els.conflictPreview.className = "conflict-preview";
+
+  if (!state.token || !preview.requested) {
+    els.conflictPreview.classList.add("conflict-preview--idle");
+    els.conflictPreview.innerHTML = `
+      <strong>${t("conflict.idleTitle")}</strong>
+      <span>${t("conflict.idleBody")}</span>
+    `;
+    renderCalendar();
+    return;
+  }
+
+  if (preview.loading) {
+    els.conflictPreview.classList.add("conflict-preview--loading");
+    els.conflictPreview.innerHTML = `
+      <strong>${t("conflict.loadingTitle")}</strong>
+      <span>${t("conflict.loadingBody")}</span>
+    `;
+    renderCalendar();
+    return;
+  }
+
+  if (preview.error) {
+    els.conflictPreview.classList.add("conflict-preview--warning");
+    els.conflictPreview.innerHTML = `
+      <strong>${t("conflict.errorTitle")}</strong>
+      <span>${escapeHtml(preview.error)}</span>
+    `;
+    renderCalendar();
+    return;
+  }
+
+  if (!preview.items.length) {
+    els.conflictPreview.classList.add("conflict-preview--clear");
+    els.conflictPreview.innerHTML = `
+      <strong>${t("conflict.clearTitle")}</strong>
+      <span>${t("conflict.clearBody")}</span>
+    `;
+    renderCalendar();
+    return;
+  }
+
+  els.conflictPreview.classList.add("conflict-preview--warning");
+  const items = preview.items
+    .map((item) => {
+      if (item.type === "blackout") {
+        return `<li>${escapeHtml(t("conflict.blackout", {
+          kind: t(`blackout.kind.${item.kind}`),
+          start: formatDateTime(item.start_time),
+          end: formatDateTime(item.end_time),
+        }))}</li>`;
+      }
+      const detail = item.employee_name
+        ? `<small>${escapeHtml(t("conflict.adminDetail", {
+            employee: item.employee_name,
+            purpose: item.purpose || t("conflict.noPurpose"),
+          }))}</small>`
+        : "";
+      return `<li>${escapeHtml(t("conflict.reservation", {
+        id: item.id,
+        start: formatDateTime(item.start_time),
+        end: formatDateTime(item.end_time),
+      }))}${detail}</li>`;
+    })
+    .join("");
+
+  els.conflictPreview.innerHTML = `
+    <strong>${t("conflict.warningTitle", { count: preview.items.length })}</strong>
+    <ul>${items}</ul>
+  `;
+  renderCalendar();
+}
+
 function renderBlackouts() {
   if (!els.blackoutsList) return;
   els.blackoutsList.innerHTML = "";
@@ -766,6 +877,7 @@ function renderCalendar() {
   const todayKey = dateKey(new Date());
   const days = dayMap();
   const cars = carMap();
+  const conflictKeys = conflictDateKeys();
 
   els.calendarMonthLabel.textContent = formatMonthLabel(monthStart);
   els.calendarGrid.innerHTML = "";
@@ -782,6 +894,7 @@ function renderCalendar() {
       current.getMonth() !== monthIndex ? "calendar-day--outside" : "",
       key === todayKey ? "calendar-day--today" : "",
       key === state.selectedDateKey ? "calendar-day--selected" : "",
+      conflictKeys.has(key) ? "calendar-day--conflict" : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -855,6 +968,7 @@ function setSelectedDate(key) {
   }
   renderCalendar();
   renderDayTimeline();
+  scheduleConflictPreview();
 }
 
 async function loadSetupStatus() {
@@ -942,6 +1056,78 @@ async function loadBlackouts() {
   const batches = await Promise.all(requests);
   state.blackouts = batches.flat();
   renderBlackouts();
+}
+
+function resetConflictPreview() {
+  state.conflictPreview = {
+    requested: false,
+    loading: false,
+    error: null,
+    items: [],
+    requestId: state.conflictPreview.requestId + 1,
+  };
+  renderConflictPreview();
+}
+
+async function loadConflictPreview() {
+  if (!state.token || !els.carId?.value || !els.startTime?.value || !els.endTime?.value) {
+    resetConflictPreview();
+    return;
+  }
+
+  const start = new Date(els.startTime.value);
+  const end = new Date(els.endTime.value);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    resetConflictPreview();
+    return;
+  }
+
+  const requestId = state.conflictPreview.requestId + 1;
+  state.conflictPreview = {
+    requested: true,
+    loading: true,
+    error: null,
+    items: [],
+    requestId,
+  };
+  renderConflictPreview();
+
+  const params = new URLSearchParams({
+    car_id: els.carId.value,
+    start: toIso(els.startTime.value),
+    end: toIso(els.endTime.value),
+  });
+
+  try {
+    const data = await apiFetch(`/reservations/conflicts?${params.toString()}`, {
+      headers: authHeaders(),
+    });
+    if (state.conflictPreview.requestId !== requestId) return;
+    state.conflictPreview = {
+      requested: true,
+      loading: false,
+      error: null,
+      items: data.items || [],
+      requestId,
+    };
+  } catch (error) {
+    if (state.conflictPreview.requestId !== requestId) return;
+    state.conflictPreview = {
+      requested: true,
+      loading: false,
+      error: error.message,
+      items: [],
+      requestId,
+    };
+  }
+  renderConflictPreview();
+}
+
+function scheduleConflictPreview() {
+  if (conflictPreviewTimer) {
+    window.clearTimeout(conflictPreviewTimer);
+  }
+  conflictPreviewTimer = window.setTimeout(loadConflictPreview, 250);
 }
 
 async function refreshData() {
@@ -1123,6 +1309,7 @@ function handleLogout() {
   state.users = [];
   state.blackouts = [];
   els.loginForm.reset();
+  resetConflictPreview();
   renderNotifications();
   updateNotificationBadge();
   renderReservations();
@@ -1155,6 +1342,7 @@ async function handleReservationCreate(event) {
     els.reservationForm.reset();
     els.startTime.value = nextLocalSlot(30);
     els.endTime.value = nextLocalSlot(120);
+    resetConflictPreview();
     showMessage("Заявката е подадена", "Резервацията е записана като pending.", "success");
     await refreshData();
   } catch (error) {
@@ -1458,6 +1646,7 @@ function initDefaults() {
   renderReservations();
   renderCalendar();
   renderDayTimeline();
+  renderConflictPreview();
   updateOverview();
   updateSummary();
 }
@@ -1476,7 +1665,12 @@ bind(els.markAllReadBtn, "click", markAllRead);
 
 bind(els.startTime, "change", () => {
   els.endTime.min = els.startTime.value || nextLocalSlot(30);
+  scheduleConflictPreview();
 });
+bind(els.startTime, "input", scheduleConflictPreview);
+bind(els.endTime, "change", scheduleConflictPreview);
+bind(els.endTime, "input", scheduleConflictPreview);
+bind(els.carId, "change", scheduleConflictPreview);
 
 bind(els.monthPrev, "click", () => {
   state.calendarDate = addMonths(state.calendarDate, -1);

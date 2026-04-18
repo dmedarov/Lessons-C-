@@ -533,6 +533,93 @@ def test_overlap_blocked_for_pending_and_approved(client: TestClient) -> None:
     assert overlap.status_code == 409
 
 
+def test_reservation_conflicts_preview_reports_reservations_and_blackouts(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "ivan", "Ivan Petrov", "IvanPass123")
+    employee = _login(client, "ivan", "IvanPass123")
+
+    car_id = _create_car(client, admin, plate="CB3500AA")
+    _create_reservation(client, car_id, employee)
+
+    blackout = client.post(
+        f"/cars/{car_id}/blackouts",
+        json={
+            "start_time": "2099-04-18T13:00:00+00:00",
+            "end_time": "2099-04-18T15:00:00+00:00",
+            "kind": "service",
+            "reason": "Service visit",
+        },
+        headers=_auth(admin),
+    )
+    assert blackout.status_code == 201, blackout.text
+
+    conflicts = client.get(
+        "/reservations/conflicts",
+        params={
+            "car_id": car_id,
+            "start": "2099-04-18T10:00:00+00:00",
+            "end": "2099-04-18T14:00:00+00:00",
+        },
+        headers=_auth(employee),
+    )
+    assert conflicts.status_code == 200, conflicts.text
+    assert conflicts.json()["total"] == 2
+    assert [item["type"] for item in conflicts.json()["items"]] == ["reservation", "blackout"]
+    assert "employee_name" not in conflicts.json()["items"][0]
+    assert conflicts.json()["items"][1]["reason"] is None
+
+    admin_conflicts = client.get(
+        "/reservations/conflicts",
+        params={
+            "car_id": car_id,
+            "start": "2099-04-18T10:00:00+00:00",
+            "end": "2099-04-18T14:00:00+00:00",
+        },
+        headers=_auth(admin),
+    )
+    assert admin_conflicts.status_code == 200, admin_conflicts.text
+    assert admin_conflicts.json()["items"][0]["employee_name"] == "Ivan Petrov"
+    assert admin_conflicts.json()["items"][1]["reason"] == "Service visit"
+
+    clear = client.get(
+        "/reservations/conflicts",
+        params={
+            "car_id": car_id,
+            "start": "2099-04-18T16:00:00+00:00",
+            "end": "2099-04-18T17:00:00+00:00",
+        },
+        headers=_auth(employee),
+    )
+    assert clear.status_code == 200, clear.text
+    assert clear.json() == {"items": [], "total": 0}
+
+
+def test_reservation_conflicts_require_auth_and_valid_window(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    car_id = _create_car(client, admin, plate="CB3600AA")
+
+    unauth = client.get(
+        "/reservations/conflicts",
+        params={
+            "car_id": car_id,
+            "start": "2099-04-18T10:00:00+00:00",
+            "end": "2099-04-18T14:00:00+00:00",
+        },
+    )
+    assert unauth.status_code == 401
+
+    invalid = client.get(
+        "/reservations/conflicts",
+        params={
+            "car_id": car_id,
+            "start": "2099-04-18T14:00:00+00:00",
+            "end": "2099-04-18T10:00:00+00:00",
+        },
+        headers=_auth(admin),
+    )
+    assert invalid.status_code == 400
+
+
 def test_start_time_and_end_time_validation(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
     _create_user(client, admin, "ivan", "Ivan Petrov", "IvanPass123")
