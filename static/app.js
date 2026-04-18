@@ -1,3 +1,11 @@
+function t(key, vars = {}) {
+  return window.FleetFlowI18n?.t(key, vars) || key;
+}
+
+function pluralRecord(count) {
+  return window.FleetFlowI18n?.pluralRecord(count) || `${count} запис(а)`;
+}
+
 const state = {
   token: null,
   hasAdmin: true,
@@ -149,6 +157,58 @@ function bind(node, eventName, handler) {
   node.addEventListener(eventName, handler);
 }
 
+function confirmAction(message, confirmLabel = t("action.confirm")) {
+  if (!("HTMLDialogElement" in window)) {
+    return Promise.resolve(window.confirm(message));
+  }
+
+  return new Promise((resolve) => {
+    const dialog = document.createElement("dialog");
+    const titleId = `confirm-title-${Date.now()}`;
+    dialog.className = "confirm-dialog";
+    dialog.setAttribute("aria-labelledby", titleId);
+
+    const title = document.createElement("h2");
+    title.id = titleId;
+    title.textContent = t("confirm.title");
+
+    const copy = document.createElement("p");
+    copy.textContent = message;
+
+    const actions = document.createElement("div");
+    actions.className = "confirm-dialog__actions";
+
+    const cancelButton = document.createElement("button");
+    cancelButton.className = "btn btn--ghost";
+    cancelButton.type = "button";
+    cancelButton.textContent = t("action.keep");
+
+    const confirmButton = document.createElement("button");
+    confirmButton.className = "btn btn--primary";
+    confirmButton.type = "button";
+    confirmButton.textContent = confirmLabel;
+
+    const close = (confirmed) => {
+      dialog.close();
+      dialog.remove();
+      resolve(confirmed);
+    };
+
+    cancelButton.addEventListener("click", () => close(false));
+    confirmButton.addEventListener("click", () => close(true));
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      close(false);
+    });
+
+    actions.append(cancelButton, confirmButton);
+    dialog.append(title, copy, actions);
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    confirmButton.focus();
+  });
+}
+
 function clearErrors() {
   fieldErrorIds.forEach((id) => {
     const errorNode = document.getElementById(`${id}Error`);
@@ -227,7 +287,7 @@ function localInputValue(date) {
 }
 
 function statusTag(status) {
-  return `<span class="status-tag status-tag--${status}">${status.replace("_", " ")}</span>`;
+  return `<span class="status-tag status-tag--${status}">${t(`status.${status}`)}</span>`;
 }
 
 function calendarPill(item, car) {
@@ -296,22 +356,22 @@ function renderShell() {
 
   if (!state.hasAdmin && !authenticated) {
     els.sessionBadge.className = "status-pill status-pill--muted";
-    els.sessionBadge.textContent = "Initial setup";
+    els.sessionBadge.textContent = t("ui.initialSetup");
     return;
   }
 
   if (!authenticated) {
     els.sessionBadge.className = "status-pill status-pill--muted";
-    els.sessionBadge.textContent = "Очаква login";
+    els.sessionBadge.textContent = t("ui.waitingLogin");
     return;
   }
 
   const isAdmin = state.currentRole === "fleet_admin";
   els.sessionBadge.className = `status-pill ${isAdmin ? "status-pill--admin" : "status-pill--employee"}`;
-  els.sessionBadge.textContent = `${state.currentUser.display_name} · ${isAdmin ? "fleet_admin" : "employee"}`;
-  els.sessionTitle.textContent = isAdmin ? "Admin command ready" : "Employee workspace ready";
+  els.sessionBadge.textContent = `${state.currentUser.display_name} · ${t(isAdmin ? "role.fleet_admin" : "role.employee")}`;
+  els.sessionTitle.textContent = isAdmin ? t("ui.adminReady") : t("ui.employeeReady");
   els.sessionModePill.className = `status-pill ${isAdmin ? "status-pill--admin" : "status-pill--employee"}`;
-  els.sessionModePill.textContent = isAdmin ? "fleet_admin" : "employee";
+  els.sessionModePill.textContent = t(isAdmin ? "role.fleet_admin" : "role.employee");
   els.sessionMeta.textContent = `${state.currentUser.display_name} (${state.currentUser.username})`;
   if (els.heroCaption) {
     els.heroCaption.textContent = isAdmin
@@ -383,7 +443,7 @@ function updateSummary() {
   }
   if (nextApproved) {
     els.nextSignalTitle.textContent = "Имаш одобрена заявка";
-    els.nextSignalCopy.textContent = `Следващият ти слот започва ${formatDateTime(nextApproved.start_time)}. Когато вземеш автомобила, маркирай го като active trip.`;
+    els.nextSignalCopy.textContent = `Следващият ти слот започва ${formatDateTime(nextApproved.start_time)}. Когато вземеш автомобила, маркирай го като активен курс.`;
     return;
   }
   els.nextSignalTitle.textContent = "Няма активен ангажимент";
@@ -419,12 +479,12 @@ function renderNotifications() {
     card.innerHTML = `
       <div class="notification-card__head">
         <strong>${item.title}</strong>
-        ${item.read_at ? `<span class="status-pill status-pill--muted">read</span>` : `<span class="status-pill status-pill--employee">new</span>`}
+        ${item.read_at ? `<span class="status-pill status-pill--muted">${t("status.read")}</span>` : `<span class="status-pill status-pill--employee">${t("status.new")}</span>`}
       </div>
       <p>${item.body}</p>
       <div class="notification-card__foot">
         <span class="muted">${formatDateTime(item.created_at)}</span>
-        ${item.read_at ? "" : `<button class="action-btn action-btn--toggle" type="button" data-notification-read="${item.id}">Маркирай като прочетено</button>`}
+        ${item.read_at ? "" : `<button class="action-btn action-btn--toggle" type="button" data-notification-read="${item.id}">${t("action.markRead")}</button>`}
       </div>
     `;
     els.notificationsList.appendChild(card);
@@ -458,21 +518,21 @@ function renderUsers() {
           <strong>${user.display_name}</strong>
           <p class="muted">${user.username}</p>
         </div>
-        <span class="status-pill ${user.role === "fleet_admin" ? "status-pill--admin" : "status-pill--employee"}">${user.role}</span>
+        <span class="status-pill ${user.role === "fleet_admin" ? "status-pill--admin" : "status-pill--employee"}">${t(`role.${user.role}`)}</span>
       </div>
       <div class="user-card__meta">
-        <span class="status-tag ${user.active ? "status-tag--approved" : "status-tag--cancelled"}">${user.active ? "active" : "inactive"}</span>
+        <span class="status-tag ${user.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(user.active ? "status.active" : "status.inactive")}</span>
         <span class="muted">създаден: ${formatDateTime(user.created_at)}</span>
       </div>
       <div class="car-card__actions">
         ${
           user.active
-            ? `<button class="action-btn action-btn--toggle" type="button" data-user-action="deactivate" data-user-id="${user.id}" ${isSelf ? "data-self=true" : ""}>Деактивирай</button>`
-            : `<button class="action-btn action-btn--toggle" type="button" data-user-action="activate" data-user-id="${user.id}">Активирай</button>`
+            ? `<button class="action-btn action-btn--toggle" type="button" data-user-action="deactivate" data-user-id="${user.id}" ${isSelf ? "data-self=true" : ""}>${t("action.deactivate")}</button>`
+            : `<button class="action-btn action-btn--toggle" type="button" data-user-action="activate" data-user-id="${user.id}">${t("action.activate")}</button>`
         }
         ${
           !isSelf && user.active
-            ? `<button class="action-btn action-btn--approve" type="button" data-handoff-candidate="${user.id}">Handoff</button>`
+            ? `<button class="action-btn action-btn--approve" type="button" data-handoff-candidate="${user.id}">${t("action.handoff")}</button>`
             : ""
         }
       </div>
@@ -504,14 +564,14 @@ function renderCars() {
           <strong class="car-card__title">${car.model}</strong>
           <p class="car-card__plate">${car.plate_number}</p>
         </div>
-        <span class="status-tag ${car.active ? "status-tag--approved" : "status-tag--cancelled"}">${car.active ? "active" : "inactive"}</span>
+        <span class="status-tag ${car.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(car.active ? "status.active" : "status.inactive")}</span>
       </div>
       <p class="mini-note">${car.active ? "Наличен за нови заявки." : "Изваден от нови резервации."}</p>
       <div class="car-card__actions">
         ${
           state.currentRole === "fleet_admin"
             ? `<button class="action-btn action-btn--toggle" type="button" data-toggle-car="${car.id}">
-                ${car.active ? "Деактивирай" : "Активирай"}
+                ${t(car.active ? "action.deactivate" : "action.activate")}
               </button>`
             : ""
         }
@@ -581,7 +641,7 @@ function renderHandoffCandidates() {
   if (!els.handoffUserId) return;
   const options = state.users
     .filter((user) => user.active && (!state.currentUser || user.id !== state.currentUser.id))
-    .map((user) => `<option value="${user.id}">${user.display_name} · ${user.role}</option>`)
+    .map((user) => `<option value="${user.id}">${user.display_name} · ${t(`role.${user.role}`)}</option>`)
     .join("");
   els.handoffUserId.innerHTML = options || `<option value="">Няма подходящ потребител</option>`;
 }
@@ -609,17 +669,17 @@ function reservationActions(item) {
   const isOwner = state.currentUser && item.created_by_id === state.currentUser.id;
 
   if (item.status === "pending" && canAdmin) {
-    actions.push(`<button class="action-btn action-btn--approve" type="button" data-reservation-action="approve" data-id="${item.id}">Approve</button>`);
-    actions.push(`<button class="action-btn action-btn--reject" type="button" data-reservation-action="reject" data-id="${item.id}">Reject</button>`);
+    actions.push(`<button class="action-btn action-btn--approve" type="button" data-reservation-action="approve" data-id="${item.id}">${t("action.approve")}</button>`);
+    actions.push(`<button class="action-btn action-btn--reject" type="button" data-reservation-action="reject" data-id="${item.id}">${t("action.reject")}</button>`);
   }
   if (item.status === "approved" && (canAdmin || isOwner)) {
-    actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="start" data-id="${item.id}">Start trip</button>`);
+    actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="start" data-id="${item.id}">${t("action.startTrip")}</button>`);
   }
   if (item.status === "checked_out" && (canAdmin || isOwner)) {
-    actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="return" data-id="${item.id}">Return car</button>`);
+    actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="return" data-id="${item.id}">${t("action.returnCar")}</button>`);
   }
   if (["pending", "approved"].includes(item.status) && (canAdmin || isOwner)) {
-    actions.push(`<button class="action-btn action-btn--cancel" type="button" data-reservation-action="cancel" data-id="${item.id}">Cancel</button>`);
+    actions.push(`<button class="action-btn action-btn--cancel" type="button" data-reservation-action="cancel" data-id="${item.id}">${t("action.cancel")}</button>`);
   }
   return actions.join("");
 }
@@ -644,8 +704,8 @@ function renderReservations() {
     row.innerHTML = `
       <td>#${item.id}</td>
       <td>
-        <strong>${car ? car.plate_number : `Car ${item.car_id}`}</strong>
-        <div class="muted">${car ? car.model : "Неизвестен автомобил"}</div>
+        <strong>${car ? car.plate_number : t("entity.car", { id: item.car_id })}</strong>
+        <div class="muted">${car ? car.model : t("entity.unknownCar")}</div>
       </td>
       <td><strong>${item.employee_name}</strong></td>
       <td>
@@ -692,7 +752,7 @@ function renderCalendar() {
     button.innerHTML = `
       <div class="calendar-day__head">
         <span class="calendar-day__number">${current.getDate()}</span>
-        <span class="calendar-day__count">${items.length ? `${items.length} record${items.length > 1 ? "s" : ""}` : ""}</span>
+        <span class="calendar-day__count">${items.length ? pluralRecord(items.length) : ""}</span>
       </div>
       <div class="calendar-day__list">
         ${items
@@ -714,7 +774,7 @@ function renderDayTimeline() {
   els.dayTimeline.innerHTML = "";
 
   if (!selectedItems.length) {
-    els.selectedDateMeta.textContent = "Няма lifecycle събития за този ден в текущия изглед.";
+    els.selectedDateMeta.textContent = t("calendar.noEvents");
     els.dayTimeline.innerHTML = `
       <article class="empty-state">
         <strong>Спокоен ден.</strong>
@@ -724,7 +784,7 @@ function renderDayTimeline() {
     return;
   }
 
-  els.selectedDateMeta.textContent = `Общо ${selectedItems.length} запис(а) за избрания ден.`;
+  els.selectedDateMeta.textContent = t("calendar.selectedTotal", { count: selectedItems.length });
 
   selectedItems.forEach((item) => {
     const car = cars.get(item.car_id);
@@ -733,7 +793,7 @@ function renderDayTimeline() {
     card.innerHTML = `
       <div class="timeline-item__top">
         <div>
-          <strong>${car ? `${car.plate_number} · ${car.model}` : `Car ${item.car_id}`}</strong>
+          <strong>${car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id })}</strong>
           <p class="muted">${item.employee_name}</p>
         </div>
         ${statusTag(item.status)}
@@ -1142,6 +1202,9 @@ async function handleHandoff(event) {
     return;
   }
 
+  const confirmed = await confirmAction(t("confirm.handoff"), t("action.handoff"));
+  if (!confirmed) return;
+
   try {
     const data = await apiFetch(`/users/${Number(els.handoffUserId.value)}/handoff-admin`, {
       method: "POST",
@@ -1197,6 +1260,11 @@ async function toggleCar(carId) {
   const car = state.cars.find((item) => item.id === carId);
   if (!car) return;
 
+  if (car.active) {
+    const confirmed = await confirmAction(t("confirm.deactivateCar"), t("action.deactivate"));
+    if (!confirmed) return;
+  }
+
   try {
     await apiFetch(`/cars/${carId}/${car.active ? "deactivate" : "activate"}`, {
       method: "POST",
@@ -1210,6 +1278,11 @@ async function toggleCar(carId) {
 }
 
 async function toggleUser(userId, action) {
+  if (action === "deactivate") {
+    const confirmed = await confirmAction(t("confirm.deactivateUser"), t("action.deactivate"));
+    if (!confirmed) return;
+  }
+
   try {
     await apiFetch(`/users/${userId}/${action}`, {
       method: "POST",
@@ -1223,6 +1296,9 @@ async function toggleUser(userId, action) {
 }
 
 async function deactivateBlackout(blackoutId) {
+  const confirmed = await confirmAction(t("confirm.blackoutDeactivate"), t("action.deactivate"));
+  if (!confirmed) return;
+
   try {
     await apiFetch(`/cars/blackouts/${blackoutId}/deactivate`, {
       method: "POST",
@@ -1236,15 +1312,26 @@ async function deactivateBlackout(blackoutId) {
 }
 
 async function reservationAction(id, action) {
+  const confirmationByAction = {
+    reject: [t("confirm.reject"), t("action.reject")],
+    cancel: [t("confirm.cancel"), t("action.cancel")],
+    return: [t("confirm.return"), t("action.returnCar")],
+  };
+  if (confirmationByAction[action]) {
+    const [message, label] = confirmationByAction[action];
+    const confirmed = await confirmAction(message, label);
+    if (!confirmed) return;
+  }
+
   const payload =
     action === "approve"
-      ? { reason: "Approved via FleetFlow UI" }
+      ? { reason: t("audit.approvedViaUi") }
       : action === "reject"
-        ? { reason: "Rejected via FleetFlow UI" }
+        ? { reason: t("audit.rejectedViaUi") }
         : action === "start"
-          ? { note: "Trip started via FleetFlow UI" }
+          ? { note: t("audit.tripStartedViaUi") }
           : action === "return"
-            ? { note: "Vehicle returned via FleetFlow UI" }
+            ? { note: t("audit.vehicleReturnedViaUi") }
             : null;
 
   try {
@@ -1253,7 +1340,15 @@ async function reservationAction(id, action) {
       headers: authHeaders(),
       body: payload ? JSON.stringify(payload) : undefined,
     });
-    showMessage("Lifecycle е обновен", `Резервация #${id} премина през действие "${action}".`, "success");
+    const actionLabel =
+      {
+        approve: t("action.approve"),
+        reject: t("action.reject"),
+        start: t("action.startTrip"),
+        return: t("action.returnCar"),
+        cancel: t("action.cancel"),
+      }[action] || action;
+    showMessage("Lifecycle е обновен", t("message.lifecycleSuccess", { id, action: actionLabel }), "success");
     await refreshData();
   } catch (error) {
     showMessage("Неуспешно действие", error.message);

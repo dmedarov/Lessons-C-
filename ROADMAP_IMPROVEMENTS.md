@@ -648,6 +648,37 @@ Order is by estimated value; pick based on user demand.
   reschedule must open a confirm dialog (item 1.3) before firing an update.
 - **Effort:** L
 
+### 5.9 Write comprehensive tests
+
+- **Goal:** Build enough automated confidence that FleetFlow can evolve without
+  accidental lifecycle, auth, UI or deployment regressions.
+- **Files:** `tests/`, new `e2e/`, `.github/workflows/tests.yml`,
+  `requirements-dev.txt`, `README.md`
+- **Approach:**
+  1. Expand backend tests by domain: `test_auth.py`, `test_users.py`,
+     `test_cars.py`, `test_reservations.py`, `test_notifications.py`,
+     `test_blackouts.py`, `test_security.py`.
+  2. Add negative authorization coverage for every admin endpoint: unauth,
+     employee, inactive user and stale token where relevant.
+  3. Add lifecycle matrix tests: request, approve, reject, start, return,
+     cancel, overlap rejection, blackout rejection and second-user visibility.
+  4. Add PostgreSQL smoke tests for Alembic migrations and core lifecycle
+     flows via `docker-compose.postgres.yml`.
+  5. Add Playwright end-to-end tests for the three core journeys: employee
+     booking, admin approval, maintenance blackout blocking.
+  6. Add CI gates for `pytest`, `pip-audit`, migration smoke and frontend
+     smoke checks.
+- **Acceptance criteria:**
+  - Every endpoint has happy-path and authorization-negative tests.
+  - Every lifecycle transition has at least one regression test.
+  - CI fails on vulnerable Python dependencies, broken migrations or failing
+    smoke journeys.
+  - New bugs should first get a failing test, then a fix.
+- **Verification:** `pytest`, Playwright e2e run, PostgreSQL compose smoke,
+  `pip-audit -r requirements.txt`.
+- **Depends on:** 5.5 for browser-level e2e, but backend expansion can start now.
+- **Effort:** L
+
 ---
 
 ## Cross-cutting concerns (apply to every item)

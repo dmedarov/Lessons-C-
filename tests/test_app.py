@@ -521,3 +521,5 @@ def test_health_and_ui(client: TestClient) -> None:
     assert admin_res.status_code == 200
     assert "text/html" in res.headers["content-type"]
     assert "text/html" in admin_res.headers["content-type"]
+    assert "/static/i18n.js" in res.text
+    assert "/static/i18n.js" in admin_res.text

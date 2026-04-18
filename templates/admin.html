@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FleetFlow Admin | Fleet and user control</title>
     <link rel="stylesheet" href="/static/styles.css" />
+    <script defer src="/static/i18n.js"></script>
     <script defer src="/static/app.js"></script>
   </head>
   <body data-surface="admin">
@@ -19,10 +20,10 @@
         </div>
 
         <nav class="topbar__nav">
-          <a href="/#calendarStudio">Employee Desk</a>
-          <a href="#reservationsDeck">Approvals</a>
-          <a href="#fleetDeck">Fleet</a>
-          <a href="#usersDeck">Users</a>
+          <a href="/#calendarStudio">Служителски изглед</a>
+          <a href="#reservationsDeck">Одобрения</a>
+          <a href="#fleetDeck">Флот</a>
+          <a href="#usersDeck">Потребители</a>
           <a href="/docs" target="_blank" rel="noreferrer">API</a>
         </nav>
 
@@ -47,7 +48,7 @@
               <strong class="stat-card__value">0</strong>
             </article>
             <article class="stat-card">
-              <span class="stat-card__label">Pending</span>
+              <span class="stat-card__label">Чакащи</span>
               <strong class="stat-card__value">0</strong>
             </article>
             <article class="stat-card">
@@ -88,7 +89,7 @@
                   <input id="bootstrapPassword" name="bootstrapPassword" type="password" autocomplete="new-password" />
                   <small class="field__error" id="bootstrapPasswordError"></small>
                 </label>
-                <button class="btn btn--primary" type="submit">Bootstrap admin</button>
+                <button class="btn btn--primary" type="submit">Създай първи администратор</button>
               </form>
             </div>
 
@@ -115,8 +116,8 @@
             <div class="session-summary hidden" id="sessionPanel">
               <div class="summary-row">
                 <div>
-                  <p class="panel__eyebrow">Current mode</p>
-                  <h3 id="sessionTitle">Admin control ready</h3>
+                  <p class="panel__eyebrow">Текущ режим</p>
+                  <h3 id="sessionTitle">Административният режим е готов</h3>
                 </div>
                 <span class="status-pill status-pill--admin" id="sessionModePill">fleet_admin</span>
               </div>
@@ -175,8 +176,8 @@
               <label class="field">
                 <span>Роля</span>
                 <select id="newRole" name="newRole">
-                  <option value="employee">employee</option>
-                  <option value="fleet_admin">fleet_admin</option>
+                  <option value="employee">Служител</option>
+                  <option value="fleet_admin">Администратор</option>
                 </select>
               </label>
               <label class="field">
@@ -192,7 +193,7 @@
             <div class="glass-card__header">
               <div>
                 <p class="panel__eyebrow">Continuity</p>
-                <h2>Admin handoff</h2>
+                <h2>Прехвърляне на admin роля</h2>
               </div>
             </div>
             <form class="stack" id="handoffForm" novalidate>
@@ -305,12 +306,12 @@
 
           <section class="summary-deck" id="summaryDeck">
             <article class="glass-card summary-card">
-              <p class="panel__eyebrow">Mode</p>
+              <p class="panel__eyebrow">Режим</p>
               <h2 id="modeHeading">Admin workspace</h2>
               <p class="section-copy" id="modeCopy">Отделен surface за правата, сервизните ограничения и глобалния operational контрол.</p>
             </article>
             <article class="glass-card summary-card">
-              <p class="panel__eyebrow">Next signal</p>
+              <p class="panel__eyebrow">Следващ сигнал</p>
               <h2 id="nextSignalTitle">Очаква login</h2>
               <p class="section-copy" id="nextSignalCopy">След вход ще видиш чакащите approvals, blackout-и и admin continuity действия.</p>
             </article>
@@ -326,10 +327,10 @@
                 <button class="chip chip--active" type="button" data-scope="smart">Всички</button>
                 <button class="chip" type="button" data-scope="mine">Само мои</button>
                 <button class="chip chip--active" type="button" data-status="all">Всички</button>
-                <button class="chip" type="button" data-status="pending">Pending</button>
-                <button class="chip" type="button" data-status="approved">Approved</button>
-                <button class="chip" type="button" data-status="checked_out">Active</button>
-                <button class="chip" type="button" data-status="returned">Returned</button>
+                  <button class="chip" type="button" data-status="pending">Чакащи</button>
+                  <button class="chip" type="button" data-status="approved">Одобрени</button>
+                  <button class="chip" type="button" data-status="checked_out">Активни</button>
+                  <button class="chip" type="button" data-status="returned">Върнати</button>
               </div>
             </div>
             <div class="table-wrap">
@@ -424,10 +425,10 @@
                   <p class="muted" id="selectedDateMeta">Ще видиш approvals, active trips и върнати автомобили за този ден.</p>
                 </div>
                 <div class="legend">
-                  <span><i class="legend__dot legend__dot--pending"></i> Pending</span>
-                  <span><i class="legend__dot legend__dot--approved"></i> Approved</span>
-                  <span><i class="legend__dot legend__dot--active"></i> Active trip</span>
-                  <span><i class="legend__dot legend__dot--returned"></i> Returned</span>
+                  <span><i class="legend__dot legend__dot--pending"></i> Чака одобрение</span>
+                  <span><i class="legend__dot legend__dot--approved"></i> Одобрена</span>
+                  <span><i class="legend__dot legend__dot--active"></i> Активен курс</span>
+                  <span><i class="legend__dot legend__dot--returned"></i> Върната</span>
                 </div>
                 <div class="day-timeline" id="dayTimeline"></div>
               </aside>
