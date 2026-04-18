@@ -3,10 +3,11 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from config import settings
 from db import get_conn
+from rate_limit import RateLimitRule, client_ip, limiter
 from schemas import BootstrapAdminPayload, LoginPayload, LoginResponse, SetupStatusResponse, UserResponse
 from security import AuthContext, get_auth_context, hash_password, issue_token, verify_password
 
@@ -48,7 +49,11 @@ def setup_status() -> SetupStatusResponse:
 
 
 @router.post("/auth/bootstrap-admin", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def bootstrap_admin(payload: BootstrapAdminPayload) -> UserResponse:
+def bootstrap_admin(payload: BootstrapAdminPayload, request: Request) -> UserResponse:
+    limiter.check(
+        f"bootstrap:{client_ip(request)}",
+        RateLimitRule(settings.bootstrap_rate_limit_attempts, settings.bootstrap_rate_limit_window_seconds),
+    )
     if _admin_exists():
         raise HTTPException(status_code=409, detail="An active fleet_admin already exists")
 
@@ -87,8 +92,12 @@ def bootstrap_admin(payload: BootstrapAdminPayload) -> UserResponse:
 
 
 @router.post("/auth/login", response_model=LoginResponse)
-def login(payload: LoginPayload) -> LoginResponse:
+def login(payload: LoginPayload, request: Request) -> LoginResponse:
     username = payload.username.strip().lower()
+    limiter.check(
+        f"login:{client_ip(request)}:{username}",
+        RateLimitRule(settings.login_rate_limit_attempts, settings.login_rate_limit_window_seconds),
+    )
     with get_conn() as conn:
         row = conn.execute(
             "SELECT id, username, display_name, password_hash, role, active FROM users WHERE username=?",

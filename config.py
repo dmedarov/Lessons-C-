@@ -25,6 +25,11 @@ class Settings:
     slack_webhook_url: str | None
     teams_webhook_url: str | None
     cors_allow_origins: tuple[str, ...]
+    dev_seed_demo_data: bool
+    login_rate_limit_attempts: int
+    login_rate_limit_window_seconds: int
+    bootstrap_rate_limit_attempts: int
+    bootstrap_rate_limit_window_seconds: int
 
     @property
     def db_backend(self) -> str:
@@ -62,6 +67,11 @@ class Settings:
             slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL"),
             teams_webhook_url=os.getenv("TEAMS_WEBHOOK_URL"),
             cors_allow_origins=cors_allow_origins,
+            dev_seed_demo_data=os.getenv("DEV_SEED_DEMO_DATA", "false").lower() == "true",
+            login_rate_limit_attempts=int(os.getenv("LOGIN_RATE_LIMIT_ATTEMPTS", "5")),
+            login_rate_limit_window_seconds=int(os.getenv("LOGIN_RATE_LIMIT_WINDOW_SECONDS", "60")),
+            bootstrap_rate_limit_attempts=int(os.getenv("BOOTSTRAP_RATE_LIMIT_ATTEMPTS", "3")),
+            bootstrap_rate_limit_window_seconds=int(os.getenv("BOOTSTRAP_RATE_LIMIT_WINDOW_SECONDS", "3600")),
         )
 
 

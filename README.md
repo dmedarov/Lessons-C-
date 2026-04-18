@@ -49,7 +49,13 @@ docker compose up --build -d
 - `http://localhost:8000/docs` — Swagger UI
 - `http://localhost:8000/health`
 
-При първо стартиране няма demo акаунти. UI-то ще поиска да създадеш първия `fleet_admin`, след което можеш да добавяш служители и още администратори.
+В стандартния Docker dev режим (`APP_ENV=dev`) се seed-ват локални тестови акаунти и два автомобила. Ако тези потребители вече съществуват, паролите им се ресетват при старт на контейнера:
+
+- `admin` / `AdminPass123` — `fleet_admin`
+- `ivan` / `IvanPass123` — `employee`
+- `maria` / `MariaPass123` — `employee`
+
+За production остави `APP_ENV=prod` и `DEV_SEED_DEMO_DATA=false`. Тогава няма demo акаунти и UI-то ще поиска да създадеш първия `fleet_admin`.
 
 Спиране:
 
@@ -57,7 +63,7 @@ docker compose up --build -d
 docker compose down
 ```
 
-> За production остави `APP_ENV=prod` и използвай дълъг случаен `SECRET_KEY`. Ако искаш бърза dev среда, можеш да смениш `APP_ENV=dev` в `.env`.
+> За production използвай дълъг случаен `SECRET_KEY`, конкретен `CORS_ALLOW_ORIGINS` и реална PostgreSQL база.
 
 ## Production с PostgreSQL
 
@@ -82,7 +88,7 @@ docker compose -f docker-compose.yml -f docker-compose.postgres.yml down
 
 ```
 app.py              # FastAPI factory + lifespan
-config.py           # Настройки от env (SECRET_KEY, DB_PATH, DATABASE_URL, TOKEN_TTL_SECONDS)
+config.py           # Настройки от env (SECRET_KEY, DB_PATH, DATABASE_URL, TOKEN_TTL_SECONDS, CORS/rate limits)
 db.py               # SQLite/PostgreSQL adapters, schema bootstrap, runtime compatibility upgrades
 security.py         # HMAC-подписани токени, PBKDF2 пароли, auth deps
 schemas.py          # Pydantic request/response модели
@@ -142,6 +148,8 @@ docker-compose.postgres.yml
 14. **Role-separated dashboard** — employee и admin имат различни работни повърхности.
 15. **Dual backend strategy** — SQLite за лек dev старт, PostgreSQL чрез `DATABASE_URL` за production.
 16. **Alembic baseline** — production schema changes вече имат versioned migration path.
+17. **Dev-only seed** — deterministic тестови акаунти само в `APP_ENV=dev` + `DEV_SEED_DEMO_DATA=true`.
+18. **Auth rate limiting** — in-memory brute-force guard за login и bootstrap endpoints.
 
 ## Тестове
 
@@ -162,6 +170,8 @@ pytest -q
 - blackout windows
 - outbound dispatch hook
 - сценарий с 2 users + 1 admin, включително какво вижда вторият user
+- dev seed reset на тестовите акаунти
+- login rate limiting
 
 ## Alembic migrations
 
@@ -180,8 +190,8 @@ alembic revision -m "describe change"
 ## Ограничения на този пример
 
 - Refresh token-и няма — клиентът прави нов login след `expires_in`.
-- Rate limiting и CORS са извън скоупа.
-- По-сериозен admin модул е следващата голяма стъпка: admin reset password, role change UI и user audit history surface.
+- Rate limiting-ът е in-memory и е подходящ за single-container deployment; за multi-instance production го изнеси към Redis, API gateway или WAF.
+- По-сериозен admin модул остава следваща голяма стъпка: admin reset password, role change UI и user audit history surface.
 
 ## План за развитие
 

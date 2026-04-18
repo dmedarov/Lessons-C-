@@ -16,17 +16,20 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     monkeypatch.setenv("SECRET_KEY", "test-secret-key")
     monkeypatch.setenv("APP_ENV", "dev")
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("DEV_SEED_DEMO_DATA", raising=False)
 
     import app as app_module
     import config
     import db as db_module
     import notifications_service
+    import rate_limit
     import security
 
     importlib.reload(config)
     importlib.reload(security)
     importlib.reload(db_module)
     importlib.reload(notifications_service)
+    importlib.reload(rate_limit)
     importlib.reload(app_module)
 
     from routers import auth, cars, notifications, reservations, users
@@ -136,6 +139,7 @@ def test_prod_init_db_starts_without_demo_users(tmp_path: Path, monkeypatch: pyt
     monkeypatch.setenv("SECRET_KEY", "test-secret-key")
     monkeypatch.setenv("APP_ENV", "prod")
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("DEV_SEED_DEMO_DATA", raising=False)
 
     import config
 
@@ -148,6 +152,46 @@ def test_prod_init_db_starts_without_demo_users(tmp_path: Path, monkeypatch: pyt
         row = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()
 
     assert row["n"] == 0
+
+
+def test_dev_seed_demo_data_resets_local_test_accounts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "dev.db"))
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("APP_ENV", "dev")
+    monkeypatch.setenv("DEV_SEED_DEMO_DATA", "true")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    import config
+    import db as db_module
+
+    importlib.reload(config)
+    importlib.reload(db_module)
+
+    db_module.init_db()
+    db_module.init_db()
+
+    with db_module.get_conn() as conn:
+        users = conn.execute("SELECT username, role, active, password_hash FROM users ORDER BY username").fetchall()
+        cars = conn.execute("SELECT plate_number, active FROM cars ORDER BY plate_number").fetchall()
+
+    assert {row["username"]: (row["role"], row["active"]) for row in users} == {
+        "admin": ("fleet_admin", 1),
+        "ivan": ("employee", 1),
+        "maria": ("employee", 1),
+    }
+    assert {row["plate_number"]: row["active"] for row in cars} == {
+        "CB1234AB": 1,
+        "CB5678CD": 1,
+    }
+
+    import security
+
+    password_by_user = {
+        "admin": "AdminPass123",
+        "ivan": "IvanPass123",
+        "maria": "MariaPass123",
+    }
+    assert all(security.verify_password(password_by_user[row["username"]], row["password_hash"]) for row in users)
 
 
 def test_setup_status_and_bootstrap_flow(client: TestClient) -> None:
@@ -174,6 +218,16 @@ def test_login_success_and_failure(client: TestClient) -> None:
     assert ok.status_code == 200
     assert ok.json()["role"] == "fleet_admin"
     assert bad.status_code == 401
+
+
+def test_login_rate_limit_rejects_repeated_bad_attempts(client: TestClient) -> None:
+    for _ in range(5):
+        res = client.post("/auth/login", json={"username": "ghost", "password": "wrong"})
+        assert res.status_code == 401
+
+    limited = client.post("/auth/login", json={"username": "ghost", "password": "wrong"})
+    assert limited.status_code == 429
+    assert "Твърде много опити" in limited.json()["detail"]
 
 
 def test_user_management_and_password_change(client: TestClient) -> None:

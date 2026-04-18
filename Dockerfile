@@ -29,7 +29,7 @@ RUN python -m pip install --no-cache-dir --upgrade pip==25.3
 RUN useradd --create-home --uid 10001 appuser
 
 COPY --from=builder /opt/venv /opt/venv
-COPY app.py config.py db.py security.py schemas.py ./
+COPY app.py config.py db.py notifications_service.py rate_limit.py security.py schemas.py ./
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY routers ./routers

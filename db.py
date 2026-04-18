@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from typing import Any, Iterator
 
 from config import settings
@@ -362,6 +363,71 @@ def _apply_runtime_upgrades(conn: SQLiteConnectionAdapter | PostgresConnectionAd
     _ensure_column(conn, "reservations", "returned_at", "TEXT")
 
 
+def _upsert_demo_user(
+    conn: SQLiteConnectionAdapter | PostgresConnectionAdapter,
+    username: str,
+    display_name: str,
+    password: str,
+    role: str,
+) -> None:
+    from security import hash_password
+
+    now = datetime.now(timezone.utc).isoformat()
+    existing = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+    if existing:
+        conn.execute(
+            """
+            UPDATE users
+            SET display_name=?, password_hash=?, role=?, active=1
+            WHERE username=?
+            """,
+            (display_name, hash_password(password), role, username),
+        )
+        return
+
+    conn.execute(
+        """
+        INSERT INTO users(username, display_name, password_hash, role, active, created_at)
+        VALUES(?, ?, ?, ?, 1, ?)
+        """,
+        (username, display_name, hash_password(password), role, now),
+    )
+
+
+def _upsert_demo_car(
+    conn: SQLiteConnectionAdapter | PostgresConnectionAdapter,
+    plate_number: str,
+    model: str,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    existing = conn.execute("SELECT id FROM cars WHERE plate_number=?", (plate_number,)).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE cars SET model=?, active=1 WHERE plate_number=?",
+            (model, plate_number),
+        )
+        return
+
+    conn.execute(
+        """
+        INSERT INTO cars(plate_number, model, active, created_at)
+        VALUES(?, ?, 1, ?)
+        """,
+        (plate_number, model, now),
+    )
+
+
+def _seed_dev_demo_data(conn: SQLiteConnectionAdapter | PostgresConnectionAdapter) -> None:
+    if settings.app_env != "dev" or not settings.dev_seed_demo_data:
+        return
+
+    _upsert_demo_user(conn, "admin", "Fleet Admin", "AdminPass123", "fleet_admin")
+    _upsert_demo_user(conn, "ivan", "Ivan Petrov", "IvanPass123", "employee")
+    _upsert_demo_user(conn, "maria", "Maria Petrova", "MariaPass123", "employee")
+    _upsert_demo_car(conn, "CB1234AB", "Skoda Octavia")
+    _upsert_demo_car(conn, "CB5678CD", "Tesla Model 3")
+
+
 def init_db() -> None:
     if settings.db_backend == "sqlite":
         db_path = _db_path()
@@ -374,3 +440,4 @@ def init_db() -> None:
         for stmt in schema:
             conn.execute(stmt)
         _apply_runtime_upgrades(conn)
+        _seed_dev_demo_data(conn)
