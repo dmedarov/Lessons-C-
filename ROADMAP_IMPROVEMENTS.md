@@ -889,5 +889,14 @@ auditable and safe enough for real company operations.
 - **Verification:** `pytest` (`21 passed` at shipment), `node --check`,
   `git diff --check`, Docker healthcheck and endpoint smoke.
 
+### 2026-04-19 - Admin user controls and audit history (`82ff34e`)
+
+- **Shipped:** Admin password reset, admin role change, user action audit API
+  and admin UI actions/timeline for user cards.
+- **Shipped:** Stale tokens re-read current role state, so promotions/demotions
+  apply immediately to existing sessions.
+- **Verification:** `pytest` (`24 passed` at shipment), Python/JS syntax checks,
+  `git diff --check`, Docker healthcheck and admin reset/audit endpoint smoke.
+
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._
