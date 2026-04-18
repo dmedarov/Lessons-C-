@@ -681,6 +681,126 @@ Order is by estimated value; pick based on user demand.
 
 ---
 
+## Phase 6 - Serious admin module
+
+This phase turns the current admin surface into a proper operational control
+center. Some baseline pieces already exist (`/admin`, user CRUD, admin handoff,
+blackout windows), but the next wave should make user administration explicit,
+auditable and safe enough for real company operations.
+
+### 6.1 Admin password reset for users
+
+- **Goal:** Fleet admins can reset another user's password without knowing the
+  old password, while the action is audited.
+- **Files:** `routers/users.py`, `schemas.py`, `db.py`, `templates/admin.html`,
+  `static/app.js`, `static/i18n.js`, `static/styles.css`,
+  new Alembic migration, `tests/test_app.py` or `tests/test_users.py`
+- **Approach:**
+  1. Add `AdminPasswordResetPayload` with `new_password` and optional
+     `force_change_on_next_login` (default `true` once forced-change support
+     exists; start with a documented no-op if needed).
+  2. Add `POST /users/{user_id}/reset-password`, admin-only, rejecting inactive
+     target users unless an explicit `allow_inactive` flag is added later.
+  3. Hash the new password with `hash_password`; never return it in responses.
+  4. Write a `user_audit_log` event with actor, target, action
+     `password_reset`, reason and timestamp.
+  5. Add an admin UI action on user cards/table with a confirmation dialog and
+     password validation.
+- **Acceptance criteria:**
+  - Admin can reset an employee password; employee can log in with the new
+    password and not with the old one.
+  - Employees cannot reset anyone else's password.
+  - Resetting the last active admin's password remains allowed, but is audited.
+  - User-visible strings are Bulgarian and flow through `static/i18n.js`.
+- **Verification:** `pytest` coverage for success, unauth, employee forbidden,
+  inactive target behavior and audit event creation; manual admin UI smoke.
+- **Depends on:** Existing `user_audit_log` table.
+- **Effort:** M
+
+### 6.2 Admin role change flow
+
+- **Goal:** Admins can promote/demote users between `employee` and
+  `fleet_admin` safely, without accidentally leaving the system with no admin.
+- **Files:** `routers/users.py`, `schemas.py`, `templates/admin.html`,
+  `static/app.js`, `static/i18n.js`, `tests/test_app.py` or
+  `tests/test_users.py`
+- **Approach:**
+  1. Add `UserRoleChangePayload` with `role` and optional `reason`.
+  2. Add `POST /users/{user_id}/role`, admin-only.
+  3. Reuse the at-least-one-active-admin invariant from item 3.4 before any
+     demotion takes effect.
+  4. Invalidate stale privilege assumptions by relying on `verify_token()`
+     re-binding to current DB user state (already required by review finding).
+  5. Record `role_changed` in `user_audit_log` with old role, new role and
+     reason.
+  6. In the UI, show role controls only on the dedicated admin page and require
+     confirmation for demotions.
+- **Acceptance criteria:**
+  - Admin can promote an employee to `fleet_admin`.
+  - Admin cannot demote/deactivate the last active admin.
+  - A user with an old token sees updated permissions after role change.
+  - Role changes appear in audit history.
+- **Verification:** Tests for promote, demote, last-admin refusal, stale-token
+  behavior and employee forbidden; manual two-browser smoke.
+- **Depends on:** 3.4 for invariant completeness.
+- **Effort:** M
+
+### 6.3 User action audit history UI
+
+- **Goal:** Admins can inspect a chronological history of user/admin actions,
+  including password resets, role changes, activation changes and handoffs.
+- **Files:** `routers/users.py`, `schemas.py`, `templates/admin.html`,
+  `static/app.js`, `static/i18n.js`, `static/styles.css`,
+  `tests/test_app.py` or `tests/test_users.py`
+- **Approach:**
+  1. Add `GET /users/{user_id}/audit`, admin-only, returning chronological
+     `user_audit_log` entries with actor display name, action, reason and time.
+  2. Add optional query filters: `limit`, `offset`, `action`.
+  3. Render an admin-side timeline or drawer from each user card/table row.
+  4. Ensure sensitive values are never stored in audit logs (no raw passwords,
+     no token values).
+  5. Add Bulgarian labels for audit actions in `static/i18n.js`.
+- **Acceptance criteria:**
+  - Admin can open audit history for a user.
+  - Employee cannot access audit endpoints.
+  - Password reset and role change events appear immediately after action.
+  - Audit UI is readable on mobile and desktop.
+- **Verification:** Tests for list, auth negative, pagination and event order;
+  manual UI smoke with at least two users and one admin.
+- **Depends on:** 6.1 and 6.2 for richer event sources.
+- **Effort:** M
+
+### 6.4 Dedicated admin module, not mixed dashboard controls
+
+- **Goal:** Administrative workflows live on a dedicated `/admin` module with
+  clean navigation, while the employee dashboard stays focused on personal
+  bookings and lifecycle actions.
+- **Files:** `app.py`, `templates/index.html`, `templates/admin.html`,
+  `static/app.js`, `static/styles.css`, `static/i18n.js`, `tests/test_app.py`
+- **Approach:**
+  1. Keep `/admin` as the canonical admin surface; remove or hide remaining
+     duplicated admin-only creation/management panels from `templates/index.html`.
+  2. Add admin module navigation sections: `Заявки`, `Потребители`, `Флот`,
+     `Blackout-и`, `Audit`, `Настройки`.
+  3. Make `/admin` visibly distinct but consistent with the FleetFlow design
+     system: compact headers, responsive cards/tables and no horizontal overflow.
+  4. If an employee opens `/admin`, show a polite forbidden/redirect state
+     instead of leaking admin controls.
+  5. Preserve quick links from employee desk to admin for users with
+     `fleet_admin` role.
+- **Acceptance criteria:**
+  - Employee dashboard has no user/fleet admin forms.
+  - `/admin` contains all admin controls and is usable at 375 px width.
+  - Admin role users can still create cars/users, manage blackouts and handle
+    approvals from `/admin`.
+  - Employees cannot see or operate admin controls.
+- **Verification:** `pytest` UI route smoke, manual admin/employee smoke in two
+  browsers, responsive check at 375, 768 and 1280 px.
+- **Depends on:** Current `/admin` baseline already shipped; 6.1-6.3 enrich it.
+- **Effort:** M
+
+---
+
 ## Cross-cutting concerns (apply to every item)
 
 - **No new dependencies** without listing them in the PR description with
@@ -708,12 +828,66 @@ Order is by estimated value; pick based on user demand.
    states). These are independent and unblock everything else.
 3. **Phase 2.3 + 2.4 + 2.5 + 2.6** (conflict preview, bulk approve, default
    filter, auto-refresh) - the daily-productivity wave.
-4. **Phase 3.4 + 3.5** (admin invariant, token audit) before any
+4. **Phase 6.1 + 6.2 + 6.3 + 6.4** (serious admin module) once the daily
+   booking flow is stable.
+5. **Phase 3.4 + 3.5** (admin invariant, token audit) before any
    external-customer rollout.
-5. **Phase 4** - paying down debt once user-facing wins ship.
-6. **Phase 5** - opportunistic, user-demand-driven.
+6. **Phase 4** - paying down debt once user-facing wins ship.
+7. **Phase 5** - opportunistic, user-demand-driven.
 
 ---
 
-_Last updated: 2026-04-18. When you ship an item, move it to a `## Done`
-section at the bottom of this file with the PR link._
+## Done
+
+### 2026-04-18 - Security review fixes
+
+- **Shipped:** Signed-token verification now rebinds to current DB user state,
+  so deactivated or demoted users do not keep stale privileges until token
+  expiry.
+- **Shipped:** Reservation creation rejects past `start_time`, not only past
+  `end_time`.
+- **Verification:** Covered by `pytest`.
+
+### 2026-04-18 - Initial product hardening and production path
+
+- **Shipped:** Dockerized FastAPI app, PostgreSQL-ready configuration,
+  Alembic baseline, real auth/user management, lifecycle start/return,
+  notifications, outbound SMTP/Slack/Teams hooks, service/maintenance blackout
+  windows and separate `/admin` surface.
+- **Verification:** Manual Docker smoke and growing FastAPI TestClient suite.
+
+### 2026-04-18 - Phase 1 UI quick wins (`8f8648a`)
+
+- **Shipped:** Bulgarian i18n helper, visible focus styling and confirmation
+  dialogs for destructive actions.
+- **Verification:** `pytest` and manual UI smoke.
+
+### 2026-04-18 - Notifications and admin defaults (`8834312`)
+
+- **Shipped:** Admin defaults to pending queue, unread notification badge and
+  notification polling with logout cleanup.
+- **Verification:** `pytest` and manual two-session smoke.
+
+### 2026-04-18 - CORS configuration (`b9dd216`)
+
+- **Shipped:** Explicit environment-driven CORS handling with safe dev/prod
+  defaults and preflight coverage.
+- **Verification:** `pytest` CORS preflight test.
+
+### 2026-04-18 - Dev seed accounts and auth rate limiting (`a91ab3e`)
+
+- **Shipped:** Dev-only deterministic seed accounts/cars, Docker runtime module
+  fix and in-memory rate limiting for login/bootstrap endpoints.
+- **Verification:** `pytest` (`19 passed` at shipment), Docker healthcheck and
+  login smoke for `admin`, `ivan`, `maria`.
+
+### 2026-04-19 - Live reservation conflict preview (`dd78b3a`)
+
+- **Shipped:** `GET /reservations/conflicts`, frontend debounced booking
+  preview, calendar conflict outline and regression tests for reservation and
+  blackout conflicts.
+- **Verification:** `pytest` (`21 passed` at shipment), `node --check`,
+  `git diff --check`, Docker healthcheck and endpoint smoke.
+
+_Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
+section with the commit or PR link._
