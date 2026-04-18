@@ -54,6 +54,26 @@ class PasswordChangePayload(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class AdminPasswordResetPayload(BaseModel):
+    new_password: str = Field(min_length=8, max_length=128)
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class UserRoleChangePayload(BaseModel):
+    role: Role
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class UserAuditResponse(BaseModel):
+    id: int
+    actor_id: int
+    actor_display_name: str
+    target_user_id: int
+    action: str
+    reason: Optional[str] = None
+    at: str
+
+
 class AdminHandoffPayload(BaseModel):
     demote_self: bool = True
     reason: Optional[str] = Field(default=None, max_length=500)

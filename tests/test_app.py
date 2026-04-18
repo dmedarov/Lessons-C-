@@ -267,6 +267,101 @@ def test_user_management_and_password_change(client: TestClient) -> None:
     assert reactivated.json()["active"] is True
 
 
+def test_admin_can_reset_password_and_audit_records_action(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    created = _create_user(client, admin, "ivan", "Ivan Petrov", "IvanPass123")
+    employee = _login(client, "ivan", "IvanPass123")
+
+    forbidden = client.post(
+        f"/users/{created['id']}/reset-password",
+        json={"new_password": "IvanPass456", "reason": "Forgotten password"},
+        headers=_auth(employee),
+    )
+    assert forbidden.status_code == 403
+
+    reset = client.post(
+        f"/users/{created['id']}/reset-password",
+        json={"new_password": "IvanPass456", "reason": "Forgotten password"},
+        headers=_auth(admin),
+    )
+    assert reset.status_code == 204
+
+    old_login = client.post("/auth/login", json={"username": "ivan", "password": "IvanPass123"})
+    new_login = client.post("/auth/login", json={"username": "ivan", "password": "IvanPass456"})
+    assert old_login.status_code == 401
+    assert new_login.status_code == 200
+
+    audit = client.get(f"/users/{created['id']}/audit", headers=_auth(admin))
+    assert audit.status_code == 200
+    assert audit.json()[0]["action"] == "password_reset"
+    assert audit.json()[0]["reason"] == "Forgotten password"
+
+    employee_audit = client.get(f"/users/{created['id']}/audit", headers=_auth(employee))
+    assert employee_audit.status_code == 403
+
+
+def test_admin_role_change_updates_stale_tokens_and_preserves_last_admin(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    admin_user_id = client.get("/auth/me", headers=_auth(admin)).json()["id"]
+    created = _create_user(client, admin, "maria", "Maria Petrova", "MariaPass123")
+    maria = _login(client, "maria", "MariaPass123")
+
+    promote = client.post(
+        f"/users/{created['id']}/role",
+        json={"role": "fleet_admin", "reason": "Admin shift"},
+        headers=_auth(admin),
+    )
+    assert promote.status_code == 200
+    assert promote.json()["role"] == "fleet_admin"
+
+    stale_token_create_car = client.post(
+        "/cars",
+        json={"plate_number": "CB9000AA", "model": "Tesla Model Y"},
+        headers=_auth(maria),
+    )
+    assert stale_token_create_car.status_code == 201
+
+    demote_original_admin = client.post(
+        f"/users/{admin_user_id}/role",
+        json={"role": "employee", "reason": "Handoff complete"},
+        headers=_auth(maria),
+    )
+    assert demote_original_admin.status_code == 200
+    assert demote_original_admin.json()["role"] == "employee"
+
+    demoted_admin_stale_token = client.post(
+        "/cars",
+        json={"plate_number": "CB9001AA", "model": "Tesla Model 3"},
+        headers=_auth(admin),
+    )
+    assert demoted_admin_stale_token.status_code == 403
+
+    last_admin_demote = client.post(
+        f"/users/{created['id']}/role",
+        json={"role": "employee", "reason": "Should fail"},
+        headers=_auth(maria),
+    )
+    assert last_admin_demote.status_code == 409
+
+    audit = client.get(f"/users/{created['id']}/audit", headers=_auth(maria))
+    assert audit.status_code == 200
+    assert any(item["action"] == "role_changed" for item in audit.json())
+
+
+def test_admin_cannot_reset_inactive_user_password(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    created = _create_user(client, admin, "georgi", "Georgi Ivanov", "GeorgiPass123")
+    deactivated = client.post(f"/users/{created['id']}/deactivate", headers=_auth(admin))
+    assert deactivated.status_code == 200
+
+    reset = client.post(
+        f"/users/{created['id']}/reset-password",
+        json={"new_password": "GeorgiPass456"},
+        headers=_auth(admin),
+    )
+    assert reset.status_code == 409
+
+
 def test_last_admin_cannot_deactivate_self(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
     me = client.get("/auth/me", headers=_auth(admin)).json()

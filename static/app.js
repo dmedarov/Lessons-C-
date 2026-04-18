@@ -31,6 +31,7 @@ const state = {
   reservations: [],
   notifications: [],
   users: [],
+  userAudit: {},
   blackouts: [],
   conflictPreview: {
     requested: false,
@@ -229,6 +230,121 @@ function confirmAction(message, confirmLabel = t("action.confirm")) {
     document.body.appendChild(dialog);
     dialog.showModal();
     confirmButton.focus();
+  });
+}
+
+function userDialog({ title, body, confirmLabel, renderFields, readValue, validate }) {
+  if (!("HTMLDialogElement" in window)) {
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve) => {
+    const dialog = document.createElement("dialog");
+    const titleId = `user-dialog-title-${Date.now()}`;
+    dialog.className = "confirm-dialog user-admin-dialog";
+    dialog.setAttribute("aria-labelledby", titleId);
+
+    const heading = document.createElement("h2");
+    heading.id = titleId;
+    heading.textContent = title;
+
+    const copy = document.createElement("p");
+    copy.textContent = body;
+
+    const form = document.createElement("form");
+    form.className = "stack";
+    form.method = "dialog";
+    form.innerHTML = `${renderFields()}<small class="field__error" data-dialog-error></small>`;
+
+    const actions = document.createElement("div");
+    actions.className = "confirm-dialog__actions";
+
+    const cancelButton = document.createElement("button");
+    cancelButton.className = "btn btn--ghost";
+    cancelButton.type = "button";
+    cancelButton.textContent = t("action.keep");
+
+    const confirmButton = document.createElement("button");
+    confirmButton.className = "btn btn--primary";
+    confirmButton.type = "submit";
+    confirmButton.textContent = confirmLabel;
+
+    const close = (value) => {
+      dialog.close();
+      dialog.remove();
+      resolve(value);
+    };
+
+    cancelButton.addEventListener("click", () => close(null));
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      close(null);
+    });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const value = readValue(form);
+      const error = validate ? validate(value) : null;
+      if (error) {
+        form.querySelector("[data-dialog-error]").textContent = error;
+        return;
+      }
+      close(value);
+    });
+
+    actions.append(cancelButton, confirmButton);
+    form.appendChild(actions);
+    dialog.append(heading, copy, form);
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    form.querySelector("input, select, textarea")?.focus();
+  });
+}
+
+function resetPasswordDialog(user) {
+  return userDialog({
+    title: t("admin.resetPasswordTitle", { name: user.display_name }),
+    body: t("admin.resetPasswordBody"),
+    confirmLabel: t("action.resetPassword"),
+    renderFields: () => `
+      <label class="field">
+        <span>${t("admin.passwordLabel")}</span>
+        <input name="newPassword" type="password" autocomplete="new-password" />
+      </label>
+      <label class="field">
+        <span>${t("admin.reasonLabel")}</span>
+        <textarea name="reason" rows="3"></textarea>
+      </label>
+    `,
+    readValue: (form) => ({
+      new_password: form.elements.newPassword.value,
+      reason: form.elements.reason.value.trim() || null,
+    }),
+    validate: (value) => (value.new_password.length < 8 ? t("admin.passwordTooShort") : null),
+  });
+}
+
+function roleChangeDialog(user) {
+  return userDialog({
+    title: t("admin.changeRoleTitle", { name: user.display_name }),
+    body: t("admin.changeRoleBody"),
+    confirmLabel: t("action.changeRole"),
+    renderFields: () => `
+      <label class="field">
+        <span>${t("admin.roleLabel")}</span>
+        <select name="role">
+          <option value="employee" ${user.role === "employee" ? "selected" : ""}>${t("role.employee")}</option>
+          <option value="fleet_admin" ${user.role === "fleet_admin" ? "selected" : ""}>${t("role.fleet_admin")}</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>${t("admin.reasonLabel")}</span>
+        <textarea name="reason" rows="3"></textarea>
+      </label>
+    `,
+    readValue: (form) => ({
+      role: form.elements.role.value,
+      reason: form.elements.reason.value.trim() || null,
+    }),
   });
 }
 
@@ -583,11 +699,36 @@ function renderUsers() {
     const card = document.createElement("article");
     card.className = "user-card";
     const isSelf = state.currentUser && user.id === state.currentUser.id;
+    const auditItems = state.userAudit[user.id] || [];
+    const auditMarkup = state.userAudit[user.id]
+      ? `
+        <div class="user-audit">
+          ${
+            auditItems.length
+              ? auditItems
+                  .map(
+                    (item) => `
+                      <article class="user-audit__item">
+                        <strong>${escapeHtml(t("admin.auditBy", {
+                          action: t(`audit.${item.action}`),
+                          actor: item.actor_display_name,
+                        }))}</strong>
+                        <span>${formatDateTime(item.at)}</span>
+                        ${item.reason ? `<p>${escapeHtml(t("admin.auditReason", { reason: item.reason }))}</p>` : ""}
+                      </article>
+                    `
+                  )
+                  .join("")
+              : `<p class="muted">${t("admin.auditEmpty")}</p>`
+          }
+        </div>
+      `
+      : "";
     card.innerHTML = `
       <div class="user-card__head">
         <div>
-          <strong>${user.display_name}</strong>
-          <p class="muted">${user.username}</p>
+          <strong>${escapeHtml(user.display_name)}</strong>
+          <p class="muted">${escapeHtml(user.username)}</p>
         </div>
         <span class="status-pill ${user.role === "fleet_admin" ? "status-pill--admin" : "status-pill--employee"}">${t(`role.${user.role}`)}</span>
       </div>
@@ -606,7 +747,11 @@ function renderUsers() {
             ? `<button class="action-btn action-btn--approve" type="button" data-handoff-candidate="${user.id}">${t("action.handoff")}</button>`
             : ""
         }
+        <button class="action-btn action-btn--toggle" type="button" data-user-role="${user.id}">${t("action.changeRole")}</button>
+        <button class="action-btn action-btn--toggle" type="button" data-user-reset="${user.id}" ${user.active ? "" : "disabled"}>${t("action.resetPassword")}</button>
+        <button class="action-btn action-btn--toggle" type="button" data-user-audit="${user.id}">${t("action.loadAudit")}</button>
       </div>
+      ${auditMarkup}
     `;
     els.usersGrid.appendChild(card);
   });
@@ -1307,6 +1452,7 @@ function handleLogout() {
   state.notifications = [];
   state.reservations = [];
   state.users = [];
+  state.userAudit = {};
   state.blackouts = [];
   els.loginForm.reset();
   resetConflictPreview();
@@ -1523,6 +1669,56 @@ async function toggleUser(userId, action) {
   }
 }
 
+async function resetUserPassword(userId) {
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+
+  const payload = await resetPasswordDialog(user);
+  if (!payload) return;
+
+  try {
+    await apiFetch(`/users/${userId}/reset-password`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    });
+    showMessage("Паролата е обновена", t("admin.passwordResetSuccess", { name: user.display_name }), "success");
+    await loadUserAudit(userId);
+  } catch (error) {
+    showMessage("Неуспешен reset", error.message);
+  }
+}
+
+async function changeUserRole(userId) {
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+
+  const payload = await roleChangeDialog(user);
+  if (!payload || payload.role === user.role) return;
+
+  try {
+    await apiFetch(`/users/${userId}/role`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    });
+    showMessage("Ролята е обновена", t("admin.roleChangeSuccess", { name: user.display_name }), "success");
+    await refreshData();
+    await loadUserAudit(userId);
+  } catch (error) {
+    showMessage("Неуспешна смяна на роля", error.message);
+  }
+}
+
+async function loadUserAudit(userId) {
+  try {
+    state.userAudit[userId] = await apiFetch(`/users/${userId}/audit`, { headers: authHeaders() });
+    renderUsers();
+  } catch (error) {
+    showMessage("Audit историята не се зареди", error.message);
+  }
+}
+
 async function deactivateBlackout(blackoutId) {
   const confirmed = await confirmAction(t("confirm.blackoutDeactivate"), t("action.deactivate"));
   if (!confirmed) return;
@@ -1697,6 +1893,9 @@ document.addEventListener("click", (event) => {
   const reservationButton = event.target.closest("[data-reservation-action]");
   const notificationButton = event.target.closest("[data-notification-read]");
   const userButton = event.target.closest("[data-user-action]");
+  const userResetButton = event.target.closest("[data-user-reset]");
+  const userRoleButton = event.target.closest("[data-user-role]");
+  const userAuditButton = event.target.closest("[data-user-audit]");
   const blackoutButton = event.target.closest("[data-blackout-disable]");
   const handoffButton = event.target.closest("[data-handoff-candidate]");
 
@@ -1714,6 +1913,15 @@ document.addEventListener("click", (event) => {
   }
   if (userButton) {
     toggleUser(Number(userButton.dataset.userId), userButton.dataset.userAction);
+  }
+  if (userResetButton) {
+    resetUserPassword(Number(userResetButton.dataset.userReset));
+  }
+  if (userRoleButton) {
+    changeUserRole(Number(userRoleButton.dataset.userRole));
+  }
+  if (userAuditButton) {
+    loadUserAudit(Number(userAuditButton.dataset.userAudit));
   }
   if (blackoutButton) {
     deactivateBlackout(Number(blackoutButton.dataset.blackoutDisable));

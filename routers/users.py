@@ -3,11 +3,20 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from db import get_conn, transaction
 from notifications_service import create_notification, dispatch_outbound_notifications
-from schemas import AdminHandoffPayload, AdminHandoffResponse, PasswordChangePayload, UserCreatePayload, UserResponse
+from schemas import (
+    AdminHandoffPayload,
+    AdminHandoffResponse,
+    AdminPasswordResetPayload,
+    PasswordChangePayload,
+    UserAuditResponse,
+    UserCreatePayload,
+    UserResponse,
+    UserRoleChangePayload,
+)
 from security import AuthContext, get_auth_context, hash_password, require_admin, verify_password
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -42,6 +51,24 @@ def _log_user_action(conn, actor_id: int, target_user_id: int, action: str, reas
         """,
         (actor_id, target_user_id, action, reason, datetime.now(timezone.utc).isoformat()),
     )
+
+
+def _active_admin_count(conn) -> int:
+    return int(
+        conn.execute(
+            "SELECT COUNT(*) AS n FROM users WHERE role='fleet_admin' AND active=1"
+        ).fetchone()["n"]
+    )
+
+
+def _load_user(conn, user_id: int):
+    row = conn.execute(
+        "SELECT id, username, display_name, role, active, created_at FROM users WHERE id=?",
+        (user_id,),
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    return row
 
 
 @router.get("", response_model=list[UserResponse])
@@ -113,16 +140,107 @@ def change_my_password(payload: PasswordChangePayload, auth: AuthContext = Depen
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.post("/{user_id}/reset-password", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+def reset_user_password(
+    user_id: int,
+    payload: AdminPasswordResetPayload,
+    auth: AuthContext = Depends(require_admin),
+) -> Response:
+    with get_conn() as conn, transaction(conn):
+        target = _load_user(conn, user_id)
+        if not target["active"]:
+            raise HTTPException(status_code=409, detail="Cannot reset password for an inactive user")
+
+        conn.execute(
+            "UPDATE users SET password_hash=? WHERE id=?",
+            (hash_password(payload.new_password), user_id),
+        )
+        _log_user_action(conn, auth.user_id, user_id, "password_reset", payload.reason)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{user_id}/role", response_model=UserResponse)
+def change_user_role(
+    user_id: int,
+    payload: UserRoleChangePayload,
+    auth: AuthContext = Depends(require_admin),
+) -> UserResponse:
+    with get_conn() as conn, transaction(conn):
+        target = _load_user(conn, user_id)
+        old_role = str(target["role"])
+        if old_role == payload.role:
+            return _to_user_response(target)
+
+        if old_role == "fleet_admin" and payload.role != "fleet_admin" and target["active"] and _active_admin_count(conn) <= 1:
+            raise HTTPException(status_code=409, detail="Cannot demote the last active fleet_admin")
+
+        conn.execute("UPDATE users SET role=? WHERE id=?", (payload.role, user_id))
+        _log_user_action(
+            conn,
+            auth.user_id,
+            user_id,
+            "role_changed",
+            payload.reason or f"{old_role}->{payload.role}",
+        )
+        updated = _load_user(conn, user_id)
+
+    return _to_user_response(updated)
+
+
+@router.get("/{user_id}/audit", response_model=list[UserAuditResponse])
+def user_audit(
+    user_id: int,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    _: AuthContext = Depends(require_admin),
+) -> list[UserAuditResponse]:
+    with get_conn() as conn:
+        _load_user(conn, user_id)
+        rows = conn.execute(
+            """
+            SELECT
+                log.id,
+                log.actor_id,
+                COALESCE(actor.display_name, 'Unknown actor') AS actor_display_name,
+                log.target_user_id,
+                log.action,
+                log.reason,
+                log.at
+            FROM user_audit_log log
+            LEFT JOIN users actor ON actor.id = log.actor_id
+            WHERE log.target_user_id=?
+            ORDER BY log.at DESC, log.id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (user_id, limit, offset),
+        ).fetchall()
+
+    return [
+        UserAuditResponse(
+            id=int(row["id"]),
+            actor_id=int(row["actor_id"]),
+            actor_display_name=str(row["actor_display_name"]),
+            target_user_id=int(row["target_user_id"]),
+            action=str(row["action"]),
+            reason=row["reason"],
+            at=str(row["at"]),
+        )
+        for row in rows
+    ]
+
+
 @router.post("/{user_id}/deactivate", response_model=UserResponse)
 def deactivate_user(user_id: int, auth: AuthContext = Depends(require_admin)) -> UserResponse:
     if user_id == auth.user_id:
-        admins = 0
         with get_conn() as conn:
-            admins = conn.execute(
-                "SELECT COUNT(*) AS n FROM users WHERE role='fleet_admin' AND active=1"
-            ).fetchone()["n"]
-        if admins <= 1:
-            raise HTTPException(status_code=409, detail="Cannot deactivate the last active fleet_admin")
+            if _active_admin_count(conn) <= 1:
+                raise HTTPException(status_code=409, detail="Cannot deactivate the last active fleet_admin")
+    else:
+        with get_conn() as conn:
+            target = conn.execute("SELECT role, active FROM users WHERE id=?", (user_id,)).fetchone()
+            if target and target["role"] == "fleet_admin" and target["active"] and _active_admin_count(conn) <= 1:
+                raise HTTPException(status_code=409, detail="Cannot deactivate the last active fleet_admin")
 
     with get_conn() as conn:
         cur = conn.execute("UPDATE users SET active=0 WHERE id=? AND active=1", (user_id,))
