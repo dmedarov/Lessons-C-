@@ -28,6 +28,7 @@ jobs:
         run: |
           python -m py_compile \
             app.py \
+            bootstrap_tokens.py \
             config.py \
             container_entrypoint.py \
             db.py \
@@ -48,6 +49,7 @@ jobs:
         run: |
           node --check static/app.js
           node --check static/i18n.js
+          node --check static/theme.js
 
       - name: Audit Python dependencies
         run: pip-audit -r requirements.txt
