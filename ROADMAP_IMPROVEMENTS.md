@@ -115,8 +115,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - The monolithic `static/app.js` should be split before the frontend grows much
   further.
 - The last visible GitHub security banner pointed at the Docker base image;
-  FleetFlow now builds from `python:3.14.4-alpine`, but GitHub Security must be
-  rechecked after push to confirm the alert is closed.
+  FleetFlow now builds on a Chainguard Python runtime with local Docker Scout
+  `0C/0H/0M/0L`, but GitHub Security must be rechecked after push to confirm
+  the alert is closed.
 
 ### Quality bar
 
@@ -873,8 +874,9 @@ these before exposing FleetFlow beyond a trusted internal network.
 - **Goal:** The default branch has no open GitHub security alerts.
 - **Files:** `requirements.txt`, lock/constraints file if introduced,
   `Dockerfile`, `README.md`
-- **Status:** Local dependency audit and Docker base-image remediation shipped
-  in `0503e95`; GitHub alert closure still needs confirmation after push.
+- **Status:** Local dependency audit and zero-CVE runtime remediation shipped
+  across `0503e95` and `ab1a0f2`; GitHub alert closure still needs
+  confirmation after push.
 - **Approach:**
   1. Open the GitHub alert referenced on push:
      `https://github.com/dmedarov/Lessons-C-/security/dependabot/1`.
@@ -1123,17 +1125,31 @@ If time is limited, execute the first three items before any new feature work.
 - **Verification:** `pytest` (`24 passed` at shipment), `node --check`,
   `git diff --check`, Docker healthcheck and HTML smoke for `/` + `/admin`.
 
-### 2026-04-19 - CI quality gates and Alpine Docker base (`0503e95`)
+### 2026-04-19 - CI quality gates and initial Docker base remediation (`0503e95`)
 
 - **Shipped:** Replaced the placeholder GitHub Actions workflow with
   production quality gates for Python compile, `pytest`, JS syntax,
   `pip-audit` and Docker image build on the Python 3.14 lane.
 - **Shipped:** Corrected the unavailable `uvicorn[standard]==0.44.0` pin to
-  `0.39.0` and moved the Docker default runtime from Debian slim to
-  `python:3.14.4-alpine` with Alpine-native non-root user creation.
+  `0.39.0` and made the first Docker base-image remediation pass. The Alpine
+  runtime from this commit was later superseded by the zero-CVE Chainguard
+  runtime in `ab1a0f2`.
 - **Verification:** `pip-audit -r requirements.txt` clean, `pytest`
   (`24 passed`), `node --check`, `git diff --check`, Docker no-cache build and
   container `/health` smoke with healthy status.
+
+### 2026-04-19 - Zero-CVE Chainguard runtime and PostgreSQL smoke (`ab1a0f2`)
+
+- **Shipped:** Moved the final runtime to `cgr.dev/chainguard/python:latest`,
+  kept dependency installation in a disposable Python slim builder, removed
+  shell/pip from runtime and kept the app on stable non-root UID `10001`.
+- **Shipped:** Added a Python container entrypoint for optional Alembic
+  migrations, normalized Alembic PostgreSQL URLs to the `psycopg` v3 SQLAlchemy
+  dialect and removed fixed compose container names for isolated smoke stacks.
+- **Verification:** Docker Scout on the built image reports `0C/0H/0M/0L`,
+  `pip-audit -r requirements.txt` clean, `pytest` (`24 passed`), Python/JS
+  syntax checks, Docker dev `/health`, PostgreSQL compose `/health` and
+  `alembic_version=20260418_0002` in a clean temporary stack.
 
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._
