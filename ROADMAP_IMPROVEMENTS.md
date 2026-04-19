@@ -101,7 +101,8 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Dev-only deterministic seed accounts/cars and auth rate limiting.
 - CI quality gates for Python compile, `pytest`, JS syntax, `pip-audit` and
   production Docker image build across Python 3.12/3.14.
-- Current automated coverage: 24 `pytest` cases plus JS syntax checks and
+- Request ID propagation and baseline browser security headers.
+- Current automated coverage: 25 `pytest` cases plus JS syntax checks and
   dependency audit used in shipped verification.
 
 ### Active product gaps
@@ -946,6 +947,8 @@ these before exposing FleetFlow beyond a trusted internal network.
 - **Goal:** Production traffic is traceable and receives safe default browser
   headers.
 - **Files:** `app.py`, `config.py`, `README.md`, optional `logging_config.py`
+- **Status:** Request ID propagation and baseline security headers shipped in
+  `2a3c30f`; structured JSON logging remains open.
 - **Approach:**
   1. Add request ID middleware: accept `X-Request-ID` or generate one.
   2. Return `X-Request-ID` on every response.
@@ -1157,6 +1160,17 @@ If time is limited, execute the first three items before any new feature work.
   `0C/0H/0M/0L`; `pip-audit -r requirements.txt` clean, `pytest` (`24
   passed`), Python/JS syntax checks, Docker dev `/health`, PostgreSQL compose
   `/health` and `alembic_version=20260418_0002` in a clean temporary stack.
+
+### 2026-04-19 - Request IDs and browser security headers (`2a3c30f`)
+
+- **Shipped:** Added HTTP middleware that accepts or generates `X-Request-ID`,
+  stores it on `request.state` and returns it on responses.
+- **Shipped:** Added baseline security headers:
+  `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and
+  `Permissions-Policy`.
+- **Verification:** `pytest` (`25 passed`), Python syntax checks, JS syntax
+  checks, `git diff --check` and Docker `/health` smoke confirming the request
+  ID and `nosniff` header.
 
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._
