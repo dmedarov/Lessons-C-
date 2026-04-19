@@ -959,5 +959,49 @@ auditable and safe enough for real company operations.
 - **Verification:** `pytest -q` → 44 passed (27 prior + 7 token + 5 admin
   invariant + 5 CSV export). No new runtime dependencies.
 
+### 2026-04-19 - UI/UX overhaul — design system, dark mode, a11y, motion
+
+- **Design tokens refresh:** `static/styles.css` rewritten around a single
+  source of truth: 4px spacing scale (`--sp-1`..`--sp-9`), a 50→900 brand ramp,
+  semantic colour roles with soft/border variants for every status, five
+  elevation levels (`--shadow-xs`..`--shadow-xl`), and motion tokens
+  (`--ease-out`, `--ease-spring`, duration-fast/base/slow) so every transition
+  feels consistent. All component CSS consumes tokens, not hard-coded hex.
+- **Dark mode done right:** Full token redefinition under both
+  `@media (prefers-color-scheme: dark) :root:not([data-theme="light"])` (honours
+  OS preference) and `:root[data-theme="dark"]` (manual override). No-FOUC
+  bootstrap inline `<script>` in `<head>` reads `localStorage` before the
+  stylesheet is parsed, so the correct theme paints on first frame.
+  `static/theme.js` (new, self-contained IIFE) handles the toggle button,
+  a `⌘/Ctrl+Shift+L` keyboard shortcut, cross-tab `storage` event sync, and
+  updates `aria-pressed` on state change. `<meta name="theme-color">` pairs
+  per colour-scheme repaint the browser chrome.
+- **Accessibility:** Added a "skip to content" link on both surfaces
+  (`index.html` → `#calendarStudio`, `admin.html` → `#reservationsDeck`),
+  positioned -48px off-screen and snapping in on focus. Every interactive
+  element routes through a unified `:focus-visible` ring (4px brand-soft halo)
+  so keyboard users always see where they are. `prefers-reduced-motion` zeroes
+  out the animation layer entirely.
+- **Mobile responsive:** At ≤760px, reservation/user tables collapse into
+  stacked cards via `data-label` pseudo-elements on each `<td>`, so the same
+  markup works in both layouts without JS branching. Stat grids, hero, and
+  calendar re-flow with CSS grid `auto-fit`.
+- **Micro-interactions:** Stat cards lift on hover with a gradient top-border
+  reveal; nav links get an underline-reveal; form fields shake on validation
+  error; newly inserted list items slide in; loading states use a shimmer
+  animation; dialogs scale-and-fade. The theme toggle button rotates -12° and
+  swaps sun/moon SVGs on press.
+- **Templates:** `templates/index.html` and `templates/admin.html` gained the
+  theme-color metas, description meta, no-FOUC bootstrap, deferred
+  `theme.js`, skip link, and theme-toggle button in `.topbar__actions`. All
+  existing IDs that `app.js` queries (`notificationBadge`, `calendarStudio`,
+  `reservationsDeck`, `userCreatePanel`, `usersDeck`, etc.) are preserved —
+  the rewrite is additive at the template layer.
+- **Print:** New print stylesheet hides chrome (topbar, buttons, dialogs) and
+  keeps data-dense cards readable on paper.
+- **Verification:** `pytest -q` → 44 passed (HTML-string assertions in
+  `test_health_and_ui` still match; no route or template-ID regressions).
+  Smoke-tested by diff review; no `app.js` class selector was dropped.
+
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._
