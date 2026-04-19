@@ -7,8 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+import bootstrap_tokens
 from config import settings
-from db import init_db
+from db import get_conn, init_db
 from routers import auth as auth_router
 from routers import cars as cars_router
 from routers import notifications as notifications_router
@@ -16,9 +17,20 @@ from routers import reservations as reservations_router
 from routers import users as users_router
 
 
+def _admin_exists_on_startup() -> bool:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM users WHERE role='fleet_admin' AND active=1 LIMIT 1"
+        ).fetchone()
+    return bool(row)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    # In production, provision + log a one-shot bootstrap token if no admin
+    # yet exists. No-op in dev and no-op once the admin is bootstrapped.
+    bootstrap_tokens.announce_if_needed(_admin_exists_on_startup())
     yield
 
 

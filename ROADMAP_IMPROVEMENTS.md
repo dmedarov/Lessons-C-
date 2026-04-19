@@ -1003,5 +1003,40 @@ auditable and safe enough for real company operations.
   `test_health_and_ui` still match; no route or template-ID regressions).
   Smoke-tested by diff review; no `app.js` class selector was dropped.
 
+### 2026-04-19 - Production bootstrap-admin gate + bulk approve/reject
+
+- **Phase 3.3 — harden admin bootstrap:** New `bootstrap_tokens.py` module
+  generates a random, URL-safe, 32-byte one-shot token at service startup
+  **only when** `APP_ENV != "dev"` and no admin yet exists. The plaintext is
+  logged to stdout exactly once (warning level, bannered) so ops can grab it
+  from the deploy logs; only the sha256 digest lives in process memory with
+  a 30-minute TTL. `POST /auth/bootstrap-admin` now requires an
+  `X-Bootstrap-Token` header in non-dev environments — invalid, expired, or
+  already-used tokens get a 403 with a Bulgarian-friendly detail. Dev stays
+  permissive so the local smoke flow (`pytest`, Docker compose) is unchanged.
+  After a successful bootstrap the token record is explicitly cleared, so a
+  race between two in-flight requests can't both win.
+  - New tests (`tests/test_bootstrap_token.py`, 5 cases): prod-no-header → 403,
+    prod-wrong-token → 403, prod-correct-token → 201 + second call fails,
+    expired token → 403, dev stays permissive without the header.
+- **Phase 2.4 — bulk approve/reject pending reservations:** New admin-only
+  endpoints `POST /reservations/bulk-approve` and `POST /reservations/bulk-reject`
+  accept `{ ids: [int], reason?: str }` and process every id inside a single
+  transaction. Partial failures (not-found, already-decided) don't abort the
+  batch — each result surfaces as `{ id, status: "approved"|"rejected"|"skipped", error? }`
+  so the admin UI can show "3 approved, 2 skipped" without an extra round-trip.
+  Outbound notification fan-out runs once after the response is sent, via
+  BackgroundTasks, regardless of batch size. Duplicate ids in the request are
+  collapsed; empty `ids` is a 422.
+  - New schemas (`schemas.py`): `BulkDecisionPayload`, `BulkDecisionItem`,
+    `BulkDecisionResponse`.
+  - New tests (`tests/test_bulk_decisions.py`, 6 cases): 403 for non-admin,
+    all-succeed, mixed with already-decided (skipped + error code), missing
+    ids (not_found), dedup, empty-ids validator.
+- **Verification:** `pytest -q` → 55 passed (44 prior + 5 bootstrap-token +
+  6 bulk-decide). No new runtime dependencies. Routes verified via live
+  inspection (`/reservations/bulk-approve` registered, no collision with the
+  single-id `/{id}/approve` route).
+
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._

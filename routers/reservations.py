@@ -11,7 +11,15 @@ from fastapi.responses import StreamingResponse
 
 from db import PostgresConnectionAdapter, SQLiteConnectionAdapter, get_conn, transaction
 from notifications_service import create_notification, create_notifications, dispatch_outbound_notifications
-from schemas import DecisionPayload, LifecycleNotePayload, ReservationCreate, ReservationStatus
+from schemas import (
+    BulkDecisionItem,
+    BulkDecisionPayload,
+    BulkDecisionResponse,
+    DecisionPayload,
+    LifecycleNotePayload,
+    ReservationCreate,
+    ReservationStatus,
+)
 from security import AuthContext, get_auth_context, require_admin
 
 DbConn = Union[SQLiteConnectionAdapter, PostgresConnectionAdapter]
@@ -282,6 +290,101 @@ def reject(
     auth: AuthContext = Depends(require_admin),
 ) -> dict[str, Any]:
     return _decide(reservation_id, "rejected", auth, payload.reason, background_tasks)
+
+
+def _bulk_decide(
+    new_status: str,
+    payload: BulkDecisionPayload,
+    auth: AuthContext,
+    background_tasks: BackgroundTasks,
+) -> BulkDecisionResponse:
+    """Process a batch of pending reservations in a single DB session.
+
+    Each ID is handled independently — a conflict on one doesn't abort the
+    rest. Every successful transition is logged to `audit_log`, creates an
+    in-app notification for the requester, and the outbound fan-out is
+    scheduled once at the end (not N times)."""
+    results: list[BulkDecisionItem] = []
+    notification_ids: list[int] = []
+    now = _utcnow_iso()
+    # De-duplicate while preserving order (admin might send `[1, 2, 1]`).
+    seen: set[int] = set()
+    unique_ids = [i for i in payload.ids if not (i in seen or seen.add(i))]
+
+    with get_conn() as conn, transaction(conn):
+        for reservation_id in unique_ids:
+            cur = conn.execute(
+                """
+                UPDATE reservations
+                SET status=?, decision_reason=?, decided_by_id=?, updated_at=?
+                WHERE id=? AND status='pending'
+                """,
+                (new_status, payload.reason, auth.user_id, now, reservation_id),
+            )
+            if cur.rowcount == 0:
+                existing = conn.execute(
+                    "SELECT status FROM reservations WHERE id=?", (reservation_id,)
+                ).fetchone()
+                if not existing:
+                    results.append(
+                        BulkDecisionItem(id=reservation_id, status="skipped", error="not_found")
+                    )
+                else:
+                    results.append(
+                        BulkDecisionItem(
+                            id=reservation_id,
+                            status="skipped",
+                            error=f"already_{existing['status']}",
+                        )
+                    )
+                continue
+
+            row = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
+            _log(conn, reservation_id, auth.user_id, new_status, payload.reason)
+            notification_ids.append(
+                create_notification(
+                    conn,
+                    user_id=int(row["created_by_id"]),
+                    kind="reservation_decision",
+                    title="Резервацията е обновена",
+                    body=f"Заявката ти е {('одобрена' if new_status == 'approved' else 'отказана')}.",
+                    reservation_id=reservation_id,
+                )
+            )
+            results.append(
+                BulkDecisionItem(
+                    id=reservation_id,
+                    status="approved" if new_status == "approved" else "rejected",
+                )
+            )
+
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
+
+    succeeded = sum(1 for r in results if r.status != "skipped")
+    return BulkDecisionResponse(
+        results=results,
+        succeeded=succeeded,
+        failed=len(results) - succeeded,
+    )
+
+
+@router.post("/bulk-approve", response_model=BulkDecisionResponse)
+def bulk_approve(
+    payload: BulkDecisionPayload,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(require_admin),
+) -> BulkDecisionResponse:
+    return _bulk_decide("approved", payload, auth, background_tasks)
+
+
+@router.post("/bulk-reject", response_model=BulkDecisionResponse)
+def bulk_reject(
+    payload: BulkDecisionPayload,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(require_admin),
+) -> BulkDecisionResponse:
+    return _bulk_decide("rejected", payload, auth, background_tasks)
 
 
 def _load_reservation_for_transition(conn: DbConn, reservation_id: int) -> Any:

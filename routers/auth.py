@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timezone
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
+import bootstrap_tokens
 from config import settings
 from db import get_conn
 from rate_limit import RateLimitRule, client_ip, limiter
@@ -49,11 +51,19 @@ def setup_status() -> SetupStatusResponse:
 
 
 @router.post("/auth/bootstrap-admin", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def bootstrap_admin(payload: BootstrapAdminPayload, request: Request) -> UserResponse:
+def bootstrap_admin(
+    payload: BootstrapAdminPayload,
+    request: Request,
+    x_bootstrap_token: Optional[str] = Header(default=None, alias="X-Bootstrap-Token"),
+) -> UserResponse:
     limiter.check(
         f"bootstrap:{client_ip(request)}",
         RateLimitRule(settings.bootstrap_rate_limit_attempts, settings.bootstrap_rate_limit_window_seconds),
     )
+    # In production, gate the endpoint behind a one-shot token logged at
+    # startup. Dev stays permissive so the local smoke flow is unchanged.
+    if bootstrap_tokens.is_enforced():
+        bootstrap_tokens.verify_and_consume(x_bootstrap_token)
     if _admin_exists():
         raise HTTPException(status_code=409, detail="An active fleet_admin already exists")
 
@@ -88,6 +98,11 @@ def bootstrap_admin(payload: BootstrapAdminPayload, request: Request) -> UserRes
                 raise HTTPException(status_code=409, detail="Username already exists") from exc
             raise
 
+    # Success — drop the one-shot token so a second call can't reuse it via a
+    # race. `verify_and_consume` already marked it consumed, but clearing the
+    # record turns a subtle 403 into a clean "no token provisioned" state.
+    if bootstrap_tokens.is_enforced():
+        bootstrap_tokens.clear()
     return _to_user_response(row)
 
 
