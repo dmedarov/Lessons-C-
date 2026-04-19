@@ -65,8 +65,8 @@ def test_reject_dialogs_require_reason_and_mark_invalid_field() -> None:
     app_js = _read("static/app.js")
     i18n_js = _read("static/i18n.js")
     styles = _read("static/styles.css")
-    assert app_js.count('textarea name="reason" rows="3" required') == 2
-    assert app_js.count('fieldName: "reason"') == 2
+    assert app_js.count('textarea name="reason" rows="3" required') == 3
+    assert app_js.count('fieldName: "reason"') == 3
     assert 'targetField.setAttribute("aria-invalid", "true");' in app_js
     assert 'targetField.setAttribute("aria-describedby", errorId);' in app_js
     assert 'targetField.focus();' in app_js
@@ -80,3 +80,14 @@ def test_dialog_validation_can_target_the_specific_invalid_field() -> None:
     assert 'fieldName: "newPassword"' in app_js
     assert 'fieldName: "startTime"' in app_js
     assert app_js.count('fieldName: "endTime"') == 2
+
+
+def test_cancel_dialog_requires_reason_before_destructive_action() -> None:
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    assert "function cancelReservationDialog(id)" in app_js
+    assert 'title: t("reservation.cancelTitle", { id })' in app_js
+    assert 'readValue: (form) => ({ note: form.elements.reason.value.trim() })' in app_js
+    assert 'reservation.cancelReasonRequired' in app_js
+    assert 'payload = await cancelReservationDialog(id);' in app_js
+    assert '"reservation.cancelReasonRequired": "Добави причина за отмяната, преди да продължиш."' in i18n_js

@@ -489,6 +489,23 @@ function roleChangeDialog(user) {
   });
 }
 
+function cancelReservationDialog(id) {
+  return userDialog({
+    title: t("reservation.cancelTitle", { id }),
+    body: t("reservation.cancelBody"),
+    confirmLabel: t("action.cancel"),
+    renderFields: () => `
+      <label class="field">
+        <span>${t("reservation.cancelReasonLabel")}</span>
+        <textarea name="reason" rows="3" required placeholder="${t("reservation.cancelReasonPlaceholder")}"></textarea>
+      </label>
+    `,
+    readValue: (form) => ({ note: form.elements.reason.value.trim() }),
+    validate: (value) =>
+      !value.note ? { message: t("reservation.cancelReasonRequired"), fieldName: "reason" } : null,
+  });
+}
+
 function clearErrors() {
   fieldErrorIds.forEach((id) => {
     const errorNode = document.getElementById(`${id}Error`);
@@ -2525,8 +2542,13 @@ async function reservationAction(id, action) {
     return;
   }
 
+  let payload = null;
+  if (action === "cancel") {
+    payload = await cancelReservationDialog(id);
+    if (!payload) return;
+  }
+
   const confirmationByAction = {
-    cancel: [t("confirm.cancel"), t("action.cancel")],
     return: [t("confirm.return"), t("action.returnCar")],
   };
   if (confirmationByAction[action]) {
@@ -2535,14 +2557,15 @@ async function reservationAction(id, action) {
     if (!confirmed) return;
   }
 
-  const payload =
-    action === "approve"
+  payload =
+    payload ||
+    (action === "approve"
       ? { reason: t("audit.approvedViaUi") }
       : action === "start"
           ? { note: t("audit.tripStartedViaUi") }
           : action === "return"
             ? { note: t("audit.vehicleReturnedViaUi") }
-            : null;
+            : null);
 
   try {
     await apiFetch(`/reservations/${id}/${action}`, {

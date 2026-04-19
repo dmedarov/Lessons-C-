@@ -1469,12 +1469,13 @@ message alert classes. Continue with keyboard and screen-reader evidence.
 
 ### 8.5 Error prevention and recovery rewrite
 
-**Status:** Started on 2026-04-20. Single-reservation reject and bulk reject
-dialogs now require a human reason, mark the empty textarea with
+**Status:** Started on 2026-04-20. Single-reservation reject, bulk reject and
+cancel dialogs now require a human reason, mark the empty textarea with
 `aria-invalid`, keep focus on the field and use Bulgarian inline recovery copy.
-The shared dialog helper can now target the exact invalid field for password
-reset and blackout edit validation too.
-Continue with cancel/return/deactivate/role/handoff/blackout recovery checks.
+Cancel also sends the reason to the API so `audit_log.reason` records why the
+reservation was cancelled. The shared dialog helper can now target the exact
+invalid field for password reset and blackout edit validation too. Continue
+with return/deactivate/role/handoff/blackout recovery checks.
 
 - **Goal:** Align destructive/complex workflows with NN/g error prevention and
   Apple clarity.
@@ -1652,11 +1653,12 @@ If time is limited, execute items 1-4 before any new feature work.
   theme-aware classes instead of inline light-theme colors.
 - **Phase 8.5 started:** Single and bulk reject dialogs require a concrete
   reason, focus the textarea on empty submit, expose `aria-invalid` and use
-  Bulgarian inline copy instead of a silent generic fallback. The shared dialog
-  validation path now targets the exact invalid field rather than always
+  Bulgarian inline copy instead of a silent generic fallback. Cancel dialogs
+  now require a reason and persist it to reservation audit history. The shared
+  dialog validation path targets the exact invalid field rather than always
   marking the first control.
-- **Verification:** `pytest -q` passes with 82 tests, JS syntax checks,
-  `git diff --check`, Docker compose rebuild and `/health` smoke.
+- **Verification:** `pytest -q` passes with 84 tests, JS syntax checks,
+  `git diff --check`, Docker compose rebuild and `/health` smoke on `8001`.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation
 

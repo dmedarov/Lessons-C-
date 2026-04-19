@@ -20,6 +20,7 @@
 - Отделна admin страница за approvals, users, blackout windows и continuity actions.
 - Batch approve/reject UX за pending заявки: checkbox selection, action bar и partial-failure summary.
 - Error-prevention dialogs: reject действията изискват конкретна причина, а custom dialog validation фокусира точното грешно поле.
+- Cancel действията вече изискват причина в UI и я записват в reservation audit trail.
 - Refresh-token rotation: UI-то подновява access token-а тихо при 401, а logout ревокира refresh cookie-то.
 - Бърз operational overview: активни коли, pending заявки, активни курсове и непрочетени нотификации.
 - Loading skeleton-и и submit busy states за основните форми и панели.
@@ -258,7 +259,7 @@ docker-compose.postgres.yml
 17. **Dev-only seed** — deterministic тестови акаунти само в `APP_ENV=dev` + `DEV_SEED_DEMO_DATA=true`.
 18. **Auth rate limiting** — in-memory brute-force guard за login и bootstrap endpoints.
 19. **Refresh-token rotation** — short-lived access tokens + HttpOnly refresh cookie, replay protection и explicit logout invalidation.
-20. **UI error prevention** — destructive reject flows пазят задължителна причина, показват inline грешка и маркират конкретното поле с `aria-invalid`.
+20. **UI error prevention** — destructive reject/cancel flows пазят задължителна причина, показват inline грешка и маркират конкретното поле с `aria-invalid`.
 
 ## Тестове
 
@@ -267,7 +268,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-Последна локална проверка за UI/error-prevention пакета: `pytest -q` -> 82 passed, `node --check static/app.js`, `node --check static/i18n.js`, `git diff --check`.
+Последна локална проверка за UI/error-prevention пакета: `pytest -q` -> 84 passed, `node --check static/app.js`, `node --check static/i18n.js`, `git diff --check`, Docker rebuild + `/health` на `8001`.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 
@@ -284,7 +285,7 @@ pytest -q
 - dev seed reset на тестовите акаунти
 - login rate limiting
 - refresh-token rotation, replay protection и logout invalidation
-- UI compliance guardrails: live regions, dialog focus return, exact invalid-field targeting, theme-aware alerts, safe-area mobile nav и задължителни reject reasons
+- UI compliance guardrails: live regions, dialog focus return, exact invalid-field targeting, theme-aware alerts, safe-area mobile nav и задължителни reject/cancel reasons
 
 ## Alembic migrations
 

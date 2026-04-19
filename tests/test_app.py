@@ -535,6 +535,41 @@ def test_admin_reservation_list_filters_by_search_and_date_window(client: TestCl
     assert invalid_window.status_code == 400
 
 
+def test_cancel_records_reason_in_audit_log(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "ivan", "Ivan Petrov", "IvanPass123")
+    employee = _login(client, "ivan", "IvanPass123")
+    car_id = _create_car(client, admin, plate="CB9191AA")
+    reservation_id = _create_reservation(
+        client,
+        car_id,
+        employee,
+        start="2099-05-04T09:00:00+00:00",
+        end="2099-05-04T11:00:00+00:00",
+    )
+
+    cancelled = client.post(
+        f"/reservations/{reservation_id}/cancel",
+        json={"note": "Meeting moved online"},
+        headers=_auth(employee),
+    )
+
+    assert cancelled.status_code == 200, cancelled.text
+    assert cancelled.json()["status"] == "cancelled"
+    with db.get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT reason
+            FROM audit_log
+            WHERE reservation_id=? AND action='cancelled'
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (reservation_id,),
+        ).fetchone()
+    assert row["reason"] == "Meeting moved online"
+
+
 def test_notifications_read_all_and_visibility(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
     _create_user(client, admin, "ivan", "Ivan Petrov", "IvanPass123")

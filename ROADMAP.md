@@ -197,14 +197,16 @@
 - Apple/NASA/USWDS compliance roadmap за следващите UI подобрения
 - UI error prevention: reject dialogs now require a human reason and expose
   exact-field `aria-invalid` recovery instead of silent generic fallback reasons
-- Latest local verification for this slice: `pytest -q` -> 82 passed, JS
-  syntax checks and `git diff --check`
+- Cancel dialogs now require a human reason and send it to the reservation
+  audit trail while keeping backward-compatible no-body API calls.
+- Latest local verification for this slice: `pytest -q` -> 84 passed, JS
+  syntax checks, `git diff --check`, Docker rebuild and `/health` on `8001`.
 
 ## Next Recommended Slices
 
 1. Browser-level Playwright screenshots/e2e за employee booking, admin approve/reject, bulk reject reason validation, refresh/logout и mobile calendar.
 2. Apple layout/responsive density pass: no overlap, 44 px controls, resilient text, verified at 390 / 768 / 1024 / 1440 px.
-3. Complete the Phase 8.5 error-prevention sweep for cancel, return, deactivate, role change, handoff and blackout deactivate.
+3. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
 4. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
 5. PostgreSQL migration smoke + backup/restore playbook за production оператори.
 6. Structured JSON logs, request correlation и traceable incident debugging.

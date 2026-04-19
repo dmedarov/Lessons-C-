@@ -535,6 +535,7 @@ def return_trip(
 def cancel(
     reservation_id: int,
     background_tasks: BackgroundTasks,
+    payload: Optional[LifecycleNotePayload] = None,
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
     now = _utcnow_iso()
@@ -555,7 +556,7 @@ def cancel(
             "UPDATE reservations SET status='cancelled', updated_at=? WHERE id=?",
             (now, reservation_id),
         )
-        _log(conn, reservation_id, auth.user_id, "cancelled", None)
+        _log(conn, reservation_id, auth.user_id, "cancelled", payload.note if payload else None)
 
         targets: list[int] = []
         if auth.role == "fleet_admin":
