@@ -109,7 +109,7 @@
 ## Phase 4: Apple-grade Interface System
 
 ### Goal
-Да изглежда спокойно, точно и high-trust.
+Да изглежда спокойно, точно и high-trust, с проверими Apple/NASA/USWDS guardrails.
 
 ### Scope
 - отделни admin и employee surfaces
@@ -118,10 +118,14 @@
 - timeline и calendar като primary planning tools
 - notification banner за глобални operational messages
 - празни състояния, които насочват към следващото действие
+- Apple HIG layout/buttons/accessibility правила: 44 px touch targets,
+  press/focus states, no overlap, readable hierarchy, resilient larger text
+- NASA-inspired palette и 508/WCAG contrast matrix
 
 ### Success metric
 - employee може да направи заявка без обучение
 - admin може да одобрява и управлява флота без да “лови” действия из интерфейса
+- UI change не влиза без screenshots, keyboard pass и contrast evidence
 
 ## Phase 5: Production Discipline
 
@@ -157,6 +161,25 @@
 - logout прекратява текущата refresh сесия
 - deactivation/role промяна продължава да влиза в сила веднага през live auth rebinding
 
+## Phase 7: UI/UX Compliance Program
+
+### Goal
+Да превърнем "Apple/NASA качество" от вкус в измерим процес за бъдещи AI агенти.
+
+### Scope
+- `docs/UI_UX_COMPLIANCE_AUDIT.md` с inventory на всички повърхности
+- design-token contrast matrix за light/dark theme
+- responsive layout pass на 390 / 768 / 1024 / 1440 px
+- WCAG/USWDS semantic pass: landmarks, labels, keyboard, dialogs, live regions
+- Playwright screenshot + e2e harness за визуални/flow regressions
+- PR/handoff checklist, който мапва всяка UI промяна към Apple, NASA, USWDS/WCAG/APG или NN/g принцип
+
+### Success metric
+- няма overlap, clipped text, unlabeled icon buttons, hover-only actions или color-only statuses
+- core flows са keyboard-operable и screen-reader understandable
+- contrast checks са автоматизирани и минават за light/dark theme
+- бъдещ AI агент може да продължи UI work от audit таблицата без контекст от чат
+
 ## Current Implementation Focus
 
 - реален auth/user management
@@ -169,23 +192,37 @@
 - admin vs employee views
 - Alembic baseline и versioned migrations за всяка schema промяна
 - Production setup: `make setup` генерира secrets, `make prod` вдига PostgreSQL + app
+- Apple/NASA/USWDS compliance roadmap за следващите UI подобрения
 
 ## Next Recommended Slices
 
-1. PostgreSQL migration smoke + backup/restore playbook за production оператори.
-2. Structured JSON logs, request correlation и traceable incident debugging.
-3. Browser-level Playwright e2e tests за employee booking, admin approve/reject, refresh/logout и mobile calendar.
-4. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
-5. Fleet Gantt / week planning и utilization analytics.
-6. Session-management UI: активни устройства, revoke current/all sessions и audit trail.
-7. Scheduled reminder notifications преди start/end на резервация.
-8. Maintenance workflows с attachment-и и service provider metadata.
+1. UI/UX compliance audit inventory за всички повърхности.
+2. Design-token contrast matrix и автоматизиран WCAG/NASA 508 check.
+3. Apple layout/responsive density pass: no overlap, 44 px controls, resilient text.
+4. WCAG/USWDS semantic pass: keyboard, focus, dialogs, live regions, labels.
+5. Browser-level Playwright screenshots/e2e за employee booking, admin approve/reject, refresh/logout и mobile calendar.
+6. PostgreSQL migration smoke + backup/restore playbook за production оператори.
+7. Structured JSON logs, request correlation и traceable incident debugging.
+8. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
+9. Fleet Gantt / week planning и utilization analytics.
+10. Session-management UI: активни устройства, revoke current/all sessions и audit trail.
+11. Scheduled reminder notifications преди start/end на резервация.
+12. Maintenance workflows с attachment-и и service provider metadata.
 
 ## References
 
 - OWASP Authentication Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
 - Alembic Tutorial: https://alembic.sqlalchemy.org/en/latest/tutorial.html
 - Apple Human Interface Guidelines: https://developer.apple.com/design/human-interface-guidelines/
+- Apple HIG Layout: https://developer.apple.com/design/human-interface-guidelines/layout
+- Apple HIG Buttons: https://developer.apple.com/design/human-interface-guidelines/buttons
+- Apple HIG Accessibility: https://developer.apple.com/design/human-interface-guidelines/accessibility
+- Apple HIG Typography: https://developer.apple.com/design/human-interface-guidelines/typography
 - Apple Notifications HIG: https://developer.apple.com/design/human-interface-guidelines/notifications/
+- NASA WDS Colors / 508 contrast: https://nasa.github.io/nasawds-site/components/colors/
+- USWDS Accessibility: https://designsystem.digital.gov/documentation/accessibility/
+- W3C WCAG: https://www.w3.org/WAI/standards-guidelines/wcag/
+- WAI-ARIA APG patterns: https://www.w3.org/WAI/ARIA/apg/patterns/
+- Nielsen Norman Group 10 usability heuristics: https://www.nngroup.com/articles/ten-usability-heuristics/
 - GOV.UK Notification Banner: https://design-system.service.gov.uk/components/notification-banner/
 - Material Design guidance: https://m3.material.io/

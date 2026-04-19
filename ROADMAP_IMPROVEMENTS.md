@@ -77,7 +77,7 @@ tests/test_app.py            Core FastAPI TestClient regression cases
 
 ---
 
-## Current status snapshot (2026-04-19)
+## Current status snapshot (2026-04-20)
 
 This document is now the tactical source of truth. Completed work stays in
 `## Done` with commit references; active work remains in the phase sections.
@@ -121,6 +121,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 
 ### Active product gaps
 
+- Apple / NASA / USWDS UI compliance is defined below, but the codebase still
+  needs a formal audit report, automated contrast checks and browser-level
+  accessibility regression tests before claiming "compliant" in release notes.
 - Browser-level end-to-end tests are still missing.
 - Structured JSON logging and production observability remain incomplete.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
@@ -139,27 +142,57 @@ defaults, explicit confirmations, auditable admin actions and no hidden
 authorization assumptions. Every new endpoint needs a happy-path test, an
 authorization-negative test and a stale-role/inactive-user test where relevant.
 
-### UI/UX operating notes for future AI agents
+### UI/UX compliance operating notes for future AI agents
 
-Use these official references as design guardrails for future UI work:
+Compliance here means **internal conformance target**, not a legal
+certification. Every UI PR should cite which guardrails it improves and include
+desktop + mobile screenshots. Use these official references as design
+guardrails for future UI work:
 
-- Apple HIG Layout: group related items, align components for scanning, keep
-  essential information near the top/leading area, and use progressive
-  disclosure for hidden content.
+- Apple HIG Layout (`https://developer.apple.com/design/human-interface-guidelines/layout`):
+  group related items, align components for scanning, keep essential
+  information near the top/leading area, respect safe areas and avoid layout
+  overlap when viewport or text size changes.
 - Apple HIG Buttons: every custom button needs an obvious press state, clear
   role/content, and at least a 44 x 44 pt hit region. Keep prominent actions
   rare and non-destructive.
+- Apple HIG Accessibility + Typography: support keyboard-only operation,
+  larger text, clear hierarchy, minimum AA contrast, non-thin type weights and
+  layouts that avoid truncation/overlap when text grows.
 - USWDS Accessibility: design for keyboard-only and touch-only operation, do
   not rely on hover or color alone, keep layouts readable/linear under zoom,
   and announce state changes where practical.
 - NASA WDS Colors / Section 508 contrast: favor a calm blue/neutral
   operational palette, strong text contrast, and explicit labels/shapes
   alongside status color.
+- W3C WCAG 2.2 + WAI-ARIA APG: use semantic landmarks and native controls
+  first; custom dialogs, tabs, tables, toolbars and alerts must follow APG
+  keyboard/focus patterns.
+- NN/g heuristics: every screen must communicate system status, prevent costly
+  mistakes, preserve user control/freedom, use domain language and keep visual
+  design focused on the primary task.
 
 For FleetFlow specifically: status must always have text, tables must collapse
 into labeled cards on phones, chips/toggles must expose `aria-pressed`, dynamic
 regions should use polite live updates, and every workflow should have a visible
 next action.
+
+### UI/UX evidence required in future PRs
+
+- **Screenshots:** desktop 1440 px, tablet 768 px and phone 390 px for every
+  visible change.
+- **Keyboard proof:** tab-order pass through login, booking, admin queue,
+  dialogs, calendar and mobile bottom navigation.
+- **Contrast proof:** all design-token foreground/background pairs meet WCAG
+  AA (4.5:1 for normal text, 3:1 for large text/icons); failures documented
+  with remediation before merge.
+- **Zoom/text proof:** 200% browser zoom and enlarged text do not create
+  overlap, clipped labels or unreachable controls.
+- **Screen reader semantics:** landmarks, headings, dialog names, table/card
+  labels, `aria-live` regions and status text are verified manually or via
+  Playwright accessibility snapshots.
+- **Motion proof:** no essential information depends on animation; reduced
+  motion remains respected.
 
 ---
 
@@ -1268,6 +1301,258 @@ these before exposing FleetFlow beyond a trusted internal network.
 
 ---
 
+## Phase 8 - Apple/NASA UI & UX compliance
+
+This phase turns the current premium visual direction into a repeatable
+compliance program. Do **not** claim external certification; claim only that
+FleetFlow has passed the internal checks below against Apple HIG, NASA WDS,
+USWDS, WCAG 2.2, WAI-ARIA APG and NN/g heuristics.
+
+### Research baseline for AI agents
+
+- **Apple HIG Layout:** adaptive layout should preserve familiar relationships
+  between controls and content, respect safe areas and standard margins, and
+  support orientation/viewport changes without explaining the layout to users.
+- **Apple HIG Buttons:** buttons need clear content, visual style and semantic
+  role; custom buttons need visible press state and at least a 44 x 44 pt hit
+  region.
+- **Apple HIG Accessibility / Typography:** support larger text, keyboard-only
+  operation, sufficient control spacing, non-thin type weights, color contrast
+  and layouts that avoid truncation when text grows.
+- **NASA WDS Colors / 508:** use a calm blue/neutral foundation, spare accent
+  colors and verified 508/WCAG contrast combinations; never use color alone to
+  communicate state.
+- **USWDS Accessibility:** design around POUR (perceivable, operable,
+  understandable, robust), semantic regions, clear labels, keyboard focus and
+  state-change announcements.
+- **W3C WCAG 2.2 + WAI-ARIA APG:** prefer native HTML; when custom widgets are
+  unavoidable, follow APG keyboard/focus expectations for dialogs, tabs,
+  toolbars, alerts, tables/grids, switches and tooltips.
+- **NN/g heuristics:** prioritize system status visibility, real-world
+  language, user control, consistency, error prevention, recognition over
+  recall, efficient expert workflows, minimal visual noise and helpful errors.
+
+Reference URLs:
+
+- Apple Layout: `https://developer.apple.com/design/human-interface-guidelines/layout`
+- Apple Buttons: `https://developer.apple.com/design/human-interface-guidelines/buttons`
+- Apple Accessibility: `https://developer.apple.com/design/human-interface-guidelines/accessibility`
+- Apple Typography: `https://developer.apple.com/design/human-interface-guidelines/typography`
+- NASA WDS Colors: `https://nasa.github.io/nasawds-site/components/colors/`
+- USWDS Accessibility: `https://designsystem.digital.gov/documentation/accessibility/`
+- W3C WCAG overview: `https://www.w3.org/WAI/standards-guidelines/wcag/`
+- WAI-ARIA APG patterns: `https://www.w3.org/WAI/ARIA/apg/patterns/`
+- NN/g 10 usability heuristics: `https://www.nngroup.com/articles/ten-usability-heuristics/`
+
+### 8.1 Compliance audit inventory
+
+- **Goal:** Produce a living inventory of every UI surface and the guidelines
+  it must satisfy.
+- **Files:** new `docs/UI_UX_COMPLIANCE_AUDIT.md`, `ROADMAP_IMPROVEMENTS.md`
+- **Approach:**
+  1. Inventory screens: `/`, `/admin`, login/setup, booking form, calendar,
+     reservation cards/table, notifications, users, cars, blackouts, dialogs,
+     toasts and mobile bottom nav.
+  2. For each surface, map required checks: Apple layout/buttons, NASA color,
+     USWDS/WCAG accessibility, APG widget pattern, NN/g heuristic.
+  3. Record current status as `pass`, `needs evidence`, `needs fix`, or
+     `not applicable`. Link each `needs fix` row to a roadmap item.
+  4. Add a short "How to update this audit" section for future AI agents.
+- **Acceptance criteria:**
+  - Every visible workflow has an owner row and at least one verification
+    method.
+  - The audit distinguishes shipped behavior from unverified claims.
+  - New AI agents can pick a single row and know exactly where to inspect.
+- **Verification:** Markdown review + grep that all major template IDs
+  (`calendarStudio`, `reservationsDeck`, `usersDeck`, `fleetDeck`,
+  `notificationsDeck`) appear in the audit.
+- **Depends on:** -
+- **Effort:** S
+
+### 8.2 Design-token compliance matrix
+
+- **Goal:** Make NASA/508/WCAG contrast compliance measurable from
+  `static/styles.css`.
+- **Files:** `static/styles.css`, new `tests/test_design_tokens.py` or
+  `scripts/check_contrast.py`, `docs/UI_UX_COMPLIANCE_AUDIT.md`
+- **Approach:**
+  1. Extract semantic token pairs: page/background, surface/text, muted/text,
+     brand/button text, danger/warning/success/info statuses, focus rings,
+     dark-mode equivalents.
+  2. Add a small contrast checker using WCAG relative luminance; no runtime
+     dependency. Fail if normal text pairs are below 4.5:1 or icon/focus pairs
+     below 3:1.
+  3. Keep NASA-inspired palette constraints: blues/neutrals as foundation,
+     red/gold/green only for status, no one-note purple/blue gradients.
+  4. Document allowed token pairs in the audit so new CSS does not invent
+     unverified color combinations.
+- **Acceptance criteria:**
+  - Automated test fails for a deliberately low-contrast token pair.
+  - Every status color has text and shape support, not color alone.
+  - Light and dark themes both pass.
+- **Verification:** `pytest tests/test_design_tokens.py`, manual browser check
+  in light/dark mode and 200% zoom.
+- **Depends on:** 8.1
+- **Effort:** M
+
+### 8.3 Apple layout and responsive density pass
+
+- **Goal:** Remove overlap/crowding risk and make the cockpit feel native,
+  calm and adaptive on phone, tablet and desktop.
+- **Files:** `templates/index.html`, `templates/admin.html`,
+  `static/styles.css`, `static/app.js`, `docs/UI_UX_COMPLIANCE_AUDIT.md`
+- **Approach:**
+  1. Define page-level layout rules: max readable line length, consistent
+     section rhythm, safe spacing around fixed/sticky controls and no cards
+     nested inside cards.
+  2. Audit all controls for Apple hit target: interactive controls >=44 px
+     high on touch viewports; icon-only controls need accessible names and
+     visible hover/focus/press states.
+  3. At 390, 768, 1024 and 1440 px, verify no text overlaps, table/card labels
+     fit, mobile nav does not hide primary actions and calendar controls stay
+     reachable.
+  4. Add CSS utility constraints only where needed: `minmax(0, 1fr)`,
+     `overflow-wrap`, stable aspect/height for calendar/day cells and resilient
+     toolbar wrapping.
+- **Acceptance criteria:**
+  - No horizontal page scroll at 390 px except intentional data tables if any
+    remain; preferred outcome is no horizontal scroll anywhere.
+  - Topbar, mobile nav, calendar and admin modules never overlap at tested
+    breakpoints.
+  - All custom buttons/chips have press/focus states and 44 px touch target.
+- **Verification:** Playwright screenshots for `/` and `/admin` at 390, 768,
+  1024, 1440; visual diff review; manual keyboard pass.
+- **Depends on:** 8.1
+- **Effort:** M
+
+### 8.4 WCAG/USWDS semantic accessibility pass
+
+- **Goal:** Make FleetFlow operable and understandable without a mouse or
+  visual styling.
+- **Files:** `templates/index.html`, `templates/admin.html`,
+  `static/app.js`, `static/styles.css`, `static/i18n.js`
+- **Approach:**
+  1. Add/verify landmarks: header/nav/main/section names and one logical H1 per
+     surface.
+  2. Ensure form labels, helper text and errors are programmatically connected
+     (`for`, `aria-describedby`, `aria-invalid`) and visible in Bulgarian.
+  3. Verify dialogs follow APG: focus moves into dialog, ESC/cancel exits,
+     focus returns to trigger, destructive action buttons are clearly labeled.
+  4. Convert any custom toggle/chip/tab UI to native buttons with
+     `aria-pressed`/`aria-selected` as appropriate; avoid `div` click targets.
+  5. Add polite live regions for filtered result counts, bulk-action outcome,
+     refresh/logout state and notification updates.
+- **Acceptance criteria:**
+  - Core flows work with keyboard only: login, make booking, cancel booking,
+    admin approve/reject, bulk decision, edit blackout, save car notes.
+  - Screen reader labels communicate status, owner, car, date and next action.
+  - No state is conveyed by color or icon alone.
+- **Verification:** Playwright accessibility snapshots where practical,
+  manual VoiceOver/NVDA pass, `pytest` template assertions for key ARIA
+  attributes.
+- **Depends on:** 8.1, 8.3
+- **Effort:** M
+
+### 8.5 Error prevention and recovery rewrite
+
+- **Goal:** Align destructive/complex workflows with NN/g error prevention and
+  Apple clarity.
+- **Files:** `static/app.js`, `static/i18n.js`, `static/styles.css`,
+  routers only if API error shapes need tightening
+- **Approach:**
+  1. Audit every destructive or expensive action: reject, cancel, return,
+     deactivate, role change, password reset, handoff, blackout deactivate,
+     bulk decisions.
+  2. Replace generic errors with actionable Bulgarian messages: what happened,
+     why it matters and what the user can do next.
+  3. Add pre-submit checks where the UI can prevent mistakes: missing reason on
+     reject, impossible date ranges, no selected rows, inactive car/user.
+  4. Preserve user input after failed submits; never make people retype long
+     notes/reasons.
+- **Acceptance criteria:**
+  - Every destructive action has confirmation, cancel path and clear success/
+    failure feedback.
+  - 422/409/500 surfaces never show raw technical jargon to end users.
+  - Failed forms keep values and focus the first invalid field.
+- **Verification:** API error tests where applicable, browser smoke for every
+  action, Bulgarian copy review.
+- **Depends on:** 8.4
+- **Effort:** M
+
+### 8.6 Operational command model
+
+- **Goal:** Give novice users obvious paths and expert users efficient paths
+  without adding visual noise.
+- **Files:** `templates/index.html`, `templates/admin.html`,
+  `static/app.js`, `static/i18n.js`, `static/styles.css`
+- **Approach:**
+  1. Define the primary command per surface: employee booking; admin pending
+     queue. All secondary commands must be visually quieter.
+  2. Add optional keyboard accelerators for high-frequency admin actions only
+     after visible controls exist. Never hide essential actions behind
+     shortcuts.
+  3. Add a command/help affordance only if it is contextual and short; avoid
+     in-app explanatory walls.
+  4. Keep shortcut docs in `docs/UI_UX_COMPLIANCE_AUDIT.md`, not scattered in
+     templates.
+- **Acceptance criteria:**
+  - Users can complete core flows without reading instructions.
+  - Admin can clear a pending queue with minimal pointer travel.
+  - Keyboard shortcuts do not conflict with browser/system shortcuts.
+- **Verification:** Manual timed smoke for employee booking and admin approval;
+  keyboard-only pass.
+- **Depends on:** 8.3, 8.4
+- **Effort:** S
+
+### 8.7 Automated UI regression harness
+
+- **Goal:** Turn "Apple/NASA quality" into repeatable checks, not taste-based
+  review.
+- **Files:** `requirements-dev.txt` or package-free Playwright install plan,
+  new `tests/e2e/`, CI workflow, `docs/UI_UX_COMPLIANCE_AUDIT.md`
+- **Approach:**
+  1. Add Playwright e2e tests for login, booking, admin approve/reject, bulk
+     actions, mobile calendar and logout/refresh recovery.
+  2. Capture screenshots at 390, 768 and 1440 px for `/` and `/admin`.
+  3. Add accessibility assertions: no missing accessible names for buttons,
+     no duplicate IDs, visible focus after tab, live region exists.
+  4. Run these checks locally first; add CI only after stable timing and test
+     data setup are reliable.
+- **Acceptance criteria:**
+  - E2E suite can run against a fresh local container without manual setup.
+  - Screenshots are deterministic enough for review artifacts.
+  - CI failure tells agents which surface and viewport regressed.
+- **Verification:** `pytest` + Playwright command documented in README and
+  audit doc.
+- **Depends on:** 8.2, 8.3, 8.4
+- **Effort:** L
+
+### 8.8 Human handoff checklist
+
+- **Goal:** Make every UI PR reviewable by another AI agent or engineer in
+  under five minutes.
+- **Files:** `docs/UI_UX_COMPLIANCE_AUDIT.md`,
+  `ROADMAP_IMPROVEMENTS.md`, PR template if added later
+- **Approach:**
+  1. Add a checklist with: changed surfaces, screenshots, keyboard path,
+     contrast pairs, ARIA/live-region changes, copy changes, tests and known
+     residual risk.
+  2. Require "guideline mapping": each UI change names the relevant Apple,
+     NASA, USWDS/WCAG/APG or NN/g principle.
+  3. Include a "do not merge if" list: overlap, unreadable contrast,
+     inaccessible custom control, unlabeled icon button, missing error state,
+     broken mobile nav.
+- **Acceptance criteria:**
+  - A future AI agent can continue from the checklist without reading the
+    prior chat.
+  - The checklist is short enough to paste into a PR description.
+- **Verification:** Dry-run the checklist against the current admin page and
+  record at least three follow-up findings in the audit doc.
+- **Depends on:** 8.1
+- **Effort:** S
+
+---
+
 ## Cross-cutting concerns (apply to every item)
 
 - **No new dependencies** without listing them in the PR description with
@@ -1276,6 +1561,11 @@ these before exposing FleetFlow beyond a trusted internal network.
   `static/i18n.js` (item 1.2) - don't inline English.
 - **Every user-visible change needs a screenshot** in the PR (mobile + desktop
   for UI work).
+- **Every UI change must map to a guideline** from Phase 8 when applicable:
+  Apple HIG, NASA WDS/508, USWDS/WCAG/APG or NN/g. If no guideline applies,
+  say why in the PR notes.
+- **Do not merge UI work with known overlap, clipped text, unlabeled icon
+  buttons, low contrast, hover-only actions or color-only status.**
 - **Every DB change needs an Alembic revision.** Never hand-edit the schema
   in `db.py` without a matching `alembic revision --autogenerate` +
   human review of the generated script.
@@ -1289,26 +1579,36 @@ these before exposing FleetFlow beyond a trusted internal network.
 
 ## Suggested sequencing (from current state)
 
-1. **Confirm 7.1 on GitHub Security** - local audit and Docker remediation are
+1. **8.1 UI/UX compliance audit inventory** - creates the evidence backbone
+   before more visual changes.
+2. **8.2 Design-token compliance matrix** - automated contrast is the fastest
+   way to turn NASA/508/WCAG guidance into a guardrail.
+3. **8.3 Apple layout and responsive density pass** - directly targets overlap,
+   hit targets and premium adaptive layout.
+4. **8.4 WCAG/USWDS semantic accessibility pass** - keyboard, focus, labels,
+   dialogs and live regions.
+5. **8.7 Automated UI regression harness** - browser screenshots and e2e
+   flows so compliance doesn't regress.
+6. **Confirm 7.1 on GitHub Security** - local audit and Docker remediation are
    shipped; confirm the default branch alert closes after push.
-2. **Monitor 7.2 CI quality gates** - first Actions run should validate
+7. **Monitor 7.2 CI quality gates** - first Actions run should validate
    Python 3.12/3.14, dependency audit, JS syntax and Docker build.
-3. **7.3 PostgreSQL migration smoke + backups** - required before serious
+8. **7.3 PostgreSQL migration smoke + backups** - required before serious
    production rollout.
-4. **7.4 Structured JSON logging** - request IDs and baseline browser headers
+9. **7.4 Structured JSON logging** - request IDs and baseline browser headers
    are shipped; production log structure remains open.
-5. **4.1 Split `static/app.js` into modules** - do this before large frontend
+10. **4.1 Split `static/app.js` into modules** - do this before large frontend
     additions; the file is already ~2000 lines.
-6. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
+11. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
     after the core flows stabilize.
-7. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
+12. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
    the frontend is modular enough.
-8. **3.6 Session-management UI** - list active refresh sessions per user,
+13. **3.6 Session-management UI** - list active refresh sessions per user,
    revoke current/all sessions and expose security audit history.
-9. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
+14. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
     for real fleet accountability.
 
-If time is limited, execute items 3-6 before any new feature work.
+If time is limited, execute items 1-4 before any new feature work.
 
 ---
 
@@ -1674,5 +1974,5 @@ Five independent improvements shipped as one coherent commit:
 
 ---
 
-_Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
+_Last updated: 2026-04-20. When you ship an item, move it to this `## Done`
 section with the commit or PR link._
