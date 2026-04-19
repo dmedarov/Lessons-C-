@@ -101,14 +101,21 @@ def _create_car(client: TestClient, admin_token: str, plate: str = "CA1234AB") -
     return res.json()["id"]
 
 
-def _create_reservation(client: TestClient, car_id: int, token: str) -> int:
+def _create_reservation(
+    client: TestClient,
+    car_id: int,
+    token: str,
+    start: str = "2099-04-18T09:00:00+00:00",
+    end: str = "2099-04-18T11:00:00+00:00",
+    purpose: str = "Client meeting",
+) -> int:
     res = client.post(
         "/reservations",
         json={
             "car_id": car_id,
-            "start_time": "2099-04-18T09:00:00+00:00",
-            "end_time": "2099-04-18T11:00:00+00:00",
-            "purpose": "Client meeting",
+            "start_time": start,
+            "end_time": end,
+            "purpose": purpose,
         },
         headers=_auth(token),
     )
@@ -462,6 +469,70 @@ def test_end_to_end_admin_two_users_workflow(client: TestClient) -> None:
 
     forbidden_cancel = client.post(f"/reservations/{reservation_id}/cancel", headers=_auth(employee_two))
     assert forbidden_cancel.status_code == 403
+
+
+def test_admin_reservation_list_filters_by_search_and_date_window(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "ivan", "Ivan Petrov", "IvanPass123")
+    employee = _login(client, "ivan", "IvanPass123")
+    car_a = _create_car(client, admin, plate="CB9100AA")
+    car_b = _create_car(client, admin, plate="CB9101BB")
+    first_id = _create_reservation(
+        client,
+        car_a,
+        employee,
+        start="2099-05-01T09:00:00+00:00",
+        end="2099-05-01T11:00:00+00:00",
+        purpose="Mission Alpha",
+    )
+    second_id = _create_reservation(
+        client,
+        car_b,
+        employee,
+        start="2099-06-01T09:00:00+00:00",
+        end="2099-06-01T11:00:00+00:00",
+        purpose="Routine logistics",
+    )
+
+    purpose_search = client.get("/reservations", params={"search": "mission"}, headers=_auth(admin))
+    assert purpose_search.status_code == 200, purpose_search.text
+    assert [item["id"] for item in purpose_search.json()["items"]] == [first_id]
+
+    plate_search = client.get("/reservations", params={"search": "cb9101bb"}, headers=_auth(admin))
+    assert plate_search.status_code == 200, plate_search.text
+    assert [item["id"] for item in plate_search.json()["items"]] == [second_id]
+
+    may_window = client.get(
+        "/reservations",
+        params={
+            "start": "2099-05-01T00:00:00+00:00",
+            "end": "2099-05-02T00:00:00+00:00",
+        },
+        headers=_auth(admin),
+    )
+    assert may_window.status_code == 200, may_window.text
+    assert [item["id"] for item in may_window.json()["items"]] == [first_id]
+
+    after_first_trip = client.get(
+        "/reservations",
+        params={
+            "start": "2099-05-01T11:00:00+00:00",
+            "end": "2099-05-01T12:00:00+00:00",
+        },
+        headers=_auth(admin),
+    )
+    assert after_first_trip.status_code == 200, after_first_trip.text
+    assert after_first_trip.json()["items"] == []
+
+    invalid_window = client.get(
+        "/reservations",
+        params={
+            "start": "2099-05-03T00:00:00+00:00",
+            "end": "2099-05-02T00:00:00+00:00",
+        },
+        headers=_auth(admin),
+    )
+    assert invalid_window.status_code == 400
 
 
 def test_notifications_read_all_and_visibility(client: TestClient) -> None:

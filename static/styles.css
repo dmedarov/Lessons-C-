@@ -611,6 +611,50 @@ h3 {
   align-items: center;
 }
 
+.mission-filter {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.6fr) repeat(2, minmax(150px, 0.85fr)) auto;
+  gap: var(--sp-3);
+  align-items: end;
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--surface-strong), var(--surface-muted));
+  box-shadow: var(--shadow-xs), var(--shadow-inset);
+}
+
+.field--compact {
+  min-width: 0;
+  gap: 6px;
+}
+
+.field--compact > span {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.field--compact input {
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+}
+
+.mission-filter__actions {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.mission-filter__actions .btn {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
 /* Stats grid. */
 .stats-grid {
   display: grid;
@@ -1407,6 +1451,23 @@ select {
   color: var(--violet);
 }
 
+.calendar-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  background: var(--surface-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .day-panel__header {
   margin-bottom: var(--sp-3);
 }
@@ -1852,6 +1913,19 @@ select {
     grid-template-columns: 1fr 1fr;
   }
 
+  .mission-filter {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mission-filter .field--compact:first-child,
+  .mission-filter__actions {
+    grid-column: 1 / -1;
+  }
+
+  .mission-filter__actions {
+    justify-content: flex-start;
+  }
+
   .calendar-toolbar {
     justify-content: flex-start;
   }
@@ -1968,6 +2042,12 @@ select {
     font-size: 0.68rem;
   }
 
+  .calendar-more {
+    min-height: 21px;
+    padding: 2px 6px;
+    font-size: 0.66rem;
+  }
+
   .segmented__btn {
     padding: 8px 10px;
   }
@@ -2058,6 +2138,18 @@ select {
     width: 100%;
   }
 
+  .mission-filter {
+    grid-template-columns: 1fr;
+  }
+
+  .mission-filter__actions {
+    flex-direction: column;
+  }
+
+  .mission-filter__actions .btn {
+    width: 100%;
+  }
+
   .confirm-dialog {
     padding: var(--sp-4);
   }
@@ -2092,6 +2184,7 @@ select {
   .control-rail,
   .hero__secondary,
   .calendar-toolbar,
+  .mission-filter,
   .toolbar,
   .action-btn,
   .btn {

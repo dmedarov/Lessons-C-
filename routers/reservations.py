@@ -68,6 +68,45 @@ def _serialize_reservation(row: Any) -> dict[str, Any]:
     return payload
 
 
+def _reservation_filter_clauses(
+    *,
+    car_id: Optional[int],
+    mine: bool,
+    user_id: int,
+    start: Optional[datetime],
+    end: Optional[datetime],
+    search: Optional[str],
+) -> tuple[list[str], list[Any]]:
+    clauses: list[str] = []
+    params: list[Any] = []
+    if car_id is not None:
+        clauses.append("r.car_id = ?")
+        params.append(car_id)
+    if mine:
+        clauses.append("r.created_by_id = ?")
+        params.append(user_id)
+    if start is not None:
+        clauses.append("r.end_time > ?")
+        params.append(_to_utc_iso(start))
+    if end is not None:
+        clauses.append("r.start_time < ?")
+        params.append(_to_utc_iso(end))
+    if search and search.strip():
+        term = f"%{search.strip().lower()}%"
+        clauses.append(
+            """
+            (
+                LOWER(c.plate_number) LIKE ?
+             OR LOWER(COALESCE(c.model, '')) LIKE ?
+             OR LOWER(COALESCE(r.employee_name, '')) LIKE ?
+             OR LOWER(COALESCE(r.purpose, '')) LIKE ?
+            )
+            """
+        )
+        params.extend([term, term, term, term])
+    return clauses, params
+
+
 def _reservation_conflict_rows(conn: DbConn, car_id: int, start_iso: str, end_iso: str) -> list[Any]:
     return conn.execute(
         """
@@ -549,21 +588,32 @@ def list_reservations(
     car_id: Optional[int] = None,
     status_filter: Optional[ReservationStatus] = Query(default=None, alias="status_filter"),
     mine: bool = False,
+    start: Optional[datetime] = None,
+    end: Optional[datetime] = None,
+    search: Optional[str] = Query(default=None, max_length=120),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
-    clauses: list[str] = []
-    params: list[Any] = []
-    if car_id is not None:
-        clauses.append("car_id = ?")
-        params.append(car_id)
-    if mine or auth.role == "employee":
-        clauses.append("created_by_id = ?")
-        params.append(auth.user_id)
+    if start and end and end <= start:
+        raise HTTPException(status_code=400, detail="end must be after start")
 
+    clauses, params = _reservation_filter_clauses(
+        car_id=car_id,
+        mine=mine or auth.role == "employee",
+        user_id=auth.user_id,
+        start=start,
+        end=end,
+        search=search,
+    )
     where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
-    query = f"SELECT * FROM reservations{where} ORDER BY start_time"
+    query = f"""
+        SELECT r.*
+        FROM reservations r
+        JOIN cars c ON c.id = r.car_id
+        {where}
+        ORDER BY r.start_time
+    """
 
     with get_conn() as conn:
         rows = conn.execute(query, tuple(params)).fetchall()
@@ -640,23 +690,29 @@ def export_reservations_csv(
     status_filter: Optional[ReservationStatus] = Query(default=None, alias="status_filter"),
     start: Optional[datetime] = None,
     end: Optional[datetime] = None,
+    search: Optional[str] = Query(default=None, max_length=120),
     _: AuthContext = Depends(require_admin),
 ) -> StreamingResponse:
     """Admin-only CSV export of reservations with optional car / status / date filters."""
-    clauses: list[str] = []
-    params: list[Any] = []
-    if car_id is not None:
-        clauses.append("car_id = ?")
-        params.append(car_id)
-    if start is not None:
-        clauses.append("start_time >= ?")
-        params.append(_to_utc_iso(start))
-    if end is not None:
-        clauses.append("end_time <= ?")
-        params.append(_to_utc_iso(end))
+    if start and end and end <= start:
+        raise HTTPException(status_code=400, detail="end must be after start")
 
+    clauses, params = _reservation_filter_clauses(
+        car_id=car_id,
+        mine=False,
+        user_id=0,
+        start=start,
+        end=end,
+        search=search,
+    )
     where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
-    query = f"SELECT * FROM reservations{where} ORDER BY start_time"
+    query = f"""
+        SELECT r.*
+        FROM reservations r
+        JOIN cars c ON c.id = r.car_id
+        {where}
+        ORDER BY r.start_time
+    """
 
     with get_conn() as conn:
         rows = conn.execute(query, tuple(params)).fetchall()

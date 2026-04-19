@@ -26,6 +26,9 @@ const state = {
   carFilter: "active",
   scope: "smart",
   status: surface === "admin" ? "pending" : "all",
+  reservationSearch: "",
+  reservationStartDate: "",
+  reservationEndDate: "",
   notificationPollId: null,
   cars: [],
   reservations: [],
@@ -119,6 +122,11 @@ const els = {
   modeCopy: document.getElementById("modeCopy"),
   nextSignalTitle: document.getElementById("nextSignalTitle"),
   nextSignalCopy: document.getElementById("nextSignalCopy"),
+  reservationSearch: document.getElementById("reservationSearch"),
+  reservationStartDate: document.getElementById("reservationStartDate"),
+  reservationEndDate: document.getElementById("reservationEndDate"),
+  clearReservationFiltersBtn: document.getElementById("clearReservationFiltersBtn"),
+  exportReservationsBtn: document.getElementById("exportReservationsBtn"),
 };
 
 const fieldErrorIds = [
@@ -141,6 +149,7 @@ const fieldErrorIds = [
 ];
 
 let conflictPreviewTimer = null;
+let reservationFilterTimer = null;
 
 function startOfMonth(value) {
   return new Date(value.getFullYear(), value.getMonth(), 1);
@@ -421,6 +430,15 @@ function toIso(localValue) {
   return localValue ? new Date(localValue).toISOString() : null;
 }
 
+function dateFilterIso(dateValue, endOfDay = false) {
+  if (!dateValue) return null;
+  const date = new Date(`${dateValue}T00:00:00`);
+  if (endOfDay) {
+    date.setDate(date.getDate() + 1);
+  }
+  return date.toISOString();
+}
+
 function localInputValue(date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
@@ -431,7 +449,7 @@ function statusTag(status) {
 
 function calendarPill(item, car) {
   const label = car ? car.plate_number : `Car ${item.car_id}`;
-  return `<span class="calendar-pill calendar-pill--${item.status}">${label}</span>`;
+  return `<span class="calendar-pill calendar-pill--${item.status}">${escapeHtml(label)}</span>`;
 }
 
 function carMap() {
@@ -943,10 +961,10 @@ function renderHandoffCandidates() {
 function reservationContext(item) {
   const details = [];
   if (item.purpose) {
-    details.push(`<strong>${item.purpose}</strong>`);
+    details.push(`<strong>${escapeHtml(item.purpose)}</strong>`);
   }
   if (item.decision_reason) {
-    details.push(`<div class="muted">${item.decision_reason}</div>`);
+    details.push(`<div class="muted">${escapeHtml(item.decision_reason)}</div>`);
   }
   if (item.checked_out_at) {
     details.push(`<div class="muted">Start: ${formatDateTime(item.checked_out_at)}</div>`);
@@ -996,19 +1014,19 @@ function renderReservations() {
     const car = cars.get(item.car_id);
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td>#${item.id}</td>
-      <td>
-        <strong>${car ? car.plate_number : t("entity.car", { id: item.car_id })}</strong>
-        <div class="muted">${car ? car.model : t("entity.unknownCar")}</div>
+      <td data-label="ID">#${item.id}</td>
+      <td data-label="Автомобил">
+        <strong>${escapeHtml(car ? car.plate_number : t("entity.car", { id: item.car_id }))}</strong>
+        <div class="muted">${escapeHtml(car ? car.model : t("entity.unknownCar"))}</div>
       </td>
-      <td><strong>${item.employee_name}</strong></td>
-      <td>
+      <td data-label="Заявител"><strong>${escapeHtml(item.employee_name)}</strong></td>
+      <td data-label="Период">
         <strong>${formatDateTime(item.start_time)}</strong>
         <div class="muted">до ${formatDateTime(item.end_time)}</div>
       </td>
-      <td>${statusTag(item.status)}</td>
-      <td>${reservationContext(item) || '<span class="muted">Без допълнителен контекст</span>'}</td>
-      <td><div class="table-actions">${reservationActions(item)}</div></td>
+      <td data-label="Статус">${statusTag(item.status)}</td>
+      <td data-label="Контекст">${reservationContext(item) || '<span class="muted">Без допълнителен контекст</span>'}</td>
+      <td data-label="Действия"><div class="table-actions">${reservationActions(item)}</div></td>
     `;
     els.reservationsTableBody.appendChild(row);
   });
@@ -1033,6 +1051,8 @@ function renderCalendar() {
     current.setDate(firstDay.getDate() + index);
     const key = dateKey(current);
     const items = (days.get(key) || []).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+    const visibleItems = items.slice(0, 3);
+    const hiddenCount = Math.max(items.length - visibleItems.length, 0);
     const button = document.createElement("button");
     button.type = "button";
     button.className = [
@@ -1051,10 +1071,10 @@ function renderCalendar() {
         <span class="calendar-day__count">${items.length ? pluralRecord(items.length) : ""}</span>
       </div>
       <div class="calendar-day__list">
-        ${items
-          .slice(0, 3)
+        ${visibleItems
           .map((item) => calendarPill(item, cars.get(item.car_id)))
           .join("")}
+        ${hiddenCount ? `<span class="calendar-more">+${hiddenCount} още</span>` : ""}
       </div>
     `;
     els.calendarGrid.appendChild(button);
@@ -1089,13 +1109,13 @@ function renderDayTimeline() {
     card.innerHTML = `
       <div class="timeline-item__top">
         <div>
-          <strong>${car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id })}</strong>
-          <p class="muted">${item.employee_name}</p>
+          <strong>${escapeHtml(car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id }))}</strong>
+          <p class="muted">${escapeHtml(item.employee_name)}</p>
         </div>
         ${statusTag(item.status)}
       </div>
       <p>${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</p>
-      <p>${item.purpose || "Без уточнена цел"}</p>
+      <p>${escapeHtml(item.purpose || "Без уточнена цел")}</p>
     `;
     els.dayTimeline.appendChild(card);
   });
@@ -1138,6 +1158,70 @@ async function loadCars() {
   await loadBlackouts();
 }
 
+function syncReservationFiltersFromInputs() {
+  if (!els.reservationSearch) return;
+  state.reservationSearch = els.reservationSearch.value;
+  state.reservationStartDate = els.reservationStartDate?.value || "";
+  state.reservationEndDate = els.reservationEndDate?.value || "";
+}
+
+function reservationQueryParams() {
+  syncReservationFiltersFromInputs();
+  const params = new URLSearchParams();
+  if (state.status !== "all") {
+    params.set("status_filter", state.status);
+  }
+  if (state.currentRole === "fleet_admin" && state.scope === "mine") {
+    params.set("mine", "true");
+  }
+  if (state.reservationSearch.trim()) {
+    params.set("search", state.reservationSearch.trim());
+  }
+  if (state.reservationStartDate) {
+    params.set("start", dateFilterIso(state.reservationStartDate));
+  }
+  if (state.reservationEndDate) {
+    params.set("end", dateFilterIso(state.reservationEndDate, true));
+  }
+  return params;
+}
+
+async function applyReservationFilters() {
+  await loadReservations();
+  updateOverview();
+  updateSummary();
+}
+
+function scheduleReservationFilterRefresh() {
+  clearTimeout(reservationFilterTimer);
+  reservationFilterTimer = setTimeout(() => {
+    applyReservationFilters().catch((error) => {
+      showMessage("Филтърът не успя", error.message);
+    });
+  }, 250);
+}
+
+async function clearReservationFilters() {
+  if (els.reservationSearch) {
+    els.reservationSearch.value = "";
+  }
+  if (els.reservationStartDate) {
+    els.reservationStartDate.value = "";
+  }
+  if (els.reservationEndDate) {
+    els.reservationEndDate.value = "";
+  }
+  state.reservationSearch = "";
+  state.reservationStartDate = "";
+  state.reservationEndDate = "";
+  clearTimeout(reservationFilterTimer);
+  try {
+    await applyReservationFilters();
+  } catch (error) {
+    showMessage("Филтърът не успя", error.message);
+  }
+}
+
 async function loadReservations() {
   if (!state.token) {
     state.reservations = [];
@@ -1147,20 +1231,51 @@ async function loadReservations() {
     return;
   }
 
-  const params = new URLSearchParams();
-  if (state.status !== "all") {
-    params.set("status_filter", state.status);
-  }
-  if (state.currentRole === "fleet_admin" && state.scope === "mine") {
-    params.set("mine", "true");
-  }
-
+  const params = reservationQueryParams();
   const suffix = params.toString() ? `?${params.toString()}` : "";
   const data = await apiFetch(`/reservations${suffix}`, { headers: authHeaders() });
   state.reservations = data.items;
   renderReservations();
   renderCalendar();
   renderDayTimeline();
+}
+
+async function downloadCsv(url, filename) {
+  const response = await fetch(url, { headers: authHeaders() });
+  if (!response.ok) {
+    let detail = "Неуспешна заявка към сървъра.";
+    try {
+      const data = await response.json();
+      detail = data?.detail || detail;
+    } catch (_error) {
+      // CSV failures are not guaranteed to return JSON.
+    }
+    if (response.status === 401) {
+      setSession(null, null);
+    }
+    throw new Error(detail);
+  }
+
+  const blob = await response.blob();
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
+}
+
+async function exportReservationsCsv() {
+  const params = reservationQueryParams();
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  try {
+    await downloadCsv(`/reservations/export.csv${suffix}`, "fleetflow-reservations.csv");
+    showMessage("CSV файлът е готов", "Експортът следва текущите филтри на таблицата.", "success");
+  } catch (error) {
+    showMessage("Експортът не успя", error.message);
+  }
 }
 
 async function loadNotifications() {
@@ -1486,12 +1601,10 @@ async function handleReservationCreate(event) {
         purpose: els.purpose.value.trim() || null,
       }),
     });
-    els.reservationForm.reset();
-    els.startTime.value = nextLocalSlot(30);
-    els.endTime.value = nextLocalSlot(120);
-    resetConflictPreview();
+    els.purpose.value = "";
     showMessage("Заявката е подадена", "Резервацията е записана като pending.", "success");
     await refreshData();
+    scheduleConflictPreview();
   } catch (error) {
     showMessage("Неуспешна заявка", error.message);
   }
@@ -1868,6 +1981,11 @@ bind(els.startTime, "input", scheduleConflictPreview);
 bind(els.endTime, "change", scheduleConflictPreview);
 bind(els.endTime, "input", scheduleConflictPreview);
 bind(els.carId, "change", scheduleConflictPreview);
+bind(els.reservationSearch, "input", scheduleReservationFilterRefresh);
+bind(els.reservationStartDate, "change", scheduleReservationFilterRefresh);
+bind(els.reservationEndDate, "change", scheduleReservationFilterRefresh);
+bind(els.clearReservationFiltersBtn, "click", clearReservationFilters);
+bind(els.exportReservationsBtn, "click", exportReservationsCsv);
 
 bind(els.monthPrev, "click", () => {
   state.calendarDate = addMonths(state.calendarDate, -1);

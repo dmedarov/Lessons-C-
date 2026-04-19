@@ -349,9 +349,27 @@
                 <button class="chip" type="button" data-scope="mine">Само мои</button>
                 <button class="chip" type="button" data-status="all">Всички</button>
                 <button class="chip chip--active" type="button" data-status="pending">Чакащи</button>
-                  <button class="chip" type="button" data-status="approved">Одобрени</button>
-                  <button class="chip" type="button" data-status="checked_out">Активни</button>
-                  <button class="chip" type="button" data-status="returned">Върнати</button>
+                <button class="chip" type="button" data-status="approved">Одобрени</button>
+                <button class="chip" type="button" data-status="checked_out">Активни</button>
+                <button class="chip" type="button" data-status="returned">Върнати</button>
+              </div>
+            </div>
+            <div class="mission-filter" aria-label="Филтри за резервации">
+              <label class="field field--compact">
+                <span>Търсене</span>
+                <input id="reservationSearch" name="reservationSearch" type="search" placeholder="Рег. №, заявител или цел" autocomplete="off" />
+              </label>
+              <label class="field field--compact">
+                <span>От дата</span>
+                <input id="reservationStartDate" name="reservationStartDate" type="date" />
+              </label>
+              <label class="field field--compact">
+                <span>До дата</span>
+                <input id="reservationEndDate" name="reservationEndDate" type="date" />
+              </label>
+              <div class="mission-filter__actions">
+                <button class="btn btn--ghost" type="button" id="clearReservationFiltersBtn">Изчисти</button>
+                <button class="btn btn--primary" type="button" id="exportReservationsBtn">Експорт CSV</button>
               </div>
             </div>
             <div class="table-wrap">

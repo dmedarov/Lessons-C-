@@ -204,3 +204,55 @@ def test_csv_export_filters_by_status(client: TestClient) -> None:
     # Header + one approved row.
     assert len(lines) == 2
     assert ",approved," in lines[1]
+
+
+def test_csv_export_filters_by_search_and_date_window(client: TestClient) -> None:
+    admin = _bootstrap(client)
+    employee = _make_employee(client, admin)
+    car_a = _make_car(client, admin, plate="CB5001AA")
+    car_b = _make_car(client, admin, plate="CB5001BB")
+    _make_reservation(
+        client,
+        employee,
+        car_a,
+        start="2099-07-01T09:00:00+00:00",
+        end="2099-07-01T10:00:00+00:00",
+        purpose="Moonshot review",
+    )
+    _make_reservation(
+        client,
+        employee,
+        car_b,
+        start="2099-08-01T09:00:00+00:00",
+        end="2099-08-01T10:00:00+00:00",
+        purpose="Routine route",
+    )
+
+    search = client.get("/reservations/export.csv?search=moonshot", headers=_auth(admin))
+    assert search.status_code == 200
+    search_text = search.content.decode("utf-8-sig")
+    assert "CB5001AA" in search_text
+    assert "CB5001BB" not in search_text
+
+    window = client.get(
+        "/reservations/export.csv",
+        params={
+            "start": "2099-08-01T00:00:00+00:00",
+            "end": "2099-08-02T00:00:00+00:00",
+        },
+        headers=_auth(admin),
+    )
+    assert window.status_code == 200
+    window_text = window.content.decode("utf-8-sig")
+    assert "CB5001AA" not in window_text
+    assert "CB5001BB" in window_text
+
+    invalid = client.get(
+        "/reservations/export.csv",
+        params={
+            "start": "2099-08-03T00:00:00+00:00",
+            "end": "2099-08-02T00:00:00+00:00",
+        },
+        headers=_auth(admin),
+    )
+    assert invalid.status_code == 400
