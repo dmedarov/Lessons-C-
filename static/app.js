@@ -52,6 +52,7 @@ const els = {
   bootstrapUsername: document.getElementById("bootstrapUsername"),
   bootstrapDisplayName: document.getElementById("bootstrapDisplayName"),
   bootstrapPassword: document.getElementById("bootstrapPassword"),
+  bootstrapToken: document.getElementById("bootstrapToken"),
   setupPanel: document.getElementById("setupPanel"),
   loginPanel: document.getElementById("loginPanel"),
   sessionPanel: document.getElementById("sessionPanel"),
@@ -1674,11 +1675,16 @@ async function handleBootstrap(event) {
     display_name: els.bootstrapDisplayName.value.trim(),
     password: els.bootstrapPassword.value,
   };
+  const headers = { "Content-Type": "application/json" };
+  const bootstrapToken = els.bootstrapToken?.value?.trim();
+  if (bootstrapToken) {
+    headers["X-Bootstrap-Token"] = bootstrapToken;
+  }
 
   try {
     await apiFetch("/auth/bootstrap-admin", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(payload),
     });
     state.hasAdmin = true;

@@ -835,6 +835,8 @@ def test_health_and_ui(client: TestClient) -> None:
     assert "/static/i18n.js" in admin_res.text
     assert 'id="notificationBadge"' in res.text
     assert 'id="notificationBadge"' in admin_res.text
+    assert 'id="bootstrapToken"' in res.text
+    assert 'id="bootstrapToken"' in admin_res.text
     assert 'aria-label="Основна навигация"' in res.text
     assert 'aria-label="Административна навигация"' in admin_res.text
     assert 'aria-label="Бърза мобилна навигация"' in res.text
