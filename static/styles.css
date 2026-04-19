@@ -428,7 +428,6 @@ svg {
 .theme-toggle .theme-toggle__moon {
   display: block;
 }
-:root[data-theme="dark"] .theme-toggle .theme-toggle__sun,
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .theme-toggle .theme-toggle__sun {
     display: block;
@@ -544,6 +543,8 @@ h3 {
 .hero__secondary,
 .glass-card,
 .studio-card {
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius-2xl);
   background: var(--surface);
@@ -594,6 +595,15 @@ h3 {
   display: grid;
   gap: var(--sp-3);
   padding: var(--sp-3);
+}
+
+.hero__secondary > *,
+.control-rail > *,
+.content-rail > *,
+.split-deck > *,
+.calendar-layout > *,
+.summary-deck > * {
+  min-width: 0;
 }
 
 .hero__lead {
@@ -778,7 +788,6 @@ h3 {
     linear-gradient(135deg, rgba(36, 107, 255, 0.08), transparent 60%);
 }
 
-:root[data-theme="dark"] .glass-card--highlight,
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .glass-card--highlight {
     background:
@@ -803,6 +812,17 @@ h3 {
 
 .glass-card__header--split {
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.glass-card__header--split > div {
+  min-width: 0;
+}
+
+.glass-card__header--split .toolbar {
+  flex: 1 1 360px;
+  justify-content: flex-end;
+  min-width: min(100%, 300px);
 }
 
 .workspace {
@@ -2068,11 +2088,11 @@ select {
   }
 
   .control-rail {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
   }
 
   .hero__secondary {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
   }
 }
 
@@ -2126,6 +2146,15 @@ select {
   .topbar,
   .control-rail {
     grid-template-columns: 1fr;
+  }
+
+  .hero__secondary {
+    grid-template-columns: 1fr;
+  }
+
+  .glass-card__header--split .toolbar {
+    flex-basis: 100%;
+    justify-content: flex-start;
   }
 
   .topbar__nav {
@@ -2341,6 +2370,25 @@ select {
 
   .data-table td:first-child::before {
     content: "ID";
+  }
+}
+
+@media (max-width: 560px) {
+  .stats-grid,
+  .stats-grid--3,
+  .mission-filter {
+    grid-template-columns: 1fr;
+  }
+
+  .mission-filter .field--compact:first-child,
+  .mission-filter__actions {
+    grid-column: auto;
+  }
+
+  .mission-filter__actions,
+  .mission-filter__actions .btn,
+  .button-row .btn {
+    width: 100%;
   }
 }
 
