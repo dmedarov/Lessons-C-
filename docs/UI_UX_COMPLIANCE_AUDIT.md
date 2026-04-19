@@ -40,11 +40,11 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Calendar studio | `templates/index.html`, `static/app.js`, `static/styles.css` | needs evidence | Responsive 390/768/1440, keyboard reachability, color+text statuses, no overlap | Capture mobile day mode and desktop month screenshots; verify day controls. Month prev/next controls now have accessible labels on both surfaces. |
 | Reservation list/cards | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Status text, lifecycle clarity, cards at mobile, table/card labels | Verify no color-only state and all actions have accessible names. Lifecycle meter has text labels; table body is `aria-live=polite`. |
 | Notifications | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | `aria-live`, unread badge clarity, concise copy, no noisy motion | Notification lists are now polite live regions. Verify polling update announcement with a screen reader. |
-| Admin pending queue | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Bulk selection semantics, action bar visibility, partial-failure feedback | Test keyboard checkbox selection and bulk approve/reject result copy. |
+| Admin pending queue | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Bulk selection semantics, action bar visibility, partial-failure feedback, required reject reason | Test keyboard checkbox selection, bulk approve/reject result copy and empty reject reason recovery. |
 | Admin users | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Destructive confirmations, role-change clarity, audit timeline readability | Verify reset/deactivate/role dialog focus return and success/error copy. |
 | Admin fleet/cars | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Notes textarea labels, active/inactive text state, 44 px controls | Verify notes save path, employee visibility and mobile card spacing. |
 | Blackout management | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Dialog APG behavior, date validation, conflict errors, no overlap | Test create/edit/deactivate via keyboard and invalid dates. |
-| Dialog system | `static/app.js`, `static/styles.css` | needs evidence | APG modal focus trap/return, ESC cancel, destructive role clarity | Native `<dialog>` is used, ESC cancel exists, helper-level focus return is covered, and dialogs now expose modal name/description/error semantics. Manual screen-reader pass still needed. |
+| Dialog system | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | APG modal focus trap/return, ESC cancel, destructive role clarity, exact invalid-field recovery | Native `<dialog>` is used, ESC cancel exists, helper-level focus return is covered, dialogs expose modal name/description/error semantics, and validation can focus/mark the exact invalid field. Manual screen-reader pass still needed. |
 | Toast/message system | `static/app.js`, `static/styles.css` | needs evidence | Polite live region, non-color-only severity, visible long enough | `#message` uses `role=alert`, receives focus and now uses theme-aware alert classes instead of inline light-theme colors. Verify with screen reader and dark-mode screenshots. |
 | Mobile bottom nav | `templates/index.html`, `templates/admin.html`, `static/styles.css` | needs evidence | 44 px targets, safe-area padding, no content occlusion | CSS sets `min-height: 44px` and accounts for `safe-area-inset-bottom`; screenshot 390 px bottom area and keyboard focus order still required. |
 | Theme/dark mode | `static/theme.js`, `static/styles.css` | needs evidence | NASA/WCAG contrast matrix, focus ring visibility, reduced motion | Solid text/status token pairs now covered by `tests/test_design_tokens.py`; translucent surfaces still need browser-computed contrast evidence. |
@@ -88,8 +88,17 @@ styles.
   insets; covered by `tests/test_ui_compliance.py`.
 - `pass`: message alerts now use theme-aware CSS classes instead of inline
   light-theme colors; covered by `tests/test_ui_compliance.py`.
+- `pass`: single and bulk reject dialogs require a concrete reason, focus the
+  textarea on empty submit and mark it with `aria-invalid`; covered by
+  `tests/test_ui_compliance.py`.
+- `pass`: shared dialog validation can target a named invalid control for
+  password, blackout and reject errors instead of always marking the first
+  field; covered by `tests/test_ui_compliance.py`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
+- `evidence`: latest local handoff check ran `pytest -q` -> 82 passed,
+  `node --check static/app.js`, `node --check static/i18n.js` and
+  `git diff --check`.
 
 ## PR/Handoff Checklist
 

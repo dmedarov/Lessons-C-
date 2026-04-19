@@ -928,7 +928,10 @@ textarea:disabled {
 }
 
 input:invalid:not(:placeholder-shown),
-textarea:invalid:not(:placeholder-shown) {
+textarea:invalid:not(:placeholder-shown),
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
   border-color: var(--danger);
 }
 

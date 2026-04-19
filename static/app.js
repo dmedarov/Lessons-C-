@@ -362,8 +362,23 @@ function userDialog({ title, body, confirmLabel, renderFields, readValue, valida
       event.preventDefault();
       const value = readValue(form);
       const error = validate ? validate(value) : null;
+      const fields = form.querySelectorAll("input, select, textarea");
+      fields.forEach((field) => {
+        field.removeAttribute("aria-invalid");
+        if (field.getAttribute("aria-describedby") === errorId) {
+          field.removeAttribute("aria-describedby");
+        }
+      });
       if (error) {
-        form.querySelector("[data-dialog-error]").textContent = error;
+        const message = typeof error === "string" ? error : error.message;
+        const targetField =
+          typeof error === "string" ? fields[0] : form.elements[error.fieldName] || fields[0];
+        form.querySelector("[data-dialog-error]").textContent = message;
+        if (targetField instanceof HTMLElement) {
+          targetField.setAttribute("aria-invalid", "true");
+          targetField.setAttribute("aria-describedby", errorId);
+          targetField.focus();
+        }
         return;
       }
       close(value);
@@ -397,7 +412,8 @@ function resetPasswordDialog(user) {
       new_password: form.elements.newPassword.value,
       reason: form.elements.reason.value.trim() || null,
     }),
-    validate: (value) => (value.new_password.length < 8 ? t("admin.passwordTooShort") : null),
+    validate: (value) =>
+      value.new_password.length < 8 ? { message: t("admin.passwordTooShort"), fieldName: "newPassword" } : null,
   });
 }
 
@@ -438,8 +454,11 @@ function editBlackoutDialog(blackout) {
       reason: form.elements.reason.value.trim() || null,
     }),
     validate: (value) => {
-      if (!value.start_time || !value.end_time) return "Въведи начало и край.";
-      if (new Date(value.end_time) <= new Date(value.start_time)) return "Краят трябва да е след началото.";
+      if (!value.start_time) return { message: "Въведи начало.", fieldName: "startTime" };
+      if (!value.end_time) return { message: "Въведи край.", fieldName: "endTime" };
+      if (new Date(value.end_time) <= new Date(value.start_time)) {
+        return { message: "Краят трябва да е след началото.", fieldName: "endTime" };
+      }
       return null;
     },
   });
@@ -2430,10 +2449,12 @@ async function bulkReservationDecision(action) {
       renderFields: () => `
         <label class="field">
           <span>${t("admin.rejectReasonLabel")}</span>
-          <textarea name="reason" rows="3" placeholder="${t("conflict.noPurpose")}"></textarea>
+          <textarea name="reason" rows="3" required placeholder="${t("conflict.noPurpose")}"></textarea>
         </label>
       `,
-      readValue: (form) => ({ reason: form.elements.reason.value.trim() || t("audit.rejectedViaUi") }),
+      readValue: (form) => ({ reason: form.elements.reason.value.trim() }),
+      validate: (value) =>
+        !value.reason ? { message: t("admin.rejectReasonRequired"), fieldName: "reason" } : null,
     });
     if (!result) return;
     payload = { ids, reason: result.reason };
@@ -2482,10 +2503,12 @@ async function reservationAction(id, action) {
       renderFields: () => `
         <label class="field">
           <span>${t("admin.rejectReasonLabel")}</span>
-          <textarea name="reason" rows="3" placeholder="${t("conflict.noPurpose")}"></textarea>
+          <textarea name="reason" rows="3" required placeholder="${t("conflict.noPurpose")}"></textarea>
         </label>
       `,
-      readValue: (form) => ({ reason: form.elements.reason.value.trim() || t("audit.rejectedViaUi") }),
+      readValue: (form) => ({ reason: form.elements.reason.value.trim() }),
+      validate: (value) =>
+        !value.reason ? { message: t("admin.rejectReasonRequired"), fieldName: "reason" } : null,
     });
     if (!result) return;
     try {

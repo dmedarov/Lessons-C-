@@ -171,6 +171,8 @@
 - design-token contrast matrix за light/dark theme
 - responsive layout pass на 390 / 768 / 1024 / 1440 px
 - WCAG/USWDS semantic pass: landmarks, labels, keyboard, dialogs, live regions
+- NN/g error-prevention pass for destructive flows: confirmations, required
+  reasons, preserved input and focused invalid fields
 - Playwright screenshot + e2e harness за визуални/flow regressions
 - PR/handoff checklist, който мапва всяка UI промяна към Apple, NASA, USWDS/WCAG/APG или NN/g принцип
 
@@ -193,21 +195,24 @@
 - Alembic baseline и versioned migrations за всяка schema промяна
 - Production setup: `make setup` генерира secrets, `make prod` вдига PostgreSQL + app
 - Apple/NASA/USWDS compliance roadmap за следващите UI подобрения
+- UI error prevention: reject dialogs now require a human reason and expose
+  exact-field `aria-invalid` recovery instead of silent generic fallback reasons
+- Latest local verification for this slice: `pytest -q` -> 82 passed, JS
+  syntax checks and `git diff --check`
 
 ## Next Recommended Slices
 
-1. UI/UX compliance audit inventory за всички повърхности.
-2. Design-token contrast matrix и автоматизиран WCAG/NASA 508 check.
-3. Apple layout/responsive density pass: no overlap, 44 px controls, resilient text.
-4. WCAG/USWDS semantic pass: keyboard, focus, dialogs, live regions, labels.
-5. Browser-level Playwright screenshots/e2e за employee booking, admin approve/reject, refresh/logout и mobile calendar.
-6. PostgreSQL migration smoke + backup/restore playbook за production оператори.
-7. Structured JSON logs, request correlation и traceable incident debugging.
-8. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
-9. Fleet Gantt / week planning и utilization analytics.
-10. Session-management UI: активни устройства, revoke current/all sessions и audit trail.
-11. Scheduled reminder notifications преди start/end на резервация.
-12. Maintenance workflows с attachment-и и service provider metadata.
+1. Browser-level Playwright screenshots/e2e за employee booking, admin approve/reject, bulk reject reason validation, refresh/logout и mobile calendar.
+2. Apple layout/responsive density pass: no overlap, 44 px controls, resilient text, verified at 390 / 768 / 1024 / 1440 px.
+3. Complete the Phase 8.5 error-prevention sweep for cancel, return, deactivate, role change, handoff and blackout deactivate.
+4. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
+5. PostgreSQL migration smoke + backup/restore playbook за production оператори.
+6. Structured JSON logs, request correlation и traceable incident debugging.
+7. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
+8. Fleet Gantt / week planning и utilization analytics.
+9. Session-management UI: активни устройства, revoke current/all sessions и audit trail.
+10. Scheduled reminder notifications преди start/end на резервация.
+11. Maintenance workflows с attachment-и и service provider metadata.
 
 ## References
 

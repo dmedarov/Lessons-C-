@@ -59,3 +59,24 @@ def test_message_alerts_use_theme_classes_not_inline_colors() -> None:
     assert "els.message.style.color" not in app_js
     assert ".alert-strip--success" in styles
     assert ".alert-strip--error" in styles
+
+
+def test_reject_dialogs_require_reason_and_mark_invalid_field() -> None:
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+    assert app_js.count('textarea name="reason" rows="3" required') == 2
+    assert app_js.count('fieldName: "reason"') == 2
+    assert 'targetField.setAttribute("aria-invalid", "true");' in app_js
+    assert 'targetField.setAttribute("aria-describedby", errorId);' in app_js
+    assert 'targetField.focus();' in app_js
+    assert '"admin.rejectReasonRequired": "Добави причина за отказа, преди да продължиш."' in i18n_js
+    assert 'textarea[aria-invalid="true"]' in styles
+
+
+def test_dialog_validation_can_target_the_specific_invalid_field() -> None:
+    app_js = _read("static/app.js")
+    assert 'form.elements[error.fieldName] || fields[0]' in app_js
+    assert 'fieldName: "newPassword"' in app_js
+    assert 'fieldName: "startTime"' in app_js
+    assert app_js.count('fieldName: "endTime"') == 2

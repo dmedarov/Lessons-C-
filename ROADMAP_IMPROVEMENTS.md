@@ -1469,6 +1469,13 @@ message alert classes. Continue with keyboard and screen-reader evidence.
 
 ### 8.5 Error prevention and recovery rewrite
 
+**Status:** Started on 2026-04-20. Single-reservation reject and bulk reject
+dialogs now require a human reason, mark the empty textarea with
+`aria-invalid`, keep focus on the field and use Bulgarian inline recovery copy.
+The shared dialog helper can now target the exact invalid field for password
+reset and blackout edit validation too.
+Continue with cancel/return/deactivate/role/handoff/blackout recovery checks.
+
 - **Goal:** Align destructive/complex workflows with NN/g error prevention and
   Apple clarity.
 - **Files:** `static/app.js`, `static/i18n.js`, `static/styles.css`,
@@ -1489,7 +1496,7 @@ message alert classes. Continue with keyboard and screen-reader evidence.
   - 422/409/500 surfaces never show raw technical jargon to end users.
   - Failed forms keep values and focus the first invalid field.
 - **Verification:** API error tests where applicable, browser smoke for every
-  action, Bulgarian copy review.
+  action, Bulgarian copy review, `pytest tests/test_ui_compliance.py`.
 - **Depends on:** 8.4
 - **Effort:** M
 
@@ -1643,7 +1650,12 @@ If time is limited, execute items 1-4 before any new feature work.
   name/description/error semantics and made the mobile bottom rail safe-area
   aware for iOS-style home indicator layouts. Message alerts now use
   theme-aware classes instead of inline light-theme colors.
-- **Verification:** `pytest -q` passes with 80 tests, JS syntax checks,
+- **Phase 8.5 started:** Single and bulk reject dialogs require a concrete
+  reason, focus the textarea on empty submit, expose `aria-invalid` and use
+  Bulgarian inline copy instead of a silent generic fallback. The shared dialog
+  validation path now targets the exact invalid field rather than always
+  marking the first control.
+- **Verification:** `pytest -q` passes with 82 tests, JS syntax checks,
   `git diff --check`, Docker compose rebuild and `/health` smoke.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation

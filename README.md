@@ -19,6 +19,7 @@
 - Responsive dashboard UI без външни CDN зависимости.
 - Отделна admin страница за approvals, users, blackout windows и continuity actions.
 - Batch approve/reject UX за pending заявки: checkbox selection, action bar и partial-failure summary.
+- Error-prevention dialogs: reject действията изискват конкретна причина, а custom dialog validation фокусира точното грешно поле.
 - Refresh-token rotation: UI-то подновява access token-а тихо при 401, а logout ревокира refresh cookie-то.
 - Бърз operational overview: активни коли, pending заявки, активни курсове и непрочетени нотификации.
 - Loading skeleton-и и submit busy states за основните форми и панели.
@@ -257,6 +258,7 @@ docker-compose.postgres.yml
 17. **Dev-only seed** — deterministic тестови акаунти само в `APP_ENV=dev` + `DEV_SEED_DEMO_DATA=true`.
 18. **Auth rate limiting** — in-memory brute-force guard за login и bootstrap endpoints.
 19. **Refresh-token rotation** — short-lived access tokens + HttpOnly refresh cookie, replay protection и explicit logout invalidation.
+20. **UI error prevention** — destructive reject flows пазят задължителна причина, показват inline грешка и маркират конкретното поле с `aria-invalid`.
 
 ## Тестове
 
@@ -264,6 +266,8 @@ docker-compose.postgres.yml
 pip install -r requirements-dev.txt
 pytest -q
 ```
+
+Последна локална проверка за UI/error-prevention пакета: `pytest -q` -> 82 passed, `node --check static/app.js`, `node --check static/i18n.js`, `git diff --check`.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 
@@ -280,6 +284,7 @@ pytest -q
 - dev seed reset на тестовите акаунти
 - login rate limiting
 - refresh-token rotation, replay protection и logout invalidation
+- UI compliance guardrails: live regions, dialog focus return, exact invalid-field targeting, theme-aware alerts, safe-area mobile nav и задължителни reject reasons
 
 ## Alembic migrations
 
@@ -299,7 +304,7 @@ alembic revision -m "describe change"
 
 - Няма UI за управление на активни sessions по устройства; logout ревокира текущия refresh token, а replay защита чисти активната refresh верига за user-а.
 - Rate limiting-ът е in-memory и е подходящ за single-container deployment; за multi-instance production го изнеси към Redis, API gateway или WAF.
-- Следващата production стъпка е операторска дисциплина: PostgreSQL migration smoke, backup/restore playbook, structured JSON logs и browser-level e2e tests.
+- Следващата production/UI стъпка е операторска дисциплина плюс browser evidence: PostgreSQL migration smoke, backup/restore playbook, structured JSON logs и Playwright screenshots/e2e за `/`, `/admin`, mobile calendar и reject/bulk flows.
 
 ## План за развитие
 
