@@ -874,8 +874,9 @@ these before exposing FleetFlow beyond a trusted internal network.
 - **Goal:** The default branch has no open GitHub security alerts.
 - **Files:** `requirements.txt`, lock/constraints file if introduced,
   `Dockerfile`, `README.md`
-- **Status:** Local dependency audit and zero-CVE Dockerfile remediation shipped
-  across `0503e95`, `ab1a0f2` and `0076814`; GitHub alert closure still needs
+- **Status:** Local dependency audit, zero-CVE app Dockerfile remediation and
+  zero-CVE PostgreSQL service image remediation shipped across `0503e95`,
+  `ab1a0f2`, `0076814` and `a71121d`; GitHub alert closure still needs
   confirmation after push.
 - **Approach:**
   1. Open the GitHub alert referenced on push:
@@ -1138,7 +1139,7 @@ If time is limited, execute the first three items before any new feature work.
   (`24 passed`), `node --check`, `git diff --check`, Docker no-cache build and
   container `/health` smoke with healthy status.
 
-### 2026-04-19 - Zero-CVE Chainguard runtime and PostgreSQL smoke (`ab1a0f2`, `0076814`)
+### 2026-04-19 - Zero-CVE Chainguard runtime and PostgreSQL smoke (`ab1a0f2`, `0076814`, `a71121d`)
 
 - **Shipped:** Moved both Dockerfile stages to Chainguard Python images:
   `latest-dev` for dependency installation and `latest` for the final runtime.
@@ -1147,11 +1148,15 @@ If time is limited, execute the first three items before any new feature work.
 - **Shipped:** Added a Python container entrypoint for optional Alembic
   migrations, normalized Alembic PostgreSQL URLs to the `psycopg` v3 SQLAlchemy
   dialect and removed fixed compose container names for isolated smoke stacks.
+- **Shipped:** Moved PostgreSQL compose to `cgr.dev/chainguard/postgres:latest`
+  after verifying the image reports `0C/0H/0M/0L`. This is a fresh-deploy
+  production default; existing PostgreSQL 16 volumes need a deliberate major
+  version migration plan before reuse.
 - **Verification:** Docker Scout on the builder image and built app image
-  reports `0C/0H/0M/0L`, `pip-audit -r requirements.txt` clean, `pytest`
-  (`24 passed`), Python/JS syntax checks, Docker dev `/health`, PostgreSQL
-  compose `/health` and `alembic_version=20260418_0002` in a clean temporary
-  stack.
+  reports `0C/0H/0M/0L`; Docker Scout on the PostgreSQL service image reports
+  `0C/0H/0M/0L`; `pip-audit -r requirements.txt` clean, `pytest` (`24
+  passed`), Python/JS syntax checks, Docker dev `/health`, PostgreSQL compose
+  `/health` and `alembic_version=20260418_0002` in a clean temporary stack.
 
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._
