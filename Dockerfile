@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG PYTHON_IMAGE=python:3.12.13-slim
+ARG PYTHON_IMAGE=python:3.14.4-alpine
 
 FROM ${PYTHON_IMAGE} AS builder
 
@@ -26,7 +26,7 @@ WORKDIR /app
 
 RUN python -m pip install --no-cache-dir --upgrade pip==25.3
 
-RUN useradd --create-home --uid 10001 appuser
+RUN addgroup -S -g 10001 appuser && adduser -S -D -H -u 10001 -G appuser appuser
 
 COPY --from=builder /opt/venv /opt/venv
 COPY app.py config.py db.py notifications_service.py rate_limit.py security.py schemas.py ./
