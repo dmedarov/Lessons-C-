@@ -43,7 +43,7 @@ items are mostly independent and can be parallelised.
 
 ---
 
-## 1. Repository map (as of 2026-04-18)
+## 1. Repository map (as of 2026-04-19)
 
 ```text
 app.py                       FastAPI factory, router mounting, /, /admin, /health
@@ -62,10 +62,11 @@ templates/
   index.html                 employee surface
   admin.html                 admin surface
 static/
-  app.js                     ~1400-line SPA logic
-  styles.css                 ~900-line stylesheet
+  app.js                     ~1940-line SPA logic
+  i18n.js                    Bulgarian UI copy dictionary + interpolation
+  styles.css                 ~1060-line stylesheet
 alembic/                     migration scripts
-tests/test_app.py            ~50 cases, FastAPI TestClient
+tests/test_app.py            24 FastAPI TestClient regression cases
 ```
 
 > ⚠️ The prior UI audit referenced `static/index.html`. The correct path is
@@ -76,9 +77,59 @@ tests/test_app.py            ~50 cases, FastAPI TestClient
 
 ---
 
-## Phase 1 - Quick wins (<= 1 week total)
+## Current status snapshot (2026-04-19)
+
+This document is now the tactical source of truth. Completed work stays in
+`## Done` with commit references; active work remains in the phase sections.
+If a phase below says **Status: shipped**, do not re-implement it unless the
+task is explicitly a refactor or a bug fix against the shipped behavior.
+
+### Shipped capabilities
+
+- Dockerized FastAPI app with SQLite dev path and PostgreSQL-ready production
+  path.
+- Real auth/user management with DB re-binding for token roles and active
+  status.
+- Employee desk and dedicated `/admin` surface separated by role and UI intent.
+- Reservation lifecycle: request, approve/reject, cancel, start trip, return
+  car.
+- Service/maintenance blackout windows and conflict-aware reservation creation.
+- Live booking conflict preview in the UI.
+- In-app notifications, unread badge and polling refresh.
+- Outbound notification hooks for email, Slack and Teams.
+- Admin password reset, role change and per-user audit history.
+- Dev-only deterministic seed accounts/cars and auth rate limiting.
+- Current automated coverage: 24 `pytest` cases plus JS syntax checks used in
+  shipped verification.
+
+### Active product gaps
+
+- Browser-level end-to-end tests are still missing.
+- Refresh-token rotation and logout invalidation are still missing.
+- Bootstrap hardening for exposed production deployments is still missing.
+- Async notification dispatch via `BackgroundTasks` or queue is still missing.
+- Mobile calendar ergonomics remain a high-value UX gap.
+- Bulk approve/reject, date filters and search remain admin productivity gaps.
+- The monolithic `static/app.js` should be split before the frontend grows much
+  further.
+- The GitHub Dependabot banner still reports `1 moderate` alert on the default
+  branch; inspect and close it through GitHub Security when credentials allow.
+
+### Quality bar
+
+FleetFlow should be treated like a premium operations cockpit: calm UI, strong
+defaults, explicit confirmations, auditable admin actions and no hidden
+authorization assumptions. Every new endpoint needs a happy-path test, an
+authorization-negative test and a stale-role/inactive-user test where relevant.
+
+---
+
+## Phase 1 - Quick wins (shipped baseline)
 
 Low-risk, small-surface improvements that noticeably raise the baseline.
+
+**Status:** Shipped across `8f8648a`, `8834312`, `b9dd216`, `a91ab3e` and
+related follow-up commits. Items remain here as historical handoff detail.
 
 ### 1.1 Visible focus indicators + keyboard navigation
 
@@ -208,9 +259,12 @@ Low-risk, small-surface improvements that noticeably raise the baseline.
 
 ---
 
-## Phase 2 - UX high-impact (1-2 weeks)
+## Phase 2 - UX high-impact (partially shipped)
 
 Deeper UX work; pays off every day the product is used.
+
+**Status:** Items 2.3, 2.5 and 2.6 are shipped. Items 2.1, 2.2, 2.4 and 2.7
+remain active backlog.
 
 ### 2.1 Mobile calendar - collapse to list/day view below 768 px
 
@@ -681,12 +735,16 @@ Order is by estimated value; pick based on user demand.
 
 ---
 
-## Phase 6 - Serious admin module
+## Phase 6 - Serious admin module (shipped baseline)
 
 This phase turns the current admin surface into a proper operational control
 center. Some baseline pieces already exist (`/admin`, user CRUD, admin handoff,
 blackout windows), but the next wave should make user administration explicit,
 auditable and safe enough for real company operations.
+
+**Status:** Items 6.1-6.4 shipped as baseline in `82ff34e` and `0a5a57f`.
+Future admin work should extend this baseline rather than duplicating controls
+back into the employee dashboard.
 
 ### 6.1 Admin password reset for users
 
@@ -801,6 +859,142 @@ auditable and safe enough for real company operations.
 
 ---
 
+## Phase 7 - Mars-grade production readiness
+
+This phase is the difference between a good internal app and a robust operations
+system that can survive real deployment, audits and incident recovery. Prioritize
+these before exposing FleetFlow beyond a trusted internal network.
+
+### 7.1 Resolve the GitHub Dependabot alert to zero
+
+- **Goal:** The default branch has no open GitHub security alerts.
+- **Files:** `requirements.txt`, lock/constraints file if introduced,
+  `Dockerfile`, `README.md`
+- **Approach:**
+  1. Open the GitHub alert referenced on push:
+     `https://github.com/dmedarov/Lessons-C-/security/dependabot/1`.
+  2. Identify the package, vulnerable range and patched version.
+  3. Upgrade the smallest safe dependency set; avoid broad unpinned upgrades.
+  4. Rebuild Docker and run the full verification suite.
+  5. Document the fix in the commit body if the vulnerable package is
+     transitive or not obvious from `requirements.txt`.
+- **Acceptance criteria:**
+  - GitHub no longer reports the moderate alert on default branch.
+  - `pip-audit -r requirements.txt` is clean locally.
+  - Docker image rebuilds without dependency conflicts.
+- **Verification:** GitHub Security page, `pip-audit`, `pytest`, Docker smoke.
+- **Depends on:** GitHub security alert visibility.
+- **Effort:** S
+
+### 7.2 CI quality gates
+
+- **Goal:** Every push/PR runs the checks currently performed manually.
+- **Files:** `.github/workflows/ci.yml`, `requirements-dev.txt`, `README.md`
+- **Approach:**
+  1. Add a GitHub Actions workflow for Python 3.12.
+  2. Install runtime and dev dependencies.
+  3. Run `python -m py_compile` on app/router modules.
+  4. Run `pytest -q`.
+  5. Run `node --check static/app.js static/i18n.js`.
+  6. Run `pip-audit -r requirements.txt` once the Dependabot alert is closed.
+  7. Upload test output as artifacts only on failure.
+- **Acceptance criteria:**
+  - A broken backend test blocks merge.
+  - A JS syntax error blocks merge.
+  - A vulnerable dependency blocks merge after 7.1.
+- **Verification:** Open a PR or push a branch and confirm checks pass/fail as
+  expected.
+- **Depends on:** 7.1 for the audit gate.
+- **Effort:** S
+
+### 7.3 PostgreSQL migration smoke and backup posture
+
+- **Goal:** Production database changes are repeatable and recoverable.
+- **Files:** `docker-compose.postgres.yml`, `alembic/`, `README.md`,
+  optional `scripts/backup_postgres.sh`, optional `scripts/restore_postgres.sh`
+- **Approach:**
+  1. Add a documented smoke command that starts PostgreSQL, applies Alembic
+     migrations and runs the core lifecycle tests against `DATABASE_URL`.
+  2. Add a minimal backup command using `pg_dump` and a restore command using
+     `pg_restore` or `psql`, documented but not over-automated.
+  3. Add a release checklist step: backup before migrations, migrate, smoke,
+     rollback plan.
+  4. Keep SQLite dev flow unchanged.
+- **Acceptance criteria:**
+  - A fresh PostgreSQL container can run migrations and core tests.
+  - Backup and restore commands are documented and tested once manually.
+  - No schema change lands without an Alembic revision.
+- **Verification:** PostgreSQL compose smoke + documented backup/restore dry run.
+- **Depends on:** Existing Alembic baseline.
+- **Effort:** M
+
+### 7.4 Security headers, request IDs and structured logs
+
+- **Goal:** Production traffic is traceable and receives safe default browser
+  headers.
+- **Files:** `app.py`, `config.py`, `README.md`, optional `logging_config.py`
+- **Approach:**
+  1. Add request ID middleware: accept `X-Request-ID` or generate one.
+  2. Return `X-Request-ID` on every response.
+  3. Add security headers: `X-Content-Type-Options`, `Referrer-Policy`,
+     `X-Frame-Options` or CSP-compatible equivalent.
+  4. Switch production logs to JSON with request ID, route, status and latency.
+  5. Keep dev logs readable.
+- **Acceptance criteria:**
+  - Every response has a request ID.
+  - Errors can be traced across app logs.
+  - Browser responses include baseline security headers.
+- **Verification:** `pytest` middleware/header test + `curl -i /health`.
+- **Depends on:** -
+- **Effort:** M
+
+### 7.5 Vehicle handover and return checklist
+
+- **Goal:** Start/return lifecycle captures operational condition, not only a
+  timestamp.
+- **Files:** `schemas.py`, `routers/reservations.py`, `db.py`, Alembic
+  migration, `templates/index.html`, `templates/admin.html`, `static/app.js`,
+  `static/i18n.js`, `tests/test_app.py`
+- **Approach:**
+  1. Add optional fields for checkout/return: odometer, fuel/charge level,
+     parking location, condition note and damage flag.
+  2. Store these as structured columns or a JSON text payload depending on DB
+     portability tradeoffs; prefer explicit columns for core reporting fields.
+  3. Render compact forms in the start/return confirmation dialogs.
+  4. Surface condition info in admin lifecycle view and audit trail.
+  5. Add validation that return odometer cannot be lower than checkout odometer
+     when both exist.
+- **Acceptance criteria:**
+  - Employee can start and return with condition metadata.
+  - Admin can see condition details for active/returned trips.
+  - Invalid odometer sequence is rejected.
+- **Verification:** Tests for lifecycle metadata, invalid odometer and admin
+  visibility; manual employee/admin smoke.
+- **Depends on:** Existing lifecycle endpoints.
+- **Effort:** M
+
+### 7.6 Data retention and audit export
+
+- **Goal:** Admins can satisfy internal audit/compliance requests without DB
+  access.
+- **Files:** `routers/users.py`, `routers/reservations.py`, `static/app.js`,
+  `templates/admin.html`, `README.md`
+- **Approach:**
+  1. Add CSV export endpoints for user audit and reservation lifecycle audit.
+  2. Support date range filters.
+  3. Document retention expectations: audit logs are append-only and not
+     deleted by normal UI actions.
+  4. Keep exports admin-only and covered by authorization-negative tests.
+- **Acceptance criteria:**
+  - Admin can export audit history for a date range.
+  - Employee cannot access exports.
+  - CSV opens correctly with Bulgarian text in Excel/Numbers.
+- **Verification:** `pytest` for auth and content type; manual CSV open.
+- **Depends on:** Existing user audit + reservation audit tables.
+- **Effort:** M
+
+---
+
 ## Cross-cutting concerns (apply to every item)
 
 - **No new dependencies** without listing them in the PR description with
@@ -820,20 +1014,33 @@ auditable and safe enough for real company operations.
 
 ---
 
-## Suggested sequencing (TL;DR)
+## Suggested sequencing (from current state)
 
-1. **Phase 1** (quick wins) - land in a single week.
-2. **Phase 3.1 + 3.2 + 3.3** (refresh tokens, async notifications, bootstrap
-   hardening) in parallel with **Phase 2.1 + 2.2** (mobile calendar, loading
-   states). These are independent and unblock everything else.
-3. **Phase 2.3 + 2.4 + 2.5 + 2.6** (conflict preview, bulk approve, default
-   filter, auto-refresh) - the daily-productivity wave.
-4. **Phase 6.1 + 6.2 + 6.3 + 6.4** (serious admin module) once the daily
-   booking flow is stable.
-5. **Phase 3.4 + 3.5** (admin invariant, token audit) before any
-   external-customer rollout.
-6. **Phase 4** - paying down debt once user-facing wins ship.
-7. **Phase 5** - opportunistic, user-demand-driven.
+1. **7.1 Resolve Dependabot alert** - the repo still reports one moderate
+   vulnerability on push, so close this before adding more surface area.
+2. **7.2 CI quality gates** - encode the checks already used manually:
+   `pytest`, Python compile, JS syntax and dependency audit.
+3. **3.1 Refresh token flow + logout** - current access-token-only auth works,
+   but production sessions need rotation and explicit logout invalidation.
+4. **3.3 Harden admin bootstrap** - before external exposure, first-admin setup
+   must require a one-shot bootstrap token outside dev.
+5. **3.2 Async notification dispatch** - outbound email/Slack/Teams should not
+   block approvals or lifecycle actions.
+6. **2.1 Mobile calendar + 2.2 loading states** - the daily employee/admin UX
+   needs mobile ergonomics and clear pending states.
+7. **2.4 Bulk approve/reject + 2.7 filters/search** - admin productivity wave.
+8. **7.3 PostgreSQL migration smoke + backups** - required before serious
+   production rollout.
+9. **7.4 Request IDs/security headers/logging** - production observability and
+   browser baseline hardening.
+10. **4.1 Split `static/app.js` into modules** - do this before large frontend
+    additions; the file is already ~1940 lines.
+11. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
+    after the core flows stabilize.
+12. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
+    for real fleet accountability.
+
+If time is limited, execute the first three items before any new feature work.
 
 ---
 
