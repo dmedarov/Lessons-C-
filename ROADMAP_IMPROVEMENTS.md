@@ -476,6 +476,75 @@ Bundle these small items into a single PR to share review overhead:
 - **Depends on:** 1.1, 1.2
 - **Effort:** S
 
+### 2.10 Blackout прозорец — редактиране
+
+- **Goal:** Fleet admin може да смени датите или вида на blackout прозорец, без да
+  го изтрива и пресъздава.
+- **Files:** `routers/cars.py`, `schemas.py`, `templates/admin.html`, `static/app.js`,
+  `static/i18n.js`, `tests/test_app.py`
+- **Approach:**
+  1. Add `BlackoutUpdatePayload(BaseModel)` в `schemas.py`:
+     `start_time: str`, `end_time: str`, `kind: str`, `reason: Optional[str]`.
+  2. Add `PUT /admin/cars/{car_id}/blackouts/{blackout_id}` (admin-only); validates
+     that `start_time < end_time`; reuses the same overlap check as create.
+  3. In `admin.html` blackout accordion: add an edit button per row that pre-fills a
+     dialog with current values (reuse the existing `userDialog` pattern).
+  4. New `handleBlackoutEdit(id, carId)` в `app.js` opens the dialog; on confirm
+     calls `PUT` and refreshes the blackout list.
+  5. New i18n keys: `action.editBlackout`, `admin.editBlackoutTitle`.
+  6. Tests: happy path, overlap rejection, employee forbidden, invalid window.
+- **Acceptance criteria:**
+  - Admin can change both dates and kind without deleting the record.
+  - If the new window overlaps an approved reservation, the edit is rejected (409).
+  - Change is visible immediately after save without a page reload.
+- **Verification:** `pytest` new cases + manual admin blackout smoke.
+- **Depends on:** —
+- **Effort:** S
+
+### 2.11 Бележки за автомобил (car notes)
+
+- **Goal:** Fleet admin може да записва оперативни бележки на автомобил ("смяна
+  на гума", "предстои технически преглед") — бележката е видима за служителите при
+  избор на кола.
+- **Files:** `alembic/versions/` (new), `db.py`, `schemas.py`, `routers/cars.py`,
+  `templates/admin.html`, `templates/index.html`, `static/app.js`, `static/i18n.js`
+- **Approach:**
+  1. Alembic migration: `ALTER TABLE cars ADD COLUMN notes TEXT`.
+  2. `_ensure_column(conn, "cars", "notes", "TEXT")` в `db.py`.
+  3. `CarResponse.notes: Optional[str]` в `schemas.py`.
+  4. Extend `PUT /admin/cars/{id}` to accept `notes` in the payload.
+  5. In admin car accordion: add a textarea for notes; save on blur or explicit Save.
+  6. In employee car picker (booking form): show a muted italic note below the plate
+     if `car.notes` is non-empty. Use `entity.carNote` i18n key.
+- **Acceptance criteria:**
+  - Admin saves a note; employee sees it when selecting that car.
+  - Empty note renders nothing in the employee view (no blank space).
+- **Verification:** Manual admin→employee smoke + `pytest` schema test.
+- **Depends on:** —
+- **Effort:** S
+
+### 2.12 Бутон „Тест известие"
+
+- **Goal:** Admin може да провери дали каналите за известия (in-app / SMTP / Slack)
+  работят, без да прави реална резервация.
+- **Files:** `routers/notifications.py`, `notifications_service.py`,
+  `templates/admin.html`, `static/app.js`, `static/i18n.js`
+- **Approach:**
+  1. Add `POST /admin/notifications/test` (admin-only); dispatches a test
+     notification to the calling user via all configured channels.
+  2. Returns `{ channels: [{ name, status, error? }] }` so the UI can show
+     per-channel results.
+  3. In admin Notifications section: "Изпрати тест" button; on response renders a
+     small result list — green tick for success, red X + error text for failure.
+  4. New i18n keys: `action.testNotification`, `notification.testTitle`,
+     `notification.testSuccess`, `notification.testFail`.
+- **Acceptance criteria:**
+  - With valid SMTP config, admin receives a test email within 30 s.
+  - With invalid config, the UI shows the error without crashing.
+- **Verification:** Manual with live SMTP + intentionally wrong host.
+- **Depends on:** Phase 3.2 async dispatch (already shipped).
+- **Effort:** S
+
 ### 2.9 Mobile quick navigation
 
 - **Goal:** Restore fast navigation on phones after `.topbar__nav` collapses,
@@ -697,6 +766,78 @@ Paying down debt to keep Phase 5+ velocity high. No user-visible change.
 ## Phase 5 - Nice-to-haves (open-ended)
 
 Order is by estimated value; pick based on user demand.
+
+### 5.0 Fleet Gantt изглед
+
+- **Goal:** Admin вижда наситеността на флота за седмица: един ред = една кола,
+  X-ос = дни, цветови блокове = резервации/blackout-и.
+- **Files:** `templates/admin.html`, `static/app.js`, `static/styles.css`,
+  `static/i18n.js`
+- **Approach:**
+  1. New tab „Gantt" в admin dashboard (button in `.topbar__nav` beside
+     „Резервации"). Tab shows/hides via `data-view` pattern already used.
+  2. Reuse the existing `GET /admin/reservations?from=&to=` endpoint (no new API
+     needed). Also fetch blackouts for the same window.
+  3. JS `renderGantt(reservations, blackouts, cars)`:
+     - Header row: 7 day columns, label with weekday + date.
+     - One row per car; cells are a `position: relative` container.
+     - Each reservation/blackout is an absolutely-positioned bar spanning the
+       correct columns. Width = (overlap days / 7) × 100 %. Bars at the same car
+       row stack vertically if they overlap.
+     - Color coding: pending=amber (--warning), checked_out=blue (--brand),
+       returned=green (--success), blackout=gray (--surface-sunken).
+     - Tooltip on hover: employee, purpose, interval — built as a `<title>` on the
+       bar SVG or a CSS `::after` pseudo with `data-tooltip`.
+  4. Navigation: `‹ Предишна седмица` / `Следваща →` buttons update `state.ganttWeek`.
+  5. No new dependencies — pure CSS + vanilla JS. No SVG library needed; use
+     `position: absolute` grid bars inside a CSS grid column layout.
+  6. New i18n keys: `ui.gantt`, `gantt.noData`, `gantt.week`.
+- **Acceptance criteria:**
+  - Current week renders on first open; nav buttons shift the window.
+  - Each car row shows correct bars that align with the day columns.
+  - Blackout bars are visually distinct from reservation bars.
+  - Desktop and ≥768 px tablet views are usable; mobile falls back to a
+    "too small for Gantt" message suggesting the list view.
+- **Verification:** Manual smoke with at least 3 cars and overlapping reservations.
+  `node --check` on updated `app.js`.
+- **Depends on:** —
+- **Effort:** M
+
+### 5.0b Месечен обобщаващ widget
+
+- **Goal:** Admin вижда бързо „колко резервации / коли / служители тази месец"
+  без да отваря таблицата.
+- **Files:** `routers/reservations.py`, `schemas.py`, `templates/admin.html`,
+  `static/app.js`, `static/i18n.js`
+- **Approach:**
+  1. New `GET /admin/stats/monthly?year=&month=` (admin-only):
+     ```json
+     {
+       "period": "2026-04",
+       "total_requests": 42,
+       "approved": 38,
+       "rejected": 4,
+       "cancelled": 2,
+       "active_cars": 5,
+       "busiest_car_id": 3,
+       "busiest_car_plate": "CB 1234 AB",
+       "unique_employees": 11
+     }
+     ```
+     Single SQL query with `COUNT + GROUP BY` filtered by `start_time` year/month.
+  2. In admin dashboard, above KPI cards: a slim `.monthly-summary` bar showing
+     the five key numbers as inline `<dl>` pairs. Defaults to current month; a
+     `‹ ›` chevron pair lets admin browse past months.
+  3. Auto-loads on dashboard init alongside `updateOverview()`.
+  4. New i18n keys: `stats.monthly`, `stats.totalRequests`, `stats.approved`,
+     `stats.rejected`, `stats.activeCars`, `stats.uniqueEmployees`.
+- **Acceptance criteria:**
+  - Widget shows correct numbers for current month.
+  - Previous months navigate correctly; empty months show zeros.
+  - Employee surface does NOT show this widget.
+- **Verification:** `pytest` new endpoint test (auth + content) + manual smoke.
+- **Depends on:** —
+- **Effort:** S
 
 ### 5.1 Dark mode
 
@@ -1381,6 +1522,43 @@ If time is limited, execute the first three items before any new feature work.
   6 bulk-decide). No new runtime dependencies. Routes verified via live
   inspection (`/reservations/bulk-approve` registered, no collision with the
   single-id `/{id}/approve` route).
+
+### 2026-04-19 — Phase 1 UX & feature improvements (commit `302484a`)
+
+Five independent improvements shipped as one coherent commit:
+
+- **Цветни KPI карти:** `stats-grid--3` grid with `.stat-card--urgent` (amber),
+  `.stat-card--active-trips` (blue) and `.stat-card--available` (green) semantic
+  colour classes. KPI cards `kpiPending`, `kpiActive`, `kpiAvailable` appear on
+  both `index.html` and `admin.html`. `updateOverview()` in `app.js` toggles the
+  correct modifier class on each card.
+- **Следващ свободен слот:** When `renderConflictPreview()` detects at least one
+  conflict it computes a next-available window starting from `end_time` and renders
+  a `.conflict-suggestion` strip with an "Използвай" button wired via
+  `[data-apply-slot]` event delegation. One-click populates `#startTime` /
+  `#endTime` in the booking form.
+- **Одобрено/Отказано от:** `list_reservations` in `routers/reservations.py` now
+  LEFT-JOINs `users AS decider` and returns `decided_by_name`. `reservationContext()`
+  in `app.js` surfaces it with `t("reservation.decidedBy")` /
+  `t("reservation.rejectedBy")` labels. New i18n keys added to `static/i18n.js`.
+- **Причина за отказ:** The reject lifecycle action in `reservationAction()` now
+  opens the existing `userDialog` with a `<textarea>` for the rejection reason
+  instead of a bare `window.confirm`. The reason is forwarded in the request body
+  to `POST /reservations/{id}/reject`.
+- **Имейл на потребител:** Full-stack: Alembic migration
+  `alembic/versions/20260419_0003_user_email.py`, `_ensure_column` in `db.py`,
+  `UserCreatePayload.email` and `UserResponse.email` in `schemas.py`, all SELECT /
+  INSERT queries updated in `routers/users.py`, `#newEmail` input in the admin
+  create-user form, displayed in user cards.
+
+**Files changed (10):** `alembic/versions/20260419_0003_user_email.py` (new),
+`db.py`, `routers/reservations.py`, `routers/users.py`, `schemas.py`,
+`static/app.js`, `static/i18n.js`, `static/styles.css`, `templates/admin.html`,
+`templates/index.html`.
+
+**Verification:** `pytest -q` → 58 passed (no regressions). `node --check` clean.
+
+---
 
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._
