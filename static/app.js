@@ -251,6 +251,7 @@ function confirmAction(message, confirmLabel = t("action.confirm")) {
   }
 
   return new Promise((resolve) => {
+    const returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = document.createElement("dialog");
     const titleId = `confirm-title-${Date.now()}`;
     dialog.className = "confirm-dialog";
@@ -279,6 +280,7 @@ function confirmAction(message, confirmLabel = t("action.confirm")) {
     const close = (confirmed) => {
       dialog.close();
       dialog.remove();
+      returnFocusTo?.focus();
       resolve(confirmed);
     };
 
@@ -303,6 +305,7 @@ function userDialog({ title, body, confirmLabel, renderFields, readValue, valida
   }
 
   return new Promise((resolve) => {
+    const returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = document.createElement("dialog");
     const titleId = `user-dialog-title-${Date.now()}`;
     dialog.className = "confirm-dialog user-admin-dialog";
@@ -336,6 +339,7 @@ function userDialog({ title, body, confirmLabel, renderFields, readValue, valida
     const close = (value) => {
       dialog.close();
       dialog.remove();
+      returnFocusTo?.focus();
       resolve(value);
     };
 
@@ -465,6 +469,9 @@ function clearErrors() {
     }
     if (inputNode) {
       inputNode.removeAttribute("aria-invalid");
+      if (inputNode.getAttribute("aria-describedby") === `${id}Error`) {
+        inputNode.removeAttribute("aria-describedby");
+      }
     }
   });
 }
@@ -477,6 +484,7 @@ function setFieldError(id, message) {
   }
   if (inputNode) {
     inputNode.setAttribute("aria-invalid", "true");
+    inputNode.setAttribute("aria-describedby", `${id}Error`);
   }
 }
 

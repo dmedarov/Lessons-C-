@@ -1346,6 +1346,10 @@ Reference URLs:
 
 ### 8.1 Compliance audit inventory
 
+**Status:** Started on 2026-04-20. `docs/UI_UX_COMPLIANCE_AUDIT.md`
+exists with surface inventory, current findings, contrast matrix scaffold and
+PR/handoff checklist. Continue by adding screenshot evidence.
+
 - **Goal:** Produce a living inventory of every UI surface and the guidelines
   it must satisfy.
 - **Files:** new `docs/UI_UX_COMPLIANCE_AUDIT.md`, `ROADMAP_IMPROVEMENTS.md`
@@ -1370,6 +1374,10 @@ Reference URLs:
 - **Effort:** S
 
 ### 8.2 Design-token compliance matrix
+
+**Status:** Started on 2026-04-20. `tests/test_design_tokens.py` covers the
+first solid light/dark text and status token pairs. Continue with
+browser-computed checks for translucent surfaces and message styles.
 
 - **Goal:** Make NASA/508/WCAG contrast compliance measurable from
   `static/styles.css`.
@@ -1426,6 +1434,11 @@ Reference URLs:
 - **Effort:** M
 
 ### 8.4 WCAG/USWDS semantic accessibility pass
+
+**Status:** Started on 2026-04-20 for small high-confidence fixes:
+notification list live regions, dialog focus return, admin calendar accessible
+names and field-error `aria-describedby` wiring. Continue with keyboard and
+screen-reader evidence.
 
 - **Goal:** Make FleetFlow operable and understandable without a mouse or
   visual styling.
@@ -1613,6 +1626,21 @@ If time is limited, execute items 1-4 before any new feature work.
 ---
 
 ## Done
+
+### 2026-04-20 - UI/UX compliance audit and first accessibility guardrails
+
+- **Phase 8.1 started:** `docs/UI_UX_COMPLIANCE_AUDIT.md` is now a real
+  handoff artifact with surface inventory, status legend, contrast matrix,
+  current findings, PR checklist and "do not merge if" rules.
+- **Phase 8.2 started:** `tests/test_design_tokens.py` checks solid light/dark
+  foreground token pairs against WCAG AA. The light warning token was darkened
+  to `#8a5200` so warning text passes 4.5:1 on the light page background.
+- **Phase 8.4 first fixes:** Notification lists are polite live regions,
+  dialog helpers restore focus to the triggering element, admin calendar
+  previous/next glyph buttons have accessible names and field validation errors
+  now set `aria-describedby`.
+- **Verification:** `pytest -q` passes with 77 tests, JS syntax checks,
+  `git diff --check`, Docker compose rebuild and `/health` smoke.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation
 

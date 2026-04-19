@@ -182,7 +182,7 @@
               <button class="chip" id="markAllReadBtn" type="button">Прочети всички</button>
               <button class="chip" type="button" data-test-notification title="Изпрати тест известие до всички конфигурирани канали">Тест</button>
             </div>
-            <div class="notifications-list" id="notificationsList"></div>
+            <div class="notifications-list" id="notificationsList" aria-live="polite" aria-relevant="additions text"></div>
           </section>
 
           <section class="glass-card hidden" id="userCreatePanel">
@@ -459,9 +459,9 @@
               </div>
               <div class="calendar-toolbar">
                 <div class="segmented">
-                  <button class="segmented__btn" id="monthPrev" type="button">‹</button>
+                  <button class="segmented__btn" id="monthPrev" type="button" aria-label="Предишен месец">‹</button>
                   <button class="segmented__btn segmented__btn--wide" id="todayFocus" type="button">Днес</button>
-                  <button class="segmented__btn" id="monthNext" type="button">›</button>
+                  <button class="segmented__btn" id="monthNext" type="button" aria-label="Следващ месец">›</button>
                 </div>
                 <strong class="calendar-toolbar__label" id="calendarMonthLabel">Месец</strong>
               </div>
