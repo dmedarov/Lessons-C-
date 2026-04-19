@@ -332,6 +332,50 @@ function resetPasswordDialog(user) {
   });
 }
 
+function editBlackoutDialog(blackout) {
+  const startLocal = localInputValue(new Date(blackout.start_time));
+  const endLocal = localInputValue(new Date(blackout.end_time));
+  return userDialog({
+    title: t("admin.editBlackoutTitle", { id: blackout.id }),
+    body: t("admin.editBlackoutBody"),
+    confirmLabel: t("action.save"),
+    renderFields: () => `
+      <label class="field">
+        <span>${t("admin.blackoutKindLabel")}</span>
+        <select name="kind">
+          <option value="maintenance" ${blackout.kind === "maintenance" ? "selected" : ""}>${t("blackout.kind.maintenance")}</option>
+          <option value="service" ${blackout.kind === "service" ? "selected" : ""}>${t("blackout.kind.service")}</option>
+          <option value="inspection" ${blackout.kind === "inspection" ? "selected" : ""}>${t("blackout.kind.inspection")}</option>
+          <option value="blocked" ${blackout.kind === "blocked" ? "selected" : ""}>${t("blackout.kind.blocked")}</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Начало</span>
+        <input name="startTime" type="datetime-local" value="${startLocal}" />
+      </label>
+      <label class="field">
+        <span>Край</span>
+        <input name="endTime" type="datetime-local" value="${endLocal}" />
+      </label>
+      <label class="field">
+        <span>Причина</span>
+        <textarea name="reason" rows="3">${escapeHtml(blackout.reason || "")}</textarea>
+      </label>
+    `,
+    readValue: (form) => ({
+      kind: form.elements.kind.value,
+      start_time: toIso(form.elements.startTime.value),
+      end_time: toIso(form.elements.endTime.value),
+      reason: form.elements.reason.value.trim() || null,
+    }),
+    validate: (value) => {
+      if (!value.start_time || !value.end_time) return "Въведи начало и край.";
+      if (new Date(value.end_time) <= new Date(value.start_time)) return "Краят трябва да е след началото.";
+      return null;
+    },
+  });
+}
+
 function roleChangeDialog(user) {
   return userDialog({
     title: t("admin.changeRoleTitle", { name: user.display_name }),
@@ -853,6 +897,17 @@ function renderCars() {
         <span class="status-tag ${car.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(car.active ? "status.active" : "status.inactive")}</span>
       </div>
       <p class="mini-note">${car.active ? "Наличен за нови заявки." : "Изваден от нови резервации."}</p>
+      ${
+        state.currentRole === "fleet_admin"
+          ? `<div class="car-card__notes">
+              <textarea class="notes-textarea" data-car-notes-id="${car.id}" rows="2"
+                placeholder="${escapeHtml(t("car.notesPlaceholder"))}">${escapeHtml(car.notes || "")}</textarea>
+              <button class="action-btn action-btn--notes" type="button" data-save-car-notes="${car.id}">${t("action.saveNotes")}</button>
+            </div>`
+          : car.notes
+            ? `<p class="car-note-hint">${escapeHtml(t("car.noteHint", { notes: car.notes }))}</p>`
+            : ""
+      }
       <div class="car-card__actions">
         ${
           state.currentRole === "fleet_admin"
@@ -1008,7 +1063,10 @@ function renderBlackouts() {
       <p>${escapeHtml(item.reason || "Без конкретизирана причина")}</p>
       <div class="notification-card__foot">
         <span class="muted">${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</span>
-        ${item.active ? `<button class="action-btn action-btn--toggle" type="button" data-blackout-disable="${item.id}">Деактивирай</button>` : ""}
+        ${item.active ? `
+          <button class="action-btn" type="button" data-blackout-edit="${item.id}">${t("action.editBlackout")}</button>
+          <button class="action-btn action-btn--toggle" type="button" data-blackout-disable="${item.id}">${t("action.deactivate")}</button>
+        ` : ""}
       </div>
     `;
     els.blackoutsList.appendChild(card);
@@ -1932,6 +1990,64 @@ async function deactivateBlackout(blackoutId) {
   }
 }
 
+async function handleBlackoutEdit(blackoutId) {
+  const blackout = state.blackouts.find((b) => b.id === blackoutId);
+  if (!blackout) return;
+
+  const payload = await editBlackoutDialog(blackout);
+  if (!payload) return;
+
+  try {
+    await apiFetch(`/cars/${blackout.car_id}/blackouts/${blackoutId}`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    });
+    showMessage("Blackout е обновен", "Прозорецът е обновен успешно.", "success");
+    await refreshData();
+  } catch (error) {
+    showMessage("Неуспешна промяна", error.message);
+  }
+}
+
+async function saveCarNotes(carId) {
+  const textarea = document.querySelector(`[data-car-notes-id="${carId}"]`);
+  const notes = textarea ? textarea.value.trim() || null : null;
+
+  try {
+    const updated = await apiFetch(`/cars/${carId}/notes`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({ notes }),
+    });
+    // Update in-memory so employee note hint re-renders correctly
+    const car = state.cars.find((c) => c.id === carId);
+    if (car) car.notes = updated.notes ?? null;
+    showMessage("Бележките са запазени", `${updated.plate_number} — бележката е обновена.`, "success");
+  } catch (error) {
+    showMessage("Неуспешно запазване", error.message);
+  }
+}
+
+async function sendTestNotification() {
+  try {
+    const result = await apiFetch("/notifications/test", {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    const channelLines = result.channels
+      .map((ch) => {
+        const status = t(`notification.channel${ch.status.charAt(0).toUpperCase() + ch.status.slice(1).replace("_", "")}`) || ch.status;
+        return `${ch.name}: ${status}${ch.error ? ` — ${ch.error}` : ""}`;
+      })
+      .join("\n");
+    showMessage(t("notification.testTitle"), `${t("notification.testSuccess")}\n\n${channelLines}`, "success");
+    await loadNotifications();
+  } catch (error) {
+    showMessage(t("notification.testTitle"), error.message);
+  }
+}
+
 async function reservationAction(id, action) {
   if (action === "reject") {
     const result = await userDialog({
@@ -2132,6 +2248,9 @@ document.addEventListener("click", (event) => {
   const userRoleButton = event.target.closest("[data-user-role]");
   const userAuditButton = event.target.closest("[data-user-audit]");
   const blackoutButton = event.target.closest("[data-blackout-disable]");
+  const blackoutEditButton = event.target.closest("[data-blackout-edit]");
+  const saveCarNotesButton = event.target.closest("[data-save-car-notes]");
+  const testNotificationButton = event.target.closest("[data-test-notification]");
   const handoffButton = event.target.closest("[data-handoff-candidate]");
   const applySlotButton = event.target.closest("[data-apply-slot]");
 
@@ -2169,6 +2288,15 @@ document.addEventListener("click", (event) => {
   }
   if (blackoutButton) {
     deactivateBlackout(Number(blackoutButton.dataset.blackoutDisable));
+  }
+  if (blackoutEditButton) {
+    handleBlackoutEdit(Number(blackoutEditButton.dataset.blackoutEdit));
+  }
+  if (saveCarNotesButton) {
+    saveCarNotes(Number(saveCarNotesButton.dataset.saveCarNotes));
+  }
+  if (testNotificationButton) {
+    sendTestNotification();
   }
   if (handoffButton && els.handoffUserId) {
     els.handoffUserId.value = handoffButton.dataset.handoffCandidate;

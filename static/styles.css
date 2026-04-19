@@ -1796,6 +1796,47 @@ select {
   margin-top: var(--sp-3);
 }
 
+.car-card__notes {
+  margin-top: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.notes-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 3.5rem;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: inherit;
+  line-height: 1.4;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.notes-textarea:focus {
+  outline: none;
+  border-color: var(--brand-400);
+}
+
+.action-btn--notes {
+  align-self: flex-end;
+  font-size: 0.8rem;
+  padding: var(--sp-1) var(--sp-3);
+}
+
+.car-note-hint {
+  margin: var(--sp-2) 0 0;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--warning);
+  line-height: 1.35;
+}
+
 /* -----------------------------------------------------------------------------
    16. Tables
    ----------------------------------------------------------------------------- */

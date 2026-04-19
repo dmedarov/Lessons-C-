@@ -27,6 +27,7 @@ SQLITE_SCHEMA = [
         plate_number TEXT UNIQUE NOT NULL,
         model TEXT NOT NULL,
         active INTEGER NOT NULL DEFAULT 1,
+        notes TEXT,
         created_at TEXT NOT NULL
     )
     """,
@@ -143,6 +144,7 @@ POSTGRES_SCHEMA = [
         plate_number TEXT UNIQUE NOT NULL,
         model TEXT NOT NULL,
         active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+        notes TEXT,
         created_at TEXT NOT NULL
     )
     """,
@@ -374,6 +376,7 @@ def _apply_runtime_upgrades(conn: SQLiteConnectionAdapter | PostgresConnectionAd
     _ensure_column(conn, "reservations", "checked_out_at", "TEXT")
     _ensure_column(conn, "reservations", "returned_at", "TEXT")
     _ensure_column(conn, "users", "email", "TEXT")
+    _ensure_column(conn, "cars", "notes", "TEXT")
 
 
 def _upsert_demo_user(

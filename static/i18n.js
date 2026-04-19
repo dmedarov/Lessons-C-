@@ -93,6 +93,19 @@ const bg = {
   "ui.waitingLogin": "Очаква вход",
   "ui.adminReady": "Административен режим",
   "ui.employeeReady": "Работен режим",
+  "action.editBlackout": "Редактирай",
+  "action.saveNotes": "Запази бележки",
+  "admin.editBlackoutTitle": "Редактирай blackout #{id}",
+  "admin.editBlackoutBody": "Промени датите, вида или причината за blackout прозореца.",
+  "admin.blackoutKindLabel": "Тип",
+  "car.notes": "Бележки",
+  "car.notesPlaceholder": "Сервиз, технически преглед, бележки за шофьора...",
+  "car.noteHint": "⚠ {notes}",
+  "notification.testTitle": "Тест известие",
+  "notification.testSuccess": "Тест изпратен успешно.",
+  "notification.channelSent": "изпратено ✓",
+  "notification.channelFailed": "грешка ✗",
+  "notification.channelNotConfigured": "не е конфигуриран",
 };
 
 function interpolate(template, vars = {}) {

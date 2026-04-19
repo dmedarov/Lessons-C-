@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from db import get_conn
-from schemas import CarBlackoutCreate, CarBlackoutResponse, CarCreate
+from schemas import BlackoutUpdatePayload, CarBlackoutCreate, CarBlackoutResponse, CarCreate, CarNotesPayload
 from security import AuthContext, require_admin
 
 router = APIRouter(prefix="/cars", tags=["cars"])
@@ -155,6 +155,58 @@ def create_blackout(
             row = conn.execute("SELECT * FROM car_blackouts WHERE id=?", (blackout_id,)).fetchone()
 
     return _to_blackout_response(row)
+
+
+@router.put("/{car_id}/blackouts/{blackout_id}", response_model=CarBlackoutResponse)
+def update_blackout(
+    car_id: int,
+    blackout_id: int,
+    payload: BlackoutUpdatePayload,
+    _: AuthContext = Depends(require_admin),
+) -> CarBlackoutResponse:
+    if payload.end_time <= payload.start_time:
+        raise HTTPException(status_code=400, detail="end_time must be after start_time")
+
+    start_iso = _to_utc_iso(payload.start_time)
+    end_iso = _to_utc_iso(payload.end_time)
+
+    with get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM car_blackouts WHERE id=? AND car_id=? AND active=1",
+            (blackout_id, car_id),
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Blackout not found or inactive")
+
+        overlap = conn.execute(
+            """
+            SELECT id FROM car_blackouts
+            WHERE car_id=? AND active=1 AND id != ?
+              AND start_time < ?
+              AND end_time > ?
+            LIMIT 1
+            """,
+            (car_id, blackout_id, end_iso, start_iso),
+        ).fetchone()
+        if overlap:
+            raise HTTPException(status_code=409, detail="Blackout overlaps an existing active blackout")
+
+        conn.execute(
+            "UPDATE car_blackouts SET kind=?, start_time=?, end_time=?, reason=? WHERE id=?",
+            (payload.kind, start_iso, end_iso, payload.reason, blackout_id),
+        )
+        row = conn.execute("SELECT * FROM car_blackouts WHERE id=?", (blackout_id,)).fetchone()
+    return _to_blackout_response(row)
+
+
+@router.put("/{car_id}/notes")
+def update_car_notes(car_id: int, payload: CarNotesPayload, _: AuthContext = Depends(require_admin)) -> dict:
+    with get_conn() as conn:
+        cur = conn.execute("UPDATE cars SET notes=? WHERE id=?", (payload.notes, car_id))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Car not found")
+        row = conn.execute("SELECT * FROM cars WHERE id=?", (car_id,)).fetchone()
+    return dict(row)
 
 
 @router.post("/blackouts/{blackout_id}/deactivate", response_model=CarBlackoutResponse)

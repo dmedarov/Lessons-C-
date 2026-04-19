@@ -92,7 +92,18 @@ class CarCreate(BaseModel):
     model: str = Field(min_length=2, max_length=100)
 
 
+class CarNotesPayload(BaseModel):
+    notes: Optional[str] = Field(default=None, max_length=1000)
+
+
 class CarBlackoutCreate(BaseModel):
+    start_time: datetime
+    end_time: datetime
+    kind: BlackoutKind = "maintenance"
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class BlackoutUpdatePayload(BaseModel):
     start_time: datetime
     end_time: datetime
     kind: BlackoutKind = "maintenance"

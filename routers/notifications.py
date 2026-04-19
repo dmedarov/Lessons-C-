@@ -3,8 +3,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from db import get_conn
+from notifications_service import create_notification, test_dispatch
 from schemas import NotificationResponse
-from security import AuthContext, get_auth_context
+from security import AuthContext, get_auth_context, require_admin
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -37,6 +38,25 @@ def list_notifications(
             tuple([*params, limit]),
         ).fetchall()
     return [_to_notification(row) for row in rows]
+
+
+@router.post("/test")
+def send_test_notification(auth: AuthContext = Depends(require_admin)) -> dict:
+    """Admin-only: create a test in-app notification and attempt outbound dispatch.
+
+    Returns a per-channel result list so the admin UI can surface success/failure
+    for each configured channel.
+    """
+    with get_conn() as conn:
+        notification_id = create_notification(
+            conn,
+            user_id=auth.user_id,
+            kind="test",
+            title="FleetFlow — тест известие",
+            body="Системата работи правилно. Получаваш това известие защото си поискал тест от административния панел.",
+        )
+    channels = test_dispatch(notification_id)
+    return {"notification_id": notification_id, "channels": channels}
 
 
 @router.post("/read-all")

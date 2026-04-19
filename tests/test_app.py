@@ -871,3 +871,184 @@ def test_dev_cors_preflight_allows_local_clients(client: TestClient) -> None:
     assert res.status_code == 200
     assert res.headers["access-control-allow-origin"] == "*"
     assert "access-control-allow-credentials" not in res.headers
+
+
+# ---------------------------------------------------------------------------
+# 2.10 Blackout edit (PUT /cars/{car_id}/blackouts/{blackout_id})
+# ---------------------------------------------------------------------------
+
+def test_blackout_update_changes_window(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    car_id = _create_car(client, admin, plate="CB9010AA")
+
+    created = client.post(
+        f"/cars/{car_id}/blackouts",
+        json={
+            "start_time": "2099-05-01T08:00:00+00:00",
+            "end_time": "2099-05-01T12:00:00+00:00",
+            "kind": "maintenance",
+            "reason": "Oil change",
+        },
+        headers=_auth(admin),
+    )
+    assert created.status_code == 201
+    boid = created.json()["id"]
+
+    updated = client.put(
+        f"/cars/{car_id}/blackouts/{boid}",
+        json={
+            "start_time": "2099-05-02T08:00:00+00:00",
+            "end_time": "2099-05-02T18:00:00+00:00",
+            "kind": "service",
+            "reason": "Full service",
+        },
+        headers=_auth(admin),
+    )
+    assert updated.status_code == 200
+    data = updated.json()
+    assert data["kind"] == "service"
+    assert data["reason"] == "Full service"
+    assert "2099-05-02" in data["start_time"]
+
+
+def test_blackout_update_overlap_rejected(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    car_id = _create_car(client, admin, plate="CB9011AA")
+
+    b1 = client.post(
+        f"/cars/{car_id}/blackouts",
+        json={"start_time": "2099-06-01T08:00:00+00:00", "end_time": "2099-06-01T12:00:00+00:00", "kind": "maintenance"},
+        headers=_auth(admin),
+    )
+    b2 = client.post(
+        f"/cars/{car_id}/blackouts",
+        json={"start_time": "2099-06-02T08:00:00+00:00", "end_time": "2099-06-02T12:00:00+00:00", "kind": "service"},
+        headers=_auth(admin),
+    )
+    assert b1.status_code == 201
+    assert b2.status_code == 201
+
+    conflict = client.put(
+        f"/cars/{car_id}/blackouts/{b2.json()['id']}",
+        json={"start_time": "2099-06-01T10:00:00+00:00", "end_time": "2099-06-01T14:00:00+00:00", "kind": "service"},
+        headers=_auth(admin),
+    )
+    assert conflict.status_code == 409
+
+
+def test_blackout_update_employee_forbidden(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "emp1", "Emp One", "EmpPass123")
+    emp = _login(client, "emp1", "EmpPass123")
+    car_id = _create_car(client, admin, plate="CB9012AA")
+
+    b = client.post(
+        f"/cars/{car_id}/blackouts",
+        json={"start_time": "2099-07-01T08:00:00+00:00", "end_time": "2099-07-01T12:00:00+00:00", "kind": "inspection"},
+        headers=_auth(admin),
+    )
+    assert b.status_code == 201
+
+    res = client.put(
+        f"/cars/{car_id}/blackouts/{b.json()['id']}",
+        json={"start_time": "2099-07-01T08:00:00+00:00", "end_time": "2099-07-01T12:00:00+00:00", "kind": "inspection"},
+        headers=_auth(emp),
+    )
+    assert res.status_code == 403
+
+
+def test_blackout_update_invalid_window(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    car_id = _create_car(client, admin, plate="CB9013AA")
+
+    b = client.post(
+        f"/cars/{car_id}/blackouts",
+        json={"start_time": "2099-08-01T08:00:00+00:00", "end_time": "2099-08-01T12:00:00+00:00", "kind": "blocked"},
+        headers=_auth(admin),
+    )
+    assert b.status_code == 201
+
+    res = client.put(
+        f"/cars/{car_id}/blackouts/{b.json()['id']}",
+        json={"start_time": "2099-08-01T12:00:00+00:00", "end_time": "2099-08-01T08:00:00+00:00", "kind": "blocked"},
+        headers=_auth(admin),
+    )
+    assert res.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# 2.11 Car notes (PUT /cars/{car_id}/notes)
+# ---------------------------------------------------------------------------
+
+def test_car_notes_save_and_retrieve(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    car_id = _create_car(client, admin, plate="CB9020AA")
+
+    res = client.put(
+        f"/cars/{car_id}/notes",
+        json={"notes": "Предстои смяна на гуми преди 15 май."},
+        headers=_auth(admin),
+    )
+    assert res.status_code == 200
+    assert res.json()["notes"] == "Предстои смяна на гуми преди 15 май."
+
+    # Notes survive a list_cars call
+    cars = client.get("/cars?active_only=false", headers=_auth(admin)).json()["items"]
+    found = next((c for c in cars if c["id"] == car_id), None)
+    assert found is not None
+    assert found["notes"] == "Предстои смяна на гуми преди 15 май."
+
+
+def test_car_notes_clear(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    car_id = _create_car(client, admin, plate="CB9021AA")
+
+    client.put(f"/cars/{car_id}/notes", json={"notes": "old note"}, headers=_auth(admin))
+    res = client.put(f"/cars/{car_id}/notes", json={"notes": None}, headers=_auth(admin))
+    assert res.status_code == 200
+    assert res.json()["notes"] is None
+
+
+def test_car_notes_employee_forbidden(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "emp2", "Emp Two", "EmpPass123")
+    emp = _login(client, "emp2", "EmpPass123")
+    car_id = _create_car(client, admin, plate="CB9022AA")
+
+    res = client.put(f"/cars/{car_id}/notes", json={"notes": "hack"}, headers=_auth(emp))
+    assert res.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# 2.12 Test notification (POST /notifications/test)
+# ---------------------------------------------------------------------------
+
+def test_notification_test_creates_inapp(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+
+    res = client.post("/notifications/test", headers=_auth(admin))
+    assert res.status_code == 200
+    data = res.json()
+    assert "channels" in data
+    assert "notification_id" in data
+    in_app = next((ch for ch in data["channels"] if ch["name"] == "in_app"), None)
+    assert in_app is not None
+    assert in_app["status"] == "sent"
+
+    # The notification should appear in admin inbox
+    inbox = client.get("/notifications", headers=_auth(admin)).json()
+    assert any(n["kind"] == "test" for n in inbox)
+
+
+def test_notification_test_employee_forbidden(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "emp3", "Emp Three", "EmpPass123")
+    emp = _login(client, "emp3", "EmpPass123")
+
+    res = client.post("/notifications/test", headers=_auth(emp))
+    assert res.status_code == 403
+
+
+def test_notification_test_unauthenticated(client: TestClient) -> None:
+    res = client.post("/notifications/test")
+    assert res.status_code == 401

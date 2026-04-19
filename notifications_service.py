@@ -199,6 +199,39 @@ def _send_email(envelope: NotificationEnvelope) -> None:
             server.send_message(message)
 
 
+def test_dispatch(notification_id: int) -> list[dict]:
+    """Send a test notification through all configured channels synchronously.
+
+    Returns a list of per-channel result dicts with keys ``name``, ``status``
+    (``"sent"``, ``"failed"``, ``"not_configured"``) and an optional ``error``
+    string for failures.  The ``in_app`` channel is always reported as ``"sent"``
+    because the notification record was already written by the caller.
+    """
+    results: list[dict] = [{"name": "in_app", "status": "sent"}]
+
+    envelope = _load_notification(notification_id)
+    if not envelope:
+        return results
+
+    for channel, handler, configured in [
+        ("email", _send_email, bool(settings.smtp_host and settings.smtp_from_email and settings.smtp_to_email)),
+        ("slack", _send_slack, bool(settings.slack_webhook_url)),
+        ("teams", _send_teams, bool(settings.teams_webhook_url)),
+    ]:
+        if not configured:
+            results.append({"name": channel, "status": "not_configured"})
+            continue
+        try:
+            handler(envelope)
+            _log_delivery(notification_id, channel, "sent", None)
+            results.append({"name": channel, "status": "sent"})
+        except (OSError, smtplib.SMTPException, urllib.error.URLError, RuntimeError) as exc:
+            _log_delivery(notification_id, channel, "failed", str(exc))
+            results.append({"name": channel, "status": "failed", "error": str(exc)})
+
+    return results
+
+
 def dispatch_outbound_notifications(notification_ids: list[int]) -> None:
     for notification_id in notification_ids:
         envelope = _load_notification(notification_id)
