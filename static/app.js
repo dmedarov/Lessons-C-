@@ -622,16 +622,80 @@ function conflictDateKeys() {
   return keys;
 }
 
-async function apiFetch(url, options = {}) {
-  const response = await fetch(url, options);
+async function parseJsonResponse(response) {
   let data = null;
   try {
     data = await response.json();
   } catch (_error) {
     data = null;
   }
+  return data;
+}
+
+async function refreshAccessToken() {
+  const response = await fetch("/auth/refresh", {
+    method: "POST",
+    credentials: "same-origin",
+  });
+  const data = await parseJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(data?.detail || "Сесията изтече.");
+  }
+  state.token = data.access_token;
+  state.currentRole = data.role;
+  if (state.currentUser) {
+    state.currentUser = {
+      ...state.currentUser,
+      display_name: data.user,
+      role: data.role,
+    };
+  }
+  renderShell();
+  startNotificationPolling();
+  return data.access_token;
+}
+
+function shouldAttemptRefresh(url, options, response) {
+  if (response.status !== 401 || options.skipRefresh) {
+    return false;
+  }
+  return !["/auth/login", "/auth/bootstrap-admin", "/auth/refresh", "/auth/logout"].includes(url);
+}
+
+async function apiFetch(url, options = {}) {
+  const { skipRefresh: _skipRefresh, ...fetchOptions } = options;
+  const requestOptions = {
+    credentials: "same-origin",
+    ...fetchOptions,
+  };
+  const response = await fetch(url, requestOptions);
+  let data = await parseJsonResponse(response);
 
   if (!response.ok) {
+    if (shouldAttemptRefresh(url, options, response)) {
+      try {
+        await refreshAccessToken();
+        const retryHeaders = {
+          ...(requestOptions.headers || {}),
+          ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+        };
+        const retryResponse = await fetch(url, {
+          ...requestOptions,
+          headers: retryHeaders,
+        });
+        data = await parseJsonResponse(retryResponse);
+        if (retryResponse.ok) {
+          return data;
+        }
+        if (retryResponse.status === 401) {
+          setSession(null, null);
+        }
+        throw new Error(data?.detail || "Неуспешна заявка към сървъра.");
+      } catch (refreshError) {
+        setSession(null, null);
+        throw refreshError;
+      }
+    }
     if (response.status === 401) {
       setSession(null, null);
     }
@@ -1949,7 +2013,18 @@ async function handleLogin(event) {
   }
 }
 
-function handleLogout() {
+async function handleLogout() {
+  if (state.token) {
+    try {
+      await apiFetch("/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+        skipRefresh: true,
+      });
+    } catch (error) {
+      console.warn("Logout request failed", error);
+    }
+  }
   setSession(null, null);
   state.notifications = [];
   state.reservations = [];

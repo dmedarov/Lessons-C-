@@ -53,7 +53,7 @@ security.py                  HMAC token sign/verify, PBKDF2 hash, auth deps
 schemas.py                   Pydantic request/response models
 notifications_service.py     In-app + SMTP/Slack/Teams dispatch
 routers/
-  auth.py                    setup-status, bootstrap-admin, login, /auth/me
+  auth.py                    setup-status, bootstrap-admin, login, refresh, logout, /auth/me
   cars.py                    fleet CRUD + blackout windows
   reservations.py            full lifecycle state machine
   users.py                   user CRUD + password change + admin handoff
@@ -102,6 +102,8 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - CI quality gates for Python compile, `pytest`, JS syntax, `pip-audit` and
   production Docker image build across Python 3.12/3.14.
 - Request ID propagation and baseline browser security headers.
+- Refresh-token rotation with HttpOnly cookie storage, replay-chain
+  invalidation and explicit logout revocation.
 - Admin reservation productivity: status/scope filters, search by plate/model/
   requester/purpose, date-window filtering and CSV export that follows the
   current filtered view.
@@ -114,13 +116,12 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   and forms.
 - Mobile calendar day mode below 768 px with previous/next day controls and a
   "book this day" affordance.
-- Current automated coverage: 69+ `pytest` cases plus JS syntax checks and
+- Current automated coverage: 72+ `pytest` cases plus JS syntax checks and
   dependency audit used in shipped verification.
 
 ### Active product gaps
 
 - Browser-level end-to-end tests are still missing.
-- Refresh-token rotation and logout invalidation are still missing.
 - Structured JSON logging and production observability remain incomplete.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
@@ -574,6 +575,9 @@ Must land before any external-facing deployment.
 
 ### 3.1 Refresh token flow
 
+**Status:** Shipped on 2026-04-19. Keep this section as implementation
+history and a regression checklist for future auth changes.
+
 - **Goal:** Users aren't forcibly logged out every hour.
 - **Files:** `security.py`, `routers/auth.py`, `db.py`, `schemas.py`,
   `static/app.js`, new Alembic migration
@@ -690,6 +694,33 @@ Must land before any external-facing deployment.
 - **Depends on:** 3.1 (revoke list plays with refresh flow)
 - **Effort:** S
 
+### 3.6 Session-management UI
+
+- **Goal:** Admins and users can inspect and revoke active refresh sessions
+  without database access.
+- **Files:** `routers/auth.py`, `routers/users.py`, `schemas.py`,
+  `static/app.js`, `static/i18n.js`, `static/styles.css`,
+  `templates/admin.html`, `tests/test_auth_refresh.py`
+- **Approach:**
+  1. Add a read endpoint for the current user's active refresh sessions:
+     session id, issued_at, expires_at, user_agent, ip and current-session
+     marker. Never return token hashes.
+  2. Add `POST /auth/sessions/{id}/revoke` for the current user and an
+     admin-only `POST /users/{id}/sessions/revoke-all` for support incidents.
+  3. Add a compact "Активни сесии" panel in account/admin surfaces with
+     revoke-current/revoke-all controls and confirmation dialogs.
+  4. Record revocations in `user_audit_log` or a dedicated auth audit table
+     if the event needs stronger traceability.
+- **Acceptance criteria:**
+  - User can revoke another browser/device session without logging out of the
+    current browser.
+  - Admin can revoke all sessions for a deactivated/compromised user.
+  - No API response exposes raw refresh tokens or token hashes.
+- **Verification:** Tests for self list, self revoke, admin revoke-all,
+  employee forbidden on other user and stale cookie rejection after revoke.
+- **Depends on:** 3.1
+- **Effort:** M
+
 ---
 
 ## Phase 4 - Frontend code quality (1-2 weeks)
@@ -713,7 +744,8 @@ Paying down debt to keep Phase 5+ velocity high. No user-visible change.
      - `main.js`: wires everything together on `DOMContentLoaded`.
   3. No bundler - native ES modules. Works on all current evergreen targets.
 - **Acceptance criteria:**
-  - No file > 300 lines.
+  - No new module > 300 lines; the temporary shell can remain larger during
+    migration only if every extraction commit shrinks it.
   - All existing user flows work.
   - Lighthouse performance score doesn't regress.
 - **Verification:** Full manual smoke + pytest (API unaffected).
@@ -1261,26 +1293,50 @@ these before exposing FleetFlow beyond a trusted internal network.
    shipped; confirm the default branch alert closes after push.
 2. **Monitor 7.2 CI quality gates** - first Actions run should validate
    Python 3.12/3.14, dependency audit, JS syntax and Docker build.
-3. **3.1 Refresh token flow + logout** - current access-token-only auth works,
-   but production sessions need rotation and explicit logout invalidation.
-4. **7.3 PostgreSQL migration smoke + backups** - required before serious
+3. **7.3 PostgreSQL migration smoke + backups** - required before serious
    production rollout.
-5. **7.4 Structured JSON logging** - request IDs and baseline browser headers
+4. **7.4 Structured JSON logging** - request IDs and baseline browser headers
    are shipped; production log structure remains open.
-6. **4.1 Split `static/app.js` into modules** - do this before large frontend
+5. **4.1 Split `static/app.js` into modules** - do this before large frontend
     additions; the file is already ~2000 lines.
-7. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
+6. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
     after the core flows stabilize.
-8. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
+7. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
    the frontend is modular enough.
+8. **3.6 Session-management UI** - list active refresh sessions per user,
+   revoke current/all sessions and expose security audit history.
 9. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
     for real fleet accountability.
 
-If time is limited, execute the first three items before any new feature work.
+If time is limited, execute items 3-6 before any new feature work.
 
 ---
 
 ## Done
+
+### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation
+
+- **Refresh-token schema:** `refresh_tokens` now exists in both SQLite and
+  PostgreSQL runtime schema plus Alembic revision `20260419_0005`. Stored
+  values are SHA-256 hashes only, with issued/expires/revoked timestamps,
+  user-agent and IP metadata.
+- **Auth endpoints:** `POST /auth/login` still returns the short-lived bearer
+  access token, and now also sets `fleetflow_refresh` as an HttpOnly,
+  SameSite=Strict cookie. `POST /auth/refresh` rotates the refresh token and
+  returns a fresh access token. `POST /auth/logout` revokes the current refresh
+  hash and clears the cookie.
+- **Replay protection:** Reusing an already rotated/expired refresh token
+  returns 401 and revokes remaining active refresh tokens for that user, so a
+  stolen old cookie cannot keep a session chain alive.
+- **Frontend session recovery:** `apiFetch()` retries one time after a 401 by
+  calling `/auth/refresh`; failed refresh clears local auth state and returns
+  the user to login. Logout now also calls `/auth/logout` before local cleanup.
+- **Docs:** `README.md`, `ROADMAP.md` and this tactical handoff now describe
+  the production setup, refresh-token lifecycle and next recommended slices.
+- **Verification:** `tests/test_auth_refresh.py` covers login cookie issuance,
+  refresh rotation, replay invalidation and logout invalidation. `pytest -q`
+  passes with 72 tests, plus JS syntax, dependency audit, Docker rebuild and
+  PostgreSQL migration smoke on the live test stack.
 
 ### 2026-04-19 - Phase 2 UI completion + production docs refresh
 

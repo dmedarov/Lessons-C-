@@ -4,7 +4,7 @@
 
 ## Какво прави
 
-- Роли: `employee` и `fleet_admin` (login с парола → bearer token).
+- Роли: `employee` и `fleet_admin` (login с парола -> short-lived bearer token + HttpOnly refresh cookie).
 - Автомобили: добавяне, активиране/деактивиране (само admin).
 - Blackout windows за service/maintenance по автомобил.
 - Резервации: request, approve / reject / cancel, active trip и return lifecycle.
@@ -19,6 +19,7 @@
 - Responsive dashboard UI без външни CDN зависимости.
 - Отделна admin страница за approvals, users, blackout windows и continuity actions.
 - Batch approve/reject UX за pending заявки: checkbox selection, action bar и partial-failure summary.
+- Refresh-token rotation: UI-то подновява access token-а тихо при 401, а logout ревокира refresh cookie-то.
 - Бърз operational overview: активни коли, pending заявки, активни курсове и непрочетени нотификации.
 - Loading skeleton-и и submit busy states за основните форми и панели.
 - Ясни status тагове, филтри и действия в контекста на всеки запис.
@@ -190,12 +191,12 @@ docker compose -f docker-compose.yml -f docker-compose.postgres.yml down
 
 ```
 app.py              # FastAPI factory + lifespan
-config.py           # Настройки от env (SECRET_KEY, DB_PATH, DATABASE_URL, TOKEN_TTL_SECONDS, CORS/rate limits)
+config.py           # Настройки от env (SECRET_KEY, DB_PATH, DATABASE_URL, TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS, CORS/rate limits)
 db.py               # SQLite/PostgreSQL adapters, schema bootstrap, runtime compatibility upgrades
 security.py         # HMAC-подписани токени, PBKDF2 пароли, auth deps
 schemas.py          # Pydantic request/response модели
 routers/
-  auth.py           # setup-status, bootstrap-admin, login, auth/me
+  auth.py           # setup-status, bootstrap-admin, login, refresh, logout, auth/me
   cars.py           # /cars + deactivate/activate + blackout windows
   notifications.py  # user notification inbox
   reservations.py   # /reservations + approve/reject/start/return/cancel
@@ -213,10 +214,13 @@ docker-compose.postgres.yml
 
 - `GET /auth/setup-status` → показва дали има активен `fleet_admin`.
 - `POST /auth/bootstrap-admin` → създава първия администратор, само когато още няма такъв.
-- `POST /auth/login` → `{access_token, user, role, expires_in}`
+- `POST /auth/login` → `{access_token, user, role, expires_in}` + `fleetflow_refresh` HttpOnly cookie.
+- `POST /auth/refresh` → върти refresh token-а от cookie-то и връща нов short-lived access token.
+- `POST /auth/logout` → ревокира текущия refresh token и изчиства cookie-то.
 - `GET /auth/me` → връща текущия user context.
 - Всеки защитен endpoint очаква `Authorization: Bearer <token>`.
 - Токените са **HMAC-SHA256 подписани** с `SECRET_KEY`, имат `exp` и се re-bind-ват към live user state при всяка заявка.
+- Access token-ът по подразбиране живее 1 час (`TOKEN_TTL_SECONDS=3600`), а refresh cookie-то 14 дни (`REFRESH_TOKEN_TTL_SECONDS=1209600`). Refresh token-ите се пазят само като SHA-256 hash в DB, въртят се при всяко `/auth/refresh` извикване и replay на стар refresh token ревокира активната refresh верига за user-а.
 
 ## Правила
 
@@ -252,6 +256,7 @@ docker-compose.postgres.yml
 16. **Alembic baseline** — production schema changes вече имат versioned migration path.
 17. **Dev-only seed** — deterministic тестови акаунти само в `APP_ENV=dev` + `DEV_SEED_DEMO_DATA=true`.
 18. **Auth rate limiting** — in-memory brute-force guard за login и bootstrap endpoints.
+19. **Refresh-token rotation** — short-lived access tokens + HttpOnly refresh cookie, replay protection и explicit logout invalidation.
 
 ## Тестове
 
@@ -274,6 +279,7 @@ pytest -q
 - сценарий с 2 users + 1 admin, включително какво вижда вторият user
 - dev seed reset на тестовите акаунти
 - login rate limiting
+- refresh-token rotation, replay protection и logout invalidation
 
 ## Alembic migrations
 
@@ -291,9 +297,9 @@ alembic revision -m "describe change"
 
 ## Ограничения на този пример
 
-- Refresh token-и няма — клиентът прави нов login след `expires_in`.
+- Няма UI за управление на активни sessions по устройства; logout ревокира текущия refresh token, а replay защита чисти активната refresh верига за user-а.
 - Rate limiting-ът е in-memory и е подходящ за single-container deployment; за multi-instance production го изнеси към Redis, API gateway или WAF.
-- По-сериозен admin модул остава следваща голяма стъпка: admin reset password, role change UI и user audit history surface.
+- Следващата production стъпка е операторска дисциплина: PostgreSQL migration smoke, backup/restore playbook, structured JSON logs и browser-level e2e tests.
 
 ## План за развитие
 

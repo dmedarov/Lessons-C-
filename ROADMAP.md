@@ -13,13 +13,13 @@
 - Ясен status model: заявка, одобрение, активен курс, връщане и уведомяване без скрити състояния.
 - Кратки и стойностни нотификации: без шум, без дублиране, без чувствителни данни.
 - Migration-first backend: schema промени минават през Alembic, не през ad-hoc ръчни SQL промени.
-- Security by default: пароли с slow hash, токени, rebinding към текущ user state, least-privilege UI.
+- Security by default: пароли с slow hash, short-lived access token-и, refresh-token rotation, rebinding към текущ user state, least-privilege UI.
 
 ## What Best Practice Research Suggests
 
 ### Authentication and user management
 - OWASP Authentication Cheat Sheet препоръчва активна сесия + reauthentication за чувствителни действия, неясни auth грешки и силно логване на auth събития.
-- За нашия продукт това означава: bootstrap на първи admin, без demo users в production, моментно отнемане на достъп при deactivation, и password change с текуща парола.
+- За нашия продукт това означава: bootstrap на първи admin, без demo users в production, моментно отнемане на достъп при deactivation, refresh-token rotation с logout invalidation, и password change с текуща парола.
 
 ### Notifications
 - Apple HIG насърчава concise, glanceable notifications и избягване на noise/duplicates.
@@ -139,28 +139,47 @@
 - всяка schema промяна има revision
 - production boot минава през `alembic upgrade head`
 
+## Phase 6: Security & Session Hardening
+
+### Goal
+Да имаме production-ready session model без forced hourly logouts и без скрити stale privileges.
+
+### Scope
+- short-lived HMAC access token-и
+- HttpOnly refresh cookie, 14 дни по подразбиране
+- refresh-token rotation при всяко `/auth/refresh`
+- replay protection: стар refresh token ревокира активната refresh верига за user-а
+- explicit logout invalidation
+- бъдещ session-management UI по устройство/browser
+
+### Success metric
+- UI-то се възстановява тихо след access-token expiry
+- logout прекратява текущата refresh сесия
+- deactivation/role промяна продължава да влиза в сила веднага през live auth rebinding
+
 ## Current Implementation Focus
 
 - реален auth/user management
+- refresh-token rotation + logout invalidation
 - lifecycle: request, approve, start, return, cancel
 - in-app notifications
 - outbound notifications към email/Slack/Teams
 - guarded admin handoff flow
 - service and maintenance blackout windows
 - admin vs employee views
-- Alembic baseline
+- Alembic baseline и versioned migrations за всяка schema промяна
+- Production setup: `make setup` генерира secrets, `make prod` вдига PostgreSQL + app
 
 ## Next Recommended Slices
 
-1. По-сериозен admin модул:
-   reset password от админ
-   смяна на роля
-   audit history за user actions
-   по-богат admin surface върху новата отделна admin страница
-2. Readiness checks, structured logs и traceable incident debugging.
-3. Calendar week/day views и utilization analytics.
-4. Scheduled reminder notifications преди start/end на резервация.
-5. Maintenance workflows с attachment-и и service provider metadata.
+1. PostgreSQL migration smoke + backup/restore playbook за production оператори.
+2. Structured JSON logs, request correlation и traceable incident debugging.
+3. Browser-level Playwright e2e tests за employee booking, admin approve/reject, refresh/logout и mobile calendar.
+4. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
+5. Fleet Gantt / week planning и utilization analytics.
+6. Session-management UI: активни устройства, revoke current/all sessions и audit trail.
+7. Scheduled reminder notifications преди start/end на резервация.
+8. Maintenance workflows с attachment-и и service provider metadata.
 
 ## References
 

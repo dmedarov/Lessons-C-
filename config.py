@@ -12,6 +12,7 @@ class Settings:
     database_url: str | None
     secret_key: str
     token_ttl_seconds: int
+    refresh_token_ttl_seconds: int
     base_dir: Path
     app_env: str
     notification_timeout_seconds: int
@@ -54,6 +55,7 @@ class Settings:
             database_url=os.getenv("DATABASE_URL"),
             secret_key=secret,
             token_ttl_seconds=int(os.getenv("TOKEN_TTL_SECONDS", "3600")),
+            refresh_token_ttl_seconds=int(os.getenv("REFRESH_TOKEN_TTL_SECONDS", str(14 * 24 * 60 * 60))),
             base_dir=Path(__file__).resolve().parent,
             app_env=app_env,
             notification_timeout_seconds=int(os.getenv("NOTIFICATION_TIMEOUT_SECONDS", "5")),
