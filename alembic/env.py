@@ -13,7 +13,15 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 database_url = settings.database_url or f"sqlite:///{settings.db_path}"
-config.set_main_option("sqlalchemy.url", database_url)
+
+
+def sqlalchemy_url(url: str) -> str:
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return url
+
+
+config.set_main_option("sqlalchemy.url", sqlalchemy_url(database_url))
 
 target_metadata = None
 

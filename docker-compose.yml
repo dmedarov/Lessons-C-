@@ -1,7 +1,6 @@
 services:
   car-pool:
     build: .
-    container_name: car-pool-app
     init: true
     ports:
       - "8000:8000"
