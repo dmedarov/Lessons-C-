@@ -18,13 +18,16 @@
 - `health` endpoint за Docker healthcheck.
 - Responsive dashboard UI без външни CDN зависимости.
 - Отделна admin страница за approvals, users, blackout windows и continuity actions.
+- Batch approve/reject UX за pending заявки: checkbox selection, action bar и partial-failure summary.
 - Бърз operational overview: активни коли, pending заявки, активни курсове и непрочетени нотификации.
+- Loading skeleton-и и submit busy states за основните форми и панели.
 - Ясни status тагове, филтри и действия в контекста на всеки запис.
 - Реален месечен календарен изглед за планиране и натоварване по дни.
+- Mobile day calendar mode под 768px, с предишен/следващ ден и бързо резервиране.
 - PostgreSQL-ready режим чрез `DATABASE_URL`.
 - Alembic baseline за versioned schema migrations.
 
-## Бърз старт
+## Бърз старт за development
 
 1. Подготви `.env` файл:
 
@@ -73,7 +76,97 @@ docker compose down
 
 > За production използвай дълъг случаен `SECRET_KEY`, конкретен `CORS_ALLOW_ORIGINS` и реална PostgreSQL база.
 
-## Production с PostgreSQL
+## Production setup simplification
+
+Production flow-ът е умишлено кратък:
+
+```bash
+git clone <repo>
+cd <repo>
+make setup
+make prod
+```
+
+Това е всичко за първо стартиране.
+
+`make setup`:
+
+- създава `.env` от `.env.example`, ако още няма такъв файл;
+- генерира автоматично `SECRET_KEY` с 48-byte random secret;
+- генерира автоматично `POSTGRES_PASSWORD` с 32-byte random password;
+- обновява `DATABASE_URL`, така че паролата в него да съвпада с реалния
+  `POSTGRES_PASSWORD`;
+- не презаписва съществуващ `.env`, за да не счупи работеща инсталация.
+
+`make prod`:
+
+- build-ва production image-а;
+- стартира PostgreSQL + FleetFlow app през `docker-compose.postgres.yml`;
+- изпълнява Alembic миграциите преди старта на приложението;
+- оставя UI-то на `http://localhost:${APP_PORT:-8000}`.
+
+Преди live deployment смени само:
+
+```env
+CORS_ALLOW_ORIGINS=https://your-real-domain.example
+```
+
+Ако порт `8000` е зает, задай например:
+
+```env
+APP_PORT=8001
+```
+
+Полезни production команди:
+
+```bash
+make logs   # app logs, включително bootstrap token при fresh install
+make down   # спира production/dev compose контейнерите
+make test   # pytest suite
+```
+
+## Bootstrap token при fresh production install
+
+В production (`APP_ENV=prod`) първият `fleet_admin` не може да се създаде
+само от отворен UI. При старт, ако още няма администратор, приложението
+генерира еднократен bootstrap token, валиден 30 минути, и го отпечатва в
+логовете.
+
+1. Стартирай stack-а:
+
+```bash
+make prod
+```
+
+2. Вземи token-а:
+
+```bash
+make logs
+```
+
+Търси блок като:
+
+```text
+FleetFlow bootstrap token (valid 30 min, one-shot):
+  <token>
+Pass as X-Bootstrap-Token header to POST /auth/bootstrap-admin.
+```
+
+3. Отвори `/` или `/admin`, попълни първия администратор и постави token-а в
+полето **Bootstrap token**.
+
+Token-ът е one-shot: след успешно създаване на първия `fleet_admin` вече не
+може да се използва. Ако изтече преди да го използваш, рестартирай app
+контейнера и вземи нов token от логовете:
+
+```bash
+docker compose -f docker-compose.postgres.yml restart car-pool
+make logs
+```
+
+## Production с PostgreSQL — ръчен вариант
+
+Препоръчаният път е `make setup && make prod`. Ако все пак искаш ръчен flow:
 
 1. Попълни `.env` с реални стойности за `SECRET_KEY`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` и `DATABASE_URL`.
 2. Ако искаш външни нотификации, попълни и `SMTP_*`, `SLACK_WEBHOOK_URL`, `TEAMS_WEBHOOK_URL`.
@@ -82,7 +175,7 @@ docker compose down
 3. Стартирай production-ready стека:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build -d
+docker compose -f docker-compose.postgres.yml up --build -d
 ```
 
 Този flow вече изпълнява `alembic upgrade head` преди старта на приложението.

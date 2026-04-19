@@ -847,6 +847,9 @@ def test_health_and_ui(client: TestClient) -> None:
     assert 'id="reservationsTableBody" aria-live="polite"' in admin_res.text
     assert 'id="userCreatePanel"' not in res.text
     assert 'id="usersGrid"' not in res.text
+    assert 'id="bulkActionBar"' not in res.text
+    assert 'id="bulkActionBar"' in admin_res.text
+    assert 'id="bulkSelectAll"' in admin_res.text
     assert 'class="glass-card hidden" id="userCreatePanel"' in admin_res.text
     assert 'class="glass-card hidden" id="usersDeck"' in admin_res.text
 
@@ -857,7 +860,11 @@ def test_admin_responsive_css_prevents_module_overlap() -> None:
     assert ".glass-card__header--split {\n  align-items: center;\n  flex-wrap: wrap;" in css
     assert ".hero__secondary {\n    grid-template-columns: 1fr;" in css
     assert "@media (max-width: 560px)" in css
-    assert ".mission-filter__actions .btn,\n  .button-row .btn {\n    width: 100%;" in css
+    assert ".mission-filter__actions .btn,\n  .button-row .btn," in css
+    assert ".bulk-action-bar__actions .btn {\n    width: 100%;" in css
+    assert ".bulk-action-bar" in css
+    assert ".calendar-grid--mobile" in css
+    assert ".skeleton-card" in css
 
 
 def test_request_id_and_security_headers(client: TestClient) -> None:

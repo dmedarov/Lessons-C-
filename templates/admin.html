@@ -385,10 +385,21 @@
                 <button class="btn btn--primary" type="button" id="exportReservationsBtn">Експорт CSV</button>
               </div>
             </div>
+            <div class="bulk-action-bar hidden" id="bulkActionBar" role="status" aria-live="polite">
+              <strong id="bulkSelectedCount">0 избрани</strong>
+              <div class="bulk-action-bar__actions">
+                <button class="btn btn--ghost" type="button" id="bulkClearBtn">Изчисти</button>
+                <button class="btn btn--primary" type="button" id="bulkApproveBtn">Одобри избраните</button>
+                <button class="btn btn--ghost" type="button" id="bulkRejectBtn">Откажи избраните</button>
+              </div>
+            </div>
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
+                    <th class="select-cell">
+                      <input id="bulkSelectAll" type="checkbox" aria-label="Избери всички чакащи резервации" />
+                    </th>
                     <th>ID</th>
                     <th>Автомобил</th>
                     <th>Заявител</th>

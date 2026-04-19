@@ -36,6 +36,14 @@ const state = {
   users: [],
   userAudit: {},
   blackouts: [],
+  loading: {
+    cars: false,
+    reservations: false,
+    notifications: false,
+    users: false,
+    blackouts: false,
+  },
+  selectedReservationIds: new Set(),
   conflictPreview: {
     requested: false,
     loading: false,
@@ -128,6 +136,12 @@ const els = {
   reservationEndDate: document.getElementById("reservationEndDate"),
   clearReservationFiltersBtn: document.getElementById("clearReservationFiltersBtn"),
   exportReservationsBtn: document.getElementById("exportReservationsBtn"),
+  bulkActionBar: document.getElementById("bulkActionBar"),
+  bulkSelectedCount: document.getElementById("bulkSelectedCount"),
+  bulkSelectAll: document.getElementById("bulkSelectAll"),
+  bulkClearBtn: document.getElementById("bulkClearBtn"),
+  bulkApproveBtn: document.getElementById("bulkApproveBtn"),
+  bulkRejectBtn: document.getElementById("bulkRejectBtn"),
 };
 
 const fieldErrorIds = [
@@ -151,6 +165,7 @@ const fieldErrorIds = [
 
 let conflictPreviewTimer = null;
 let reservationFilterTimer = null;
+const mobileCalendarMedia = window.matchMedia("(max-width: 767px)");
 
 function startOfMonth(value) {
   return new Date(value.getFullYear(), value.getMonth(), 1);
@@ -158,6 +173,10 @@ function startOfMonth(value) {
 
 function addMonths(value, amount) {
   return new Date(value.getFullYear(), value.getMonth() + amount, 1);
+}
+
+function addDays(value, amount) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate() + amount);
 }
 
 function dateKey(value) {
@@ -189,6 +208,41 @@ function toggleHidden(node, hidden) {
 function bind(node, eventName, handler) {
   if (!node) return;
   node.addEventListener(eventName, handler);
+}
+
+function setLoading(section, value) {
+  state.loading[section] = value;
+}
+
+function skeletonCards(count = 3) {
+  return Array.from({ length: count }, () => `<article class="skeleton-card" aria-hidden="true">
+    <span class="skeleton skeleton--title"></span>
+    <span class="skeleton skeleton--line"></span>
+    <span class="skeleton skeleton--line skeleton--short"></span>
+  </article>`).join("");
+}
+
+function skeletonTableRow(colspan) {
+  return `<tr class="skeleton-row" aria-hidden="true"><td colspan="${colspan}">
+    <span class="skeleton skeleton--line"></span>
+    <span class="skeleton skeleton--line skeleton--short"></span>
+  </td></tr>`;
+}
+
+function setSubmitBusy(form, busyLabel = t("form.submit.loading")) {
+  const submitButton = form?.querySelector('button[type="submit"]');
+  if (!submitButton) {
+    return () => {};
+  }
+  const originalText = submitButton.textContent;
+  submitButton.disabled = true;
+  submitButton.dataset.loading = "true";
+  submitButton.textContent = busyLabel;
+  return () => {
+    submitButton.disabled = false;
+    submitButton.dataset.loading = "false";
+    submitButton.textContent = originalText;
+  };
 }
 
 function confirmAction(message, confirmLabel = t("action.confirm")) {
@@ -762,6 +816,11 @@ function renderNotifications() {
     return;
   }
 
+  if (state.loading.notifications) {
+    els.notificationsList.innerHTML = skeletonCards(3);
+    return;
+  }
+
   if (!state.notifications.length) {
     els.notificationsList.innerHTML = `
       <article class="empty-state">
@@ -796,6 +855,11 @@ function renderUsers() {
   els.usersGrid.innerHTML = "";
 
   if (state.currentRole !== "fleet_admin") {
+    return;
+  }
+
+  if (state.loading.users) {
+    els.usersGrid.innerHTML = skeletonCards(3);
     return;
   }
 
@@ -875,6 +939,11 @@ function renderUsers() {
 function renderCars() {
   const carsToShow = state.cars.filter((car) => (state.carFilter === "active" ? car.active : true));
   els.carsGrid.innerHTML = "";
+
+  if (state.loading.cars) {
+    els.carsGrid.innerHTML = skeletonCards(4);
+    return;
+  }
 
   if (!carsToShow.length) {
     els.carsGrid.innerHTML = `
@@ -1041,6 +1110,11 @@ function renderBlackouts() {
     return;
   }
 
+  if (state.loading.blackouts) {
+    els.blackoutsList.innerHTML = skeletonCards(3);
+    return;
+  }
+
   if (!state.blackouts.length) {
     els.blackoutsList.innerHTML = `
       <article class="empty-state">
@@ -1081,6 +1155,67 @@ function renderHandoffCandidates() {
     .map((user) => `<option value="${user.id}">${escapeHtml(user.display_name)} · ${t(`role.${user.role}`)}</option>`)
     .join("");
   els.handoffUserId.innerHTML = options || `<option value="">Няма подходящ потребител</option>`;
+}
+
+function bulkSelectionEnabled() {
+  return surface === "admin" && state.currentRole === "fleet_admin";
+}
+
+function pendingReservationIds() {
+  return new Set(state.reservations.filter((item) => item.status === "pending").map((item) => item.id));
+}
+
+function syncBulkSelection() {
+  if (!bulkSelectionEnabled()) {
+    state.selectedReservationIds.clear();
+    return;
+  }
+  const pendingIds = pendingReservationIds();
+  state.selectedReservationIds.forEach((id) => {
+    if (!pendingIds.has(id)) {
+      state.selectedReservationIds.delete(id);
+    }
+  });
+}
+
+function renderBulkActionBar() {
+  if (!els.bulkActionBar) return;
+
+  syncBulkSelection();
+  const selectedCount = state.selectedReservationIds.size;
+  const pendingIds = pendingReservationIds();
+  toggleHidden(els.bulkActionBar, !bulkSelectionEnabled() || selectedCount === 0);
+
+  if (els.bulkSelectedCount) {
+    els.bulkSelectedCount.textContent = t("bulk.selected", { count: selectedCount });
+  }
+  if (els.bulkSelectAll) {
+    els.bulkSelectAll.checked = pendingIds.size > 0 && selectedCount === pendingIds.size;
+    els.bulkSelectAll.indeterminate = selectedCount > 0 && selectedCount < pendingIds.size;
+    els.bulkSelectAll.disabled = !bulkSelectionEnabled() || pendingIds.size === 0 || state.loading.reservations;
+  }
+  [els.bulkApproveBtn, els.bulkRejectBtn, els.bulkClearBtn].forEach((button) => {
+    if (button) {
+      button.disabled = selectedCount === 0 || state.loading.reservations;
+    }
+  });
+}
+
+function setReservationSelected(id, selected) {
+  if (selected) {
+    state.selectedReservationIds.add(id);
+  } else {
+    state.selectedReservationIds.delete(id);
+  }
+  renderBulkActionBar();
+}
+
+function setAllPendingReservationsSelected(selected) {
+  state.selectedReservationIds.clear();
+  if (selected) {
+    pendingReservationIds().forEach((id) => state.selectedReservationIds.add(id));
+  }
+  renderReservations();
 }
 
 function reservationContext(item) {
@@ -1127,22 +1262,47 @@ function reservationActions(item) {
 
 function renderReservations() {
   const cars = carMap();
+  const canBulk = bulkSelectionEnabled();
+  const colspan = canBulk ? 8 : 7;
   els.reservationsTableBody.innerHTML = "";
 
   if (!state.token) {
-    els.reservationsTableBody.innerHTML = `<tr><td colspan="7" class="muted">Влез в системата, за да видиш operational потока.</td></tr>`;
+    state.selectedReservationIds.clear();
+    renderBulkActionBar();
+    els.reservationsTableBody.innerHTML = `<tr><td colspan="${colspan}" class="muted">Влез в системата, за да видиш operational потока.</td></tr>`;
+    return;
+  }
+
+  if (state.loading.reservations) {
+    renderBulkActionBar();
+    els.reservationsTableBody.innerHTML = `${skeletonTableRow(colspan)}${skeletonTableRow(colspan)}${skeletonTableRow(colspan)}`;
     return;
   }
 
   if (!state.reservations.length) {
-    els.reservationsTableBody.innerHTML = `<tr><td colspan="7" class="muted">${state.currentRole === "fleet_admin" ? "Няма резервации за текущия изглед." : "Нямаш видими резервации за текущия изглед."}</td></tr>`;
+    state.selectedReservationIds.clear();
+    renderBulkActionBar();
+    els.reservationsTableBody.innerHTML = `<tr><td colspan="${colspan}" class="muted">${state.currentRole === "fleet_admin" ? "Няма резервации за текущия изглед." : "Нямаш видими резервации за текущия изглед."}</td></tr>`;
     return;
   }
 
+  syncBulkSelection();
   state.reservations.forEach((item) => {
     const car = cars.get(item.car_id);
+    const selectable = canBulk && item.status === "pending";
     const row = document.createElement("tr");
     row.innerHTML = `
+      ${
+        canBulk
+          ? `<td data-label="Избор" class="select-cell">
+              ${
+                selectable
+                  ? `<input type="checkbox" data-reservation-select="${item.id}" aria-label="Избери резервация #${item.id}" ${state.selectedReservationIds.has(item.id) ? "checked" : ""} />`
+                  : ""
+              }
+            </td>`
+          : ""
+      }
       <td data-label="ID">#${item.id}</td>
       <td data-label="Автомобил">
         <strong>${escapeHtml(car ? car.plate_number : t("entity.car", { id: item.car_id }))}</strong>
@@ -1164,20 +1324,59 @@ function renderReservations() {
     `;
     els.reservationsTableBody.appendChild(row);
   });
+  renderBulkActionBar();
 }
 
 function renderCalendar() {
   const monthStart = startOfMonth(state.calendarDate);
+  const cars = carMap();
+  const days = dayMap();
+  const conflictKeys = conflictDateKeys();
+  const todayKey = dateKey(new Date());
+
+  if (mobileCalendarMedia.matches) {
+    const selected = localDateFromKey(state.selectedDateKey);
+    const selectedItems = (days.get(state.selectedDateKey) || []).sort(
+      (a, b) => new Date(a.start_time) - new Date(b.start_time)
+    );
+    els.calendarMonthLabel.textContent = formatMonthLabel(startOfMonth(selected));
+    els.calendarGrid.classList.add("calendar-grid--mobile");
+    els.calendarGrid.innerHTML = `
+      <article class="mobile-day-card ${conflictKeys.has(state.selectedDateKey) ? "mobile-day-card--conflict" : ""}">
+        <div class="mobile-day-card__nav">
+          <button class="segmented__btn" type="button" data-mobile-day-shift="-1" aria-label="${t("calendar.previousDay")}">‹</button>
+          <div>
+            <p class="panel__eyebrow">${t("calendar.mobileHint")}</p>
+            <h3>${formatDayLabel(state.selectedDateKey)}</h3>
+          </div>
+          <button class="segmented__btn" type="button" data-mobile-day-shift="1" aria-label="${t("calendar.nextDay")}">›</button>
+        </div>
+        <div class="mobile-day-card__meta">
+          <span class="status-pill ${state.selectedDateKey === todayKey ? "status-pill--admin" : "status-pill--muted"}">
+            ${state.selectedDateKey === todayKey ? "Днес" : pluralRecord(selectedItems.length)}
+          </span>
+          <span class="muted">${selectedItems.length ? t("calendar.selectedTotal", { count: selectedItems.length }) : t("calendar.noEvents")}</span>
+        </div>
+        <div class="calendar-day__list">
+          ${
+            selectedItems.length
+              ? selectedItems.map((item) => calendarPill(item, cars.get(item.car_id))).join("")
+              : `<span class="muted">Няма записи за този ден.</span>`
+          }
+        </div>
+        <button class="btn btn--primary" type="button" data-mobile-book-day="${state.selectedDateKey}">${t("action.bookThisDay")}</button>
+      </article>
+    `;
+    return;
+  }
+
   const firstDay = new Date(monthStart);
   const weekday = (firstDay.getDay() + 6) % 7;
   firstDay.setDate(firstDay.getDate() - weekday);
   const monthIndex = monthStart.getMonth();
-  const todayKey = dateKey(new Date());
-  const days = dayMap();
-  const cars = carMap();
-  const conflictKeys = conflictDateKeys();
 
   els.calendarMonthLabel.textContent = formatMonthLabel(monthStart);
+  els.calendarGrid.classList.remove("calendar-grid--mobile");
   els.calendarGrid.innerHTML = "";
 
   for (let index = 0; index < 42; index += 1) {
@@ -1264,8 +1463,9 @@ function renderDayTimeline() {
 function setSelectedDate(key) {
   state.selectedDateKey = key;
   const selected = localDateFromKey(key);
+  state.calendarDate = startOfMonth(selected);
   const today = new Date();
-  if (selected >= new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+  if (els.startTime && els.endTime && selected >= new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
     const start = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate(), 9, 0, 0, 0);
     const end = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate(), 11, 0, 0, 0);
     els.startTime.value = localInputValue(start);
@@ -1274,7 +1474,9 @@ function setSelectedDate(key) {
   }
   renderCalendar();
   renderDayTimeline();
-  scheduleConflictPreview();
+  if (els.carId) {
+    scheduleConflictPreview();
+  }
 }
 
 async function loadSetupStatus() {
@@ -1291,11 +1493,17 @@ async function loadMe() {
 
 async function loadCars() {
   const query = state.currentRole === "fleet_admin" ? "?active_only=false" : "";
-  const data = await apiFetch(`/cars${query}`);
-  state.cars = data.items;
+  setLoading("cars", true);
   renderCars();
-  renderCarSelect();
-  await loadBlackouts();
+  try {
+    const data = await apiFetch(`/cars${query}`);
+    state.cars = data.items;
+    renderCarSelect();
+    await loadBlackouts();
+  } finally {
+    setLoading("cars", false);
+    renderCars();
+  }
 }
 
 function syncReservationFiltersFromInputs() {
@@ -1373,11 +1581,19 @@ async function loadReservations() {
 
   const params = reservationQueryParams();
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  const data = await apiFetch(`/reservations${suffix}`, { headers: authHeaders() });
-  state.reservations = data.items;
+  setLoading("reservations", true);
   renderReservations();
   renderCalendar();
   renderDayTimeline();
+  try {
+    const data = await apiFetch(`/reservations${suffix}`, { headers: authHeaders() });
+    state.reservations = data.items;
+  } finally {
+    setLoading("reservations", false);
+    renderReservations();
+    renderCalendar();
+    renderDayTimeline();
+  }
 }
 
 async function downloadCsv(url, filename) {
@@ -1425,9 +1641,15 @@ async function loadNotifications() {
     updateNotificationBadge();
     return;
   }
-  state.notifications = await apiFetch("/notifications", { headers: authHeaders() });
+  setLoading("notifications", true);
   renderNotifications();
-  updateNotificationBadge();
+  try {
+    state.notifications = await apiFetch("/notifications", { headers: authHeaders() });
+  } finally {
+    setLoading("notifications", false);
+    renderNotifications();
+    updateNotificationBadge();
+  }
 }
 
 async function loadUsers() {
@@ -1437,9 +1659,16 @@ async function loadUsers() {
     renderHandoffCandidates();
     return;
   }
-  state.users = await apiFetch("/users", { headers: authHeaders() });
+  setLoading("users", true);
   renderUsers();
-  renderHandoffCandidates();
+  try {
+    state.users = await apiFetch("/users", { headers: authHeaders() });
+    renderHandoffCandidates();
+  } finally {
+    setLoading("users", false);
+    renderUsers();
+    renderHandoffCandidates();
+  }
 }
 
 async function loadBlackouts() {
@@ -1449,14 +1678,20 @@ async function loadBlackouts() {
     return;
   }
 
-  const requests = state.cars.map((car) =>
-    apiFetch(`/cars/${car.id}/blackouts`, { headers: authHeaders() }).then((items) =>
-      items.map((item) => ({ ...item, car_id: car.id }))
-    )
-  );
-  const batches = await Promise.all(requests);
-  state.blackouts = batches.flat();
+  setLoading("blackouts", true);
   renderBlackouts();
+  try {
+    const requests = state.cars.map((car) =>
+      apiFetch(`/cars/${car.id}/blackouts`, { headers: authHeaders() }).then((items) =>
+        items.map((item) => ({ ...item, car_id: car.id }))
+      )
+    );
+    const batches = await Promise.all(requests);
+    state.blackouts = batches.flat();
+  } finally {
+    setLoading("blackouts", false);
+    renderBlackouts();
+  }
 }
 
 function resetConflictPreview() {
@@ -1681,6 +1916,7 @@ async function handleBootstrap(event) {
     headers["X-Bootstrap-Token"] = bootstrapToken;
   }
 
+  const releaseSubmit = setSubmitBusy(event.currentTarget);
   try {
     await apiFetch("/auth/bootstrap-admin", {
       method: "POST",
@@ -1691,6 +1927,8 @@ async function handleBootstrap(event) {
     await loginWith(payload.username, payload.password);
   } catch (error) {
     showMessage("Setup не успя", error.message);
+  } finally {
+    releaseSubmit();
   }
 }
 
@@ -1701,10 +1939,13 @@ async function handleLogin(event) {
     return;
   }
 
+  const releaseSubmit = setSubmitBusy(event.currentTarget);
   try {
     await loginWith(els.username.value.trim(), els.password.value);
   } catch (error) {
     showMessage("Неуспешен вход", error.message);
+  } finally {
+    releaseSubmit();
   }
 }
 
@@ -1715,6 +1956,7 @@ function handleLogout() {
   state.users = [];
   state.userAudit = {};
   state.blackouts = [];
+  state.selectedReservationIds.clear();
   els.loginForm.reset();
   resetConflictPreview();
   renderNotifications();
@@ -1735,6 +1977,7 @@ async function handleReservationCreate(event) {
     return;
   }
 
+  const releaseSubmit = setSubmitBusy(event.currentTarget);
   try {
     await apiFetch("/reservations", {
       method: "POST",
@@ -1752,6 +1995,8 @@ async function handleReservationCreate(event) {
     scheduleConflictPreview();
   } catch (error) {
     showMessage("Неуспешна заявка", error.message);
+  } finally {
+    releaseSubmit();
   }
 }
 
@@ -1762,6 +2007,7 @@ async function handlePasswordChange(event) {
     return;
   }
 
+  const releaseSubmit = setSubmitBusy(event.currentTarget);
   try {
     await apiFetch("/users/me/password", {
       method: "POST",
@@ -1775,6 +2021,8 @@ async function handlePasswordChange(event) {
     showMessage("Паролата е обновена", "Новата парола е активна.", "success");
   } catch (error) {
     showMessage("Неуспешна смяна", error.message);
+  } finally {
+    releaseSubmit();
   }
 }
 
@@ -1785,6 +2033,7 @@ async function handleUserCreate(event) {
     return;
   }
 
+  const releaseSubmit = setSubmitBusy(event.currentTarget);
   try {
     const newEmail = document.getElementById("newEmail");
     await apiFetch("/users", {
@@ -1803,6 +2052,8 @@ async function handleUserCreate(event) {
     await refreshData();
   } catch (error) {
     showMessage("Неуспешно създаване", error.message);
+  } finally {
+    releaseSubmit();
   }
 }
 
@@ -1813,6 +2064,7 @@ async function handleCarCreate(event) {
     return;
   }
 
+  const releaseSubmit = setSubmitBusy(event.currentTarget);
   try {
     await apiFetch("/cars", {
       method: "POST",
@@ -1827,6 +2079,8 @@ async function handleCarCreate(event) {
     await refreshData();
   } catch (error) {
     showMessage("Неуспешна регистрация", error.message);
+  } finally {
+    releaseSubmit();
   }
 }
 
@@ -1840,6 +2094,7 @@ async function handleHandoff(event) {
   const confirmed = await confirmAction(t("confirm.handoff"), t("action.handoff"));
   if (!confirmed) return;
 
+  const releaseSubmit = setSubmitBusy(event.currentTarget);
   try {
     const data = await apiFetch(`/users/${Number(els.handoffUserId.value)}/handoff-admin`, {
       method: "POST",
@@ -1860,6 +2115,8 @@ async function handleHandoff(event) {
     await refreshData();
   } catch (error) {
     showMessage("Неуспешен handoff", error.message);
+  } finally {
+    releaseSubmit();
   }
 }
 
@@ -1870,6 +2127,7 @@ async function handleBlackoutCreate(event) {
     return;
   }
 
+  const releaseSubmit = setSubmitBusy(event.currentTarget);
   try {
     await apiFetch(`/cars/${Number(els.blackoutCarId.value)}/blackouts`, {
       method: "POST",
@@ -1888,6 +2146,8 @@ async function handleBlackoutCreate(event) {
     await refreshData();
   } catch (error) {
     showMessage("Неуспешен blackout", error.message);
+  } finally {
+    releaseSubmit();
   }
 }
 
@@ -2051,6 +2311,74 @@ async function sendTestNotification() {
     await loadNotifications();
   } catch (error) {
     showMessage(t("notification.testTitle"), error.message);
+  }
+}
+
+function bulkResultDetails(results) {
+  return results
+    .filter((item) => item.status === "skipped" || item.error)
+    .map((item) => `#${item.id}: ${item.error || item.status}`);
+}
+
+async function bulkReservationDecision(action) {
+  const ids = [...state.selectedReservationIds];
+  if (!ids.length) {
+    showMessage("Няма избор", t("bulk.noSelection"));
+    return;
+  }
+
+  let payload = { ids, reason: t(action === "approve" ? "audit.approvedViaUi" : "audit.rejectedViaUi") };
+  if (action === "approve") {
+    const confirmed = await confirmAction(t("confirm.bulkApprove", { count: ids.length }), t("action.bulkApprove"));
+    if (!confirmed) return;
+  } else {
+    const result = await userDialog({
+      title: t("action.bulkReject"),
+      body: t("confirm.bulkReject"),
+      confirmLabel: t("action.bulkReject"),
+      renderFields: () => `
+        <label class="field">
+          <span>${t("admin.rejectReasonLabel")}</span>
+          <textarea name="reason" rows="3" placeholder="${t("conflict.noPurpose")}"></textarea>
+        </label>
+      `,
+      readValue: (form) => ({ reason: form.elements.reason.value.trim() || t("audit.rejectedViaUi") }),
+    });
+    if (!result) return;
+    payload = { ids, reason: result.reason };
+  }
+
+  const button = action === "approve" ? els.bulkApproveBtn : els.bulkRejectBtn;
+  const originalText = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = t("form.submit.loading");
+  }
+
+  try {
+    const response = await apiFetch(`/reservations/bulk-${action}`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    });
+    const messageKey = action === "approve" ? "bulk.approveSuccess" : "bulk.rejectSuccess";
+    const details = bulkResultDetails(response.results || []);
+    showMessage(
+      "Batch lifecycle е обновен",
+      t(messageKey, { succeeded: response.succeeded, failed: response.failed }),
+      response.failed ? "error" : "success",
+      details
+    );
+    state.selectedReservationIds.clear();
+    await refreshData();
+  } catch (error) {
+    showMessage("Batch действието не успя", error.message);
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+    renderBulkActionBar();
   }
 }
 
@@ -2224,13 +2552,30 @@ bind(els.reservationStartDate, "change", scheduleReservationFilterRefresh);
 bind(els.reservationEndDate, "change", scheduleReservationFilterRefresh);
 bind(els.clearReservationFiltersBtn, "click", clearReservationFilters);
 bind(els.exportReservationsBtn, "click", exportReservationsCsv);
+bind(els.bulkClearBtn, "click", () => {
+  state.selectedReservationIds.clear();
+  renderReservations();
+});
+bind(els.bulkApproveBtn, "click", () => bulkReservationDecision("approve"));
+bind(els.bulkRejectBtn, "click", () => bulkReservationDecision("reject"));
+bind(els.bulkSelectAll, "change", (event) => {
+  setAllPendingReservationsSelected(event.currentTarget.checked);
+});
 
 bind(els.monthPrev, "click", () => {
+  if (mobileCalendarMedia.matches) {
+    setSelectedDate(dateKey(addDays(localDateFromKey(state.selectedDateKey), -1)));
+    return;
+  }
   state.calendarDate = addMonths(state.calendarDate, -1);
   renderCalendar();
 });
 
 bind(els.monthNext, "click", () => {
+  if (mobileCalendarMedia.matches) {
+    setSelectedDate(dateKey(addDays(localDateFromKey(state.selectedDateKey), 1)));
+    return;
+  }
   state.calendarDate = addMonths(state.calendarDate, 1);
   renderCalendar();
 });
@@ -2243,6 +2588,19 @@ bind(els.todayFocus, "click", () => {
 wireToolbar(document.querySelectorAll("[data-car-filter]"), "carFilter", loadCars);
 wireToolbar(document.querySelectorAll("[data-scope]"), "scope", loadReservations);
 wireToolbar(document.querySelectorAll("[data-status]"), "status", loadReservations);
+
+if (mobileCalendarMedia.addEventListener) {
+  mobileCalendarMedia.addEventListener("change", renderCalendar);
+} else if (mobileCalendarMedia.addListener) {
+  mobileCalendarMedia.addListener(renderCalendar);
+}
+
+document.addEventListener("change", (event) => {
+  const reservationCheckbox = event.target.closest("[data-reservation-select]");
+  if (reservationCheckbox) {
+    setReservationSelected(Number(reservationCheckbox.dataset.reservationSelect), reservationCheckbox.checked);
+  }
+});
 
 document.addEventListener("click", (event) => {
   const calendarButton = event.target.closest("[data-date-key]");
@@ -2259,6 +2617,8 @@ document.addEventListener("click", (event) => {
   const testNotificationButton = event.target.closest("[data-test-notification]");
   const handoffButton = event.target.closest("[data-handoff-candidate]");
   const applySlotButton = event.target.closest("[data-apply-slot]");
+  const mobileDayShiftButton = event.target.closest("[data-mobile-day-shift]");
+  const mobileBookDayButton = event.target.closest("[data-mobile-book-day]");
 
   if (applySlotButton) {
     const [start, end] = applySlotButton.dataset.applySlot.split("|");
@@ -2270,6 +2630,14 @@ document.addEventListener("click", (event) => {
   }
   if (calendarButton) {
     setSelectedDate(calendarButton.dataset.dateKey);
+  }
+  if (mobileDayShiftButton) {
+    const amount = Number(mobileDayShiftButton.dataset.mobileDayShift);
+    setSelectedDate(dateKey(addDays(localDateFromKey(state.selectedDateKey), amount)));
+  }
+  if (mobileBookDayButton) {
+    setSelectedDate(mobileBookDayButton.dataset.mobileBookDay);
+    els.reservationForm?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   if (toggleCarButton) {
     toggleCar(Number(toggleCarButton.dataset.toggleCar));

@@ -107,18 +107,23 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   current filtered view.
 - Calendar density affordance: visible `+N more` indicator when a day has more
   than three events.
-- Current automated coverage: 58 `pytest` cases plus JS syntax checks and
+- Admin bulk approve/reject UX: pending rows have checkbox selection, a
+  selection action bar, one-request batch decisions and partial-failure
+  summaries.
+- Loading skeletons and submit-button busy states for the main data sections
+  and forms.
+- Mobile calendar day mode below 768 px with previous/next day controls and a
+  "book this day" affordance.
+- Current automated coverage: 69+ `pytest` cases plus JS syntax checks and
   dependency audit used in shipped verification.
 
 ### Active product gaps
 
 - Browser-level end-to-end tests are still missing.
 - Refresh-token rotation and logout invalidation are still missing.
-- Bootstrap hardening for exposed production deployments is still missing.
-- Async notification dispatch via `BackgroundTasks` or queue is still missing.
-- Mobile calendar ergonomics remain a high-value UX gap.
-- Bulk approve/reject API exists, but the admin table still needs a first-class
-  checkbox selection/action bar UX.
+- Structured JSON logging and production observability remain incomplete.
+- PostgreSQL migration smoke, backup and restore posture still need a clear
+  operator workflow.
 - The monolithic `static/app.js` should be split before the frontend grows much
   further.
 - The last visible GitHub security banner pointed at the Docker base image;
@@ -296,11 +301,11 @@ related follow-up commits. Items remain here as historical handoff detail.
 
 Deeper UX work; pays off every day the product is used.
 
-**Status:** Items 2.3, 2.5, 2.6 and 2.7 are shipped. Item 2.4 is partially
-shipped at the API/test layer but still needs the admin table bulk-selection
-UX. Items 2.1 and 2.2 remain active backlog.
+**Status:** Items 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9 and
+2.10-2.12 are shipped. Future Phase 2 work should be bug fixes or UX
+extensions on top of the shipped baseline, not reimplementation.
 
-### 2.1 Mobile calendar - collapse to list/day view below 768 px
+### 2.1 Mobile calendar - collapse to list/day view below 768 px ✅ shipped 2026-04-19
 
 - **Goal:** Make the calendar usable on phones (currently the 7-col grid with
   118 px min-height per day breaks below 768 px).
@@ -324,7 +329,7 @@ UX. Items 2.1 and 2.2 remain active backlog.
 - **Depends on:** -
 - **Effort:** M
 
-### 2.2 Loading skeletons + submit-button states
+### 2.2 Loading skeletons + submit-button states ✅ shipped 2026-04-19
 
 - **Goal:** Replace silent fetches with obvious loading states; never leave a
   submit button "stuck".
@@ -369,7 +374,7 @@ UX. Items 2.1 and 2.2 remain active backlog.
 - **Depends on:** 1.2
 - **Effort:** M
 
-### 2.4 Bulk approve/reject in the admin pending queue
+### 2.4 Bulk approve/reject in the admin pending queue ✅ shipped 2026-04-19
 
 - **Goal:** Admins can clear a pending queue in one click per batch, not one
   per reservation.
@@ -1258,23 +1263,17 @@ these before exposing FleetFlow beyond a trusted internal network.
    Python 3.12/3.14, dependency audit, JS syntax and Docker build.
 3. **3.1 Refresh token flow + logout** - current access-token-only auth works,
    but production sessions need rotation and explicit logout invalidation.
-4. **3.3 Harden admin bootstrap** - before external exposure, first-admin setup
-   must require a one-shot bootstrap token outside dev.
-5. **3.2 Async notification dispatch** - outbound email/Slack/Teams should not
-   block approvals or lifecycle actions.
-6. **2.1 Mobile calendar + 2.2 loading states** - the daily employee/admin UX
-   needs mobile ergonomics and clear pending states.
-7. **2.4 Bulk approve/reject table UX** - backend exists; add checkbox
-   selection and a floating action bar for pending queues.
-8. **7.3 PostgreSQL migration smoke + backups** - required before serious
+4. **7.3 PostgreSQL migration smoke + backups** - required before serious
    production rollout.
-9. **7.4 Request IDs/security headers/logging** - production observability and
-   browser baseline hardening.
-10. **4.1 Split `static/app.js` into modules** - do this before large frontend
+5. **7.4 Structured JSON logging** - request IDs and baseline browser headers
+   are shipped; production log structure remains open.
+6. **4.1 Split `static/app.js` into modules** - do this before large frontend
     additions; the file is already ~2000 lines.
-11. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
+7. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
     after the core flows stabilize.
-12. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
+8. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
+   the frontend is modular enough.
+9. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
     for real fleet accountability.
 
 If time is limited, execute the first three items before any new feature work.
@@ -1282,6 +1281,27 @@ If time is limited, execute the first three items before any new feature work.
 ---
 
 ## Done
+
+### 2026-04-19 - Phase 2 UI completion + production docs refresh
+
+- **2.4 Bulk approve/reject UI:** `/admin` reservation table now exposes a
+  pending-only checkbox column, "select all pending" control and a live
+  bulk-action bar. Approve/reject uses the existing batch endpoints, sends one
+  request per batch and surfaces partial failures by reservation id.
+- **2.2 Loading skeletons + submit states:** Main data sections render shimmer
+  skeletons while loading; form submit buttons disable and switch to a busy
+  label until the request completes or fails.
+- **2.1 Mobile calendar:** Below 768 px the calendar switches from a dense
+  month grid to a single-day card with previous/next controls and a "book this
+  day" action that preserves the date prefill behavior.
+- **Production setup docs:** `README.md` now documents the simplified
+  `make setup && make prod` flow, generated `SECRET_KEY` /
+  `POSTGRES_PASSWORD`, consistent `DATABASE_URL`, the only required live edit
+  (`CORS_ALLOW_ORIGINS`) and one-shot bootstrap token handling.
+- **Container hygiene:** Old compose projects were stopped and removed; the
+  active test stack is `fleetflow_test` on `APP_PORT=8001`.
+- **Verification:** `pytest` (`69 passed`), JS syntax checks, `pip-audit`,
+  `git diff --check`, Docker compose rebuild and `/health` smoke.
 
 ### 2026-04-18 - Security review fixes
 
