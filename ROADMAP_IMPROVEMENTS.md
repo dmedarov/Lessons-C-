@@ -874,8 +874,8 @@ these before exposing FleetFlow beyond a trusted internal network.
 - **Goal:** The default branch has no open GitHub security alerts.
 - **Files:** `requirements.txt`, lock/constraints file if introduced,
   `Dockerfile`, `README.md`
-- **Status:** Local dependency audit and zero-CVE runtime remediation shipped
-  across `0503e95` and `ab1a0f2`; GitHub alert closure still needs
+- **Status:** Local dependency audit and zero-CVE Dockerfile remediation shipped
+  across `0503e95`, `ab1a0f2` and `0076814`; GitHub alert closure still needs
   confirmation after push.
 - **Approach:**
   1. Open the GitHub alert referenced on push:
@@ -1138,18 +1138,20 @@ If time is limited, execute the first three items before any new feature work.
   (`24 passed`), `node --check`, `git diff --check`, Docker no-cache build and
   container `/health` smoke with healthy status.
 
-### 2026-04-19 - Zero-CVE Chainguard runtime and PostgreSQL smoke (`ab1a0f2`)
+### 2026-04-19 - Zero-CVE Chainguard runtime and PostgreSQL smoke (`ab1a0f2`, `0076814`)
 
-- **Shipped:** Moved the final runtime to `cgr.dev/chainguard/python:latest`,
-  kept dependency installation in a disposable Python slim builder, removed
-  shell/pip from runtime and kept the app on stable non-root UID `10001`.
+- **Shipped:** Moved both Dockerfile stages to Chainguard Python images:
+  `latest-dev` for dependency installation and `latest` for the final runtime.
+  The runtime has no shell/pip and keeps the app on stable non-root UID
+  `10001`.
 - **Shipped:** Added a Python container entrypoint for optional Alembic
   migrations, normalized Alembic PostgreSQL URLs to the `psycopg` v3 SQLAlchemy
   dialect and removed fixed compose container names for isolated smoke stacks.
-- **Verification:** Docker Scout on the built image reports `0C/0H/0M/0L`,
-  `pip-audit -r requirements.txt` clean, `pytest` (`24 passed`), Python/JS
-  syntax checks, Docker dev `/health`, PostgreSQL compose `/health` and
-  `alembic_version=20260418_0002` in a clean temporary stack.
+- **Verification:** Docker Scout on the builder image and built app image
+  reports `0C/0H/0M/0L`, `pip-audit -r requirements.txt` clean, `pytest`
+  (`24 passed`), Python/JS syntax checks, Docker dev `/health`, PostgreSQL
+  compose `/health` and `alembic_version=20260418_0002` in a clean temporary
+  stack.
 
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._
