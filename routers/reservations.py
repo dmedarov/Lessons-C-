@@ -1,13 +1,25 @@
 from __future__ import annotations
 
+import csv
+import io
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from typing import Any, Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 
 from db import PostgresConnectionAdapter, SQLiteConnectionAdapter, get_conn, transaction
 from notifications_service import create_notification, create_notifications, dispatch_outbound_notifications
-from schemas import DecisionPayload, LifecycleNotePayload, ReservationCreate, ReservationStatus
+from schemas import (
+    BulkDecisionItem,
+    BulkDecisionPayload,
+    BulkDecisionResponse,
+    DecisionPayload,
+    LifecycleNotePayload,
+    ReservationCreate,
+    ReservationStatus,
+)
 from security import AuthContext, get_auth_context, require_admin
 
 DbConn = Union[SQLiteConnectionAdapter, PostgresConnectionAdapter]
@@ -94,6 +106,7 @@ def _blackout_conflict_rows(conn: DbConn, car_id: int, start_iso: str, end_iso: 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_reservation(
     payload: ReservationCreate,
+    background_tasks: BackgroundTasks,
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
     if payload.start_time <= datetime.now(timezone.utc):
@@ -161,7 +174,8 @@ def create_reservation(
         row = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
         response = _serialize_reservation(row)
 
-    dispatch_outbound_notifications(notification_ids)
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response
 
 
@@ -215,7 +229,13 @@ def reservation_conflicts(
     return {"items": items, "total": len(items)}
 
 
-def _decide(reservation_id: int, new_status: str, auth: AuthContext, reason: Optional[str]) -> dict[str, Any]:
+def _decide(
+    reservation_id: int,
+    new_status: str,
+    auth: AuthContext,
+    reason: Optional[str],
+    background_tasks: BackgroundTasks,
+) -> dict[str, Any]:
     now = _utcnow_iso()
     notification_ids: list[int] = []
     with get_conn() as conn, transaction(conn):
@@ -247,18 +267,124 @@ def _decide(reservation_id: int, new_status: str, auth: AuthContext, reason: Opt
         )
         response = _serialize_reservation(row)
 
-    dispatch_outbound_notifications(notification_ids)
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response
 
 
 @router.post("/{reservation_id}/approve")
-def approve(reservation_id: int, payload: DecisionPayload, auth: AuthContext = Depends(require_admin)) -> dict[str, Any]:
-    return _decide(reservation_id, "approved", auth, payload.reason)
+def approve(
+    reservation_id: int,
+    payload: DecisionPayload,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(require_admin),
+) -> dict[str, Any]:
+    return _decide(reservation_id, "approved", auth, payload.reason, background_tasks)
 
 
 @router.post("/{reservation_id}/reject")
-def reject(reservation_id: int, payload: DecisionPayload, auth: AuthContext = Depends(require_admin)) -> dict[str, Any]:
-    return _decide(reservation_id, "rejected", auth, payload.reason)
+def reject(
+    reservation_id: int,
+    payload: DecisionPayload,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(require_admin),
+) -> dict[str, Any]:
+    return _decide(reservation_id, "rejected", auth, payload.reason, background_tasks)
+
+
+def _bulk_decide(
+    new_status: str,
+    payload: BulkDecisionPayload,
+    auth: AuthContext,
+    background_tasks: BackgroundTasks,
+) -> BulkDecisionResponse:
+    """Process a batch of pending reservations in a single DB session.
+
+    Each ID is handled independently — a conflict on one doesn't abort the
+    rest. Every successful transition is logged to `audit_log`, creates an
+    in-app notification for the requester, and the outbound fan-out is
+    scheduled once at the end (not N times)."""
+    results: list[BulkDecisionItem] = []
+    notification_ids: list[int] = []
+    now = _utcnow_iso()
+    # De-duplicate while preserving order (admin might send `[1, 2, 1]`).
+    seen: set[int] = set()
+    unique_ids = [i for i in payload.ids if not (i in seen or seen.add(i))]
+
+    with get_conn() as conn, transaction(conn):
+        for reservation_id in unique_ids:
+            cur = conn.execute(
+                """
+                UPDATE reservations
+                SET status=?, decision_reason=?, decided_by_id=?, updated_at=?
+                WHERE id=? AND status='pending'
+                """,
+                (new_status, payload.reason, auth.user_id, now, reservation_id),
+            )
+            if cur.rowcount == 0:
+                existing = conn.execute(
+                    "SELECT status FROM reservations WHERE id=?", (reservation_id,)
+                ).fetchone()
+                if not existing:
+                    results.append(
+                        BulkDecisionItem(id=reservation_id, status="skipped", error="not_found")
+                    )
+                else:
+                    results.append(
+                        BulkDecisionItem(
+                            id=reservation_id,
+                            status="skipped",
+                            error=f"already_{existing['status']}",
+                        )
+                    )
+                continue
+
+            row = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
+            _log(conn, reservation_id, auth.user_id, new_status, payload.reason)
+            notification_ids.append(
+                create_notification(
+                    conn,
+                    user_id=int(row["created_by_id"]),
+                    kind="reservation_decision",
+                    title="Резервацията е обновена",
+                    body=f"Заявката ти е {('одобрена' if new_status == 'approved' else 'отказана')}.",
+                    reservation_id=reservation_id,
+                )
+            )
+            results.append(
+                BulkDecisionItem(
+                    id=reservation_id,
+                    status="approved" if new_status == "approved" else "rejected",
+                )
+            )
+
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
+
+    succeeded = sum(1 for r in results if r.status != "skipped")
+    return BulkDecisionResponse(
+        results=results,
+        succeeded=succeeded,
+        failed=len(results) - succeeded,
+    )
+
+
+@router.post("/bulk-approve", response_model=BulkDecisionResponse)
+def bulk_approve(
+    payload: BulkDecisionPayload,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(require_admin),
+) -> BulkDecisionResponse:
+    return _bulk_decide("approved", payload, auth, background_tasks)
+
+
+@router.post("/bulk-reject", response_model=BulkDecisionResponse)
+def bulk_reject(
+    payload: BulkDecisionPayload,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(require_admin),
+) -> BulkDecisionResponse:
+    return _bulk_decide("rejected", payload, auth, background_tasks)
 
 
 def _load_reservation_for_transition(conn: DbConn, reservation_id: int) -> Any:
@@ -272,6 +398,7 @@ def _load_reservation_for_transition(conn: DbConn, reservation_id: int) -> Any:
 def start_trip(
     reservation_id: int,
     payload: LifecycleNotePayload,
+    background_tasks: BackgroundTasks,
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
     now = _utcnow_iso()
@@ -311,7 +438,8 @@ def start_trip(
         updated = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
         response = _serialize_reservation(updated)
 
-    dispatch_outbound_notifications(notification_ids)
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response
 
 
@@ -319,6 +447,7 @@ def start_trip(
 def return_trip(
     reservation_id: int,
     payload: LifecycleNotePayload,
+    background_tasks: BackgroundTasks,
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
     now = _utcnow_iso()
@@ -358,12 +487,17 @@ def return_trip(
         updated = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
         response = _serialize_reservation(updated)
 
-    dispatch_outbound_notifications(notification_ids)
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response
 
 
 @router.post("/{reservation_id}/cancel")
-def cancel(reservation_id: int, auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+def cancel(
+    reservation_id: int,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(get_auth_context),
+) -> dict[str, Any]:
     now = _utcnow_iso()
     notification_ids: list[int] = []
     with get_conn() as conn, transaction(conn):
@@ -405,7 +539,8 @@ def cancel(reservation_id: int, auth: AuthContext = Depends(get_auth_context)) -
         updated = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
         response = _serialize_reservation(updated)
 
-    dispatch_outbound_notifications(notification_ids)
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response
 
 
@@ -440,3 +575,102 @@ def list_reservations(
     total = len(items)
     paged = items[offset : offset + limit]
     return {"items": paged, "total": total, "limit": limit, "offset": offset}
+
+
+_CSV_COLUMNS = [
+    "id",
+    "car_id",
+    "plate_number",
+    "employee_id",
+    "employee_name",
+    "start_time",
+    "end_time",
+    "status",
+    "purpose",
+    "checked_out_at",
+    "returned_at",
+    "decision_reason",
+    "decided_by_id",
+    "created_at",
+    "updated_at",
+]
+
+
+def _stream_reservations_csv(
+    rows: list[Any], plates: dict[int, str]
+) -> Iterator[bytes]:
+    # UTF-8 BOM so Excel opens Cyrillic correctly.
+    yield b"\xef\xbb\xbf"
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(_CSV_COLUMNS)
+    yield buffer.getvalue().encode("utf-8")
+    buffer.seek(0)
+    buffer.truncate()
+
+    for row in rows:
+        payload = _serialize_reservation(row)
+        writer.writerow(
+            [
+                payload.get("id", ""),
+                payload.get("car_id", ""),
+                plates.get(int(payload["car_id"]), "") if payload.get("car_id") else "",
+                payload.get("created_by_id", ""),
+                payload.get("employee_name", "") or "",
+                payload.get("start_time", "") or "",
+                payload.get("end_time", "") or "",
+                payload.get("status", "") or "",
+                payload.get("purpose", "") or "",
+                payload.get("checked_out_at", "") or "",
+                payload.get("returned_at", "") or "",
+                payload.get("decision_reason", "") or "",
+                payload.get("decided_by_id", "") or "",
+                payload.get("created_at", "") or "",
+                payload.get("updated_at", "") or "",
+            ]
+        )
+        yield buffer.getvalue().encode("utf-8")
+        buffer.seek(0)
+        buffer.truncate()
+
+
+@router.get("/export.csv")
+def export_reservations_csv(
+    car_id: Optional[int] = None,
+    status_filter: Optional[ReservationStatus] = Query(default=None, alias="status_filter"),
+    start: Optional[datetime] = None,
+    end: Optional[datetime] = None,
+    _: AuthContext = Depends(require_admin),
+) -> StreamingResponse:
+    """Admin-only CSV export of reservations with optional car / status / date filters."""
+    clauses: list[str] = []
+    params: list[Any] = []
+    if car_id is not None:
+        clauses.append("car_id = ?")
+        params.append(car_id)
+    if start is not None:
+        clauses.append("start_time >= ?")
+        params.append(_to_utc_iso(start))
+    if end is not None:
+        clauses.append("end_time <= ?")
+        params.append(_to_utc_iso(end))
+
+    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+    query = f"SELECT * FROM reservations{where} ORDER BY start_time"
+
+    with get_conn() as conn:
+        rows = conn.execute(query, tuple(params)).fetchall()
+        plate_rows = conn.execute("SELECT id, plate_number FROM cars").fetchall()
+
+    plates = {int(row["id"]): str(row["plate_number"]) for row in plate_rows}
+
+    if status_filter is not None:
+        rows = [row for row in rows if _presentation_status(row) == status_filter]
+
+    filename = f"reservations-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.csv"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return StreamingResponse(
+        _stream_reservations_csv(rows, plates),
+        media_type="text/csv; charset=utf-8",
+        headers=headers,
+    )

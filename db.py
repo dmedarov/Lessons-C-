@@ -113,6 +113,16 @@ SQLITE_SCHEMA = [
     "CREATE INDEX IF NOT EXISTS idx_blackouts_car_time ON car_blackouts(car_id, start_time, end_time)",
 ]
 
+POOL_CARS = (
+    ("CA1330PT", "HYUNDAI i30 Wagon"),
+    ("CA6945TB", "HYUNDAI i30 Wagon"),
+    ("CA6946TB", "HYUNDAI i30 Wagon"),
+    ("CA6947TB", "HYUNDAI i20"),
+    ("CB2426BH", "HYUNDAI i20"),
+)
+
+LEGACY_DEMO_CARS = ("CB1234AB", "CB5678CD")
+
 POSTGRES_SCHEMA = [
     """
     CREATE TABLE IF NOT EXISTS users (
@@ -424,8 +434,10 @@ def _seed_dev_demo_data(conn: SQLiteConnectionAdapter | PostgresConnectionAdapte
     _upsert_demo_user(conn, "admin", "Fleet Admin", "AdminPass123", "fleet_admin")
     _upsert_demo_user(conn, "ivan", "Ivan Petrov", "IvanPass123", "employee")
     _upsert_demo_user(conn, "maria", "Maria Petrova", "MariaPass123", "employee")
-    _upsert_demo_car(conn, "CB1234AB", "Skoda Octavia")
-    _upsert_demo_car(conn, "CB5678CD", "Tesla Model 3")
+    for plate_number, model in POOL_CARS:
+        _upsert_demo_car(conn, plate_number, model)
+    for plate_number in LEGACY_DEMO_CARS:
+        conn.execute("UPDATE cars SET active=0 WHERE plate_number=?", (plate_number,))
 
 
 def init_db() -> None:

@@ -49,11 +49,19 @@ docker compose up --build -d
 - `http://localhost:8000/docs` — Swagger UI
 - `http://localhost:8000/health`
 
-В стандартния Docker dev режим (`APP_ENV=dev`) се seed-ват локални тестови акаунти и два автомобила. Ако тези потребители вече съществуват, паролите им се ресетват при старт на контейнера:
+В стандартния Docker dev режим (`APP_ENV=dev`) се seed-ват локални тестови акаунти и реалният pool списък от 5 автомобила. Ако тези потребители вече съществуват, паролите им се ресетват при старт на контейнера:
 
 - `admin` / `AdminPass123` — `fleet_admin`
 - `ivan` / `IvanPass123` — `employee`
 - `maria` / `MariaPass123` — `employee`
+
+Pool автомобили:
+
+- `CA1330PT` — HYUNDAI i30 Wagon
+- `CA6945TB` — HYUNDAI i30 Wagon
+- `CA6946TB` — HYUNDAI i30 Wagon
+- `CA6947TB` — HYUNDAI i20
+- `CB2426BH` — HYUNDAI i20
 
 За production остави `APP_ENV=prod` и `DEV_SEED_DEMO_DATA=false`. Тогава няма demo акаунти и UI-то ще поиска да създадеш първия `fleet_admin`.
 

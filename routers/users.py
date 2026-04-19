@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
 
 from db import get_conn, transaction
 from notifications_service import create_notification, dispatch_outbound_notifications
@@ -272,6 +272,7 @@ def activate_user(user_id: int, auth: AuthContext = Depends(require_admin)) -> U
 def handoff_admin(
     user_id: int,
     payload: AdminHandoffPayload,
+    background_tasks: BackgroundTasks,
     auth: AuthContext = Depends(require_admin),
 ) -> AdminHandoffResponse:
     if user_id == auth.user_id:
@@ -328,5 +329,6 @@ def handoff_admin(
             demote_self=payload.demote_self,
         )
 
-    dispatch_outbound_notifications(notification_ids)
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response

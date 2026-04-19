@@ -1,0 +1,22 @@
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+exclude = [
+    "alembic/versions",
+    ".venv",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+ignore = [
+    "E501",  # line length — handled by the formatter, not worth blocking on.
+    "B008",  # FastAPI relies on `Depends(...)` as default argument values.
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["routers", "security", "db", "config", "schemas", "notifications_service", "rate_limit"]
+
+[tool.ruff.format]
+quote-style = "double"

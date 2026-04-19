@@ -120,6 +120,23 @@ class DecisionPayload(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=500)
 
 
+class BulkDecisionPayload(BaseModel):
+    ids: list[int] = Field(min_length=1, max_length=200)
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class BulkDecisionItem(BaseModel):
+    id: int
+    status: Literal["approved", "rejected", "skipped"]
+    error: Optional[str] = None
+
+
+class BulkDecisionResponse(BaseModel):
+    results: list[BulkDecisionItem]
+    succeeded: int
+    failed: int
+
+
 class LifecycleNotePayload(BaseModel):
     note: Optional[str] = Field(default=None, max_length=500)
 

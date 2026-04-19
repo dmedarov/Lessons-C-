@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import importlib
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -172,16 +172,19 @@ def test_dev_seed_demo_data_resets_local_test_accounts(tmp_path: Path, monkeypat
 
     with db_module.get_conn() as conn:
         users = conn.execute("SELECT username, role, active, password_hash FROM users ORDER BY username").fetchall()
-        cars = conn.execute("SELECT plate_number, active FROM cars ORDER BY plate_number").fetchall()
+        cars = conn.execute("SELECT plate_number, model, active FROM cars ORDER BY plate_number").fetchall()
 
     assert {row["username"]: (row["role"], row["active"]) for row in users} == {
         "admin": ("fleet_admin", 1),
         "ivan": ("employee", 1),
         "maria": ("employee", 1),
     }
-    assert {row["plate_number"]: row["active"] for row in cars} == {
-        "CB1234AB": 1,
-        "CB5678CD": 1,
+    assert {row["plate_number"]: (row["model"], row["active"]) for row in cars} == {
+        "CA1330PT": ("HYUNDAI i30 Wagon", 1),
+        "CA6945TB": ("HYUNDAI i30 Wagon", 1),
+        "CA6946TB": ("HYUNDAI i30 Wagon", 1),
+        "CA6947TB": ("HYUNDAI i20", 1),
+        "CB2426BH": ("HYUNDAI i20", 1),
     }
 
     import security

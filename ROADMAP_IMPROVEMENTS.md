@@ -1172,5 +1172,137 @@ If time is limited, execute the first three items before any new feature work.
   checks, `git diff --check` and Docker `/health` smoke confirming the request
   ID and `nosniff` header.
 
+### 2026-04-19 - Async notification dispatch + pre-commit hooks + rate-limit tests
+
+- **Phase 3.2 — async notification dispatch:** Every call to
+  `dispatch_outbound_notifications` in `routers/reservations.py` and
+  `routers/users.py` moved off the request thread via FastAPI
+  `BackgroundTasks`. The in-app notification write stays inside the
+  transaction (inbox consistency); only the SMTP / Slack / Teams fan-out
+  runs after the response is sent. Handlers now declare
+  `background_tasks: BackgroundTasks` as a non-defaulted parameter. SMTP
+  timeouts no longer block API latency.
+- **Phase 5.6 — pre-commit hooks:** `.pre-commit-config.yaml` (new),
+  `pyproject.toml` (new), `requirements-dev.txt`. Hooks: `ruff --fix`,
+  `ruff-format`, `prettier` (JS/CSS/HTML/MD/YAML), trailing whitespace,
+  end-of-file fixer, 500 KB large-file guard, merge-conflict check, LF
+  line endings. `pyproject.toml` pins the ruff config (line length 110,
+  standard rule set, `B008` ignore for `Depends(...)`). Developer install:
+  `pip install -r requirements-dev.txt && pre-commit install`.
+- **Rate-limit test coverage:** New `tests/test_rate_limit.py` with three
+  cases (login 429, bootstrap 429, `limiter.reset()` recovery) using the
+  existing `InMemoryRateLimiter` + `RateLimitRule` API with tightened
+  env-var windows per test.
+- **Verification:** `pytest -q` → 27 passed (24 from origin/master + 3
+  new rate-limit cases). No new runtime dependencies; new dev-only
+  deps: `pre-commit`, `ruff`.
+
+### 2026-04-19 - Token hardening + admin invariant coverage + CSV export
+
+- **Phase 3.5 — harden signed-token format:** `security.py` gains a minimum
+  32-byte `SECRET_KEY` guard that fires at import time in non-dev
+  environments, so a misconfigured prod deploy fails fast instead of silently
+  signing weak tokens. Every issued token now carries `iat` (issued-at) and a
+  random 12-byte `jti` reserved for a future revocation list once Phase 3.1
+  (refresh tokens) lands. `verify_token` rejects tokens whose `iat` is more
+  than 60 s in the future (small clock-skew tolerance) as defence against
+  backdated forgeries. Signature comparison continues to use
+  `hmac.compare_digest` — covered explicitly by a regression test.
+- **Phase 3.4 — at-least-one-active-admin invariant:** The guard is already
+  in place in `routers/users.py` (both `deactivate_user` and
+  `change_user_role` call `_active_admin_count`), but lacked dedicated tests.
+  Added `tests/test_admin_invariant.py` with five cases pinning the
+  behaviour — last admin can't be deactivated, can't be demoted, demotion
+  succeeds when a second admin exists, a second admin can deactivate the
+  first, and an *inactive* admin doesn't count toward the invariant.
+- **Phase 5.2 — CSV export of reservations:** New admin-only endpoint
+  `GET /reservations/export.csv` in `routers/reservations.py`. Streams via
+  `fastapi.responses.StreamingResponse` with a UTF-8 BOM prefix so Excel
+  opens Cyrillic correctly, supports `car_id` / `status_filter` / `start` /
+  `end` query filters, joins car plates into the output. Tests cover the
+  auth boundary (401 unauth, 403 employee), BOM + header shape + Bulgarian
+  round-trip, and both filters.
+- **Verification:** `pytest -q` → 44 passed (27 prior + 7 token + 5 admin
+  invariant + 5 CSV export). No new runtime dependencies.
+
+### 2026-04-19 - UI/UX overhaul — design system, dark mode, a11y, motion
+
+- **Design tokens refresh:** `static/styles.css` rewritten around a single
+  source of truth: 4px spacing scale (`--sp-1`..`--sp-9`), a 50→900 brand ramp,
+  semantic colour roles with soft/border variants for every status, five
+  elevation levels (`--shadow-xs`..`--shadow-xl`), and motion tokens
+  (`--ease-out`, `--ease-spring`, duration-fast/base/slow) so every transition
+  feels consistent. All component CSS consumes tokens, not hard-coded hex.
+- **Dark mode done right:** Full token redefinition under both
+  `@media (prefers-color-scheme: dark) :root:not([data-theme="light"])` (honours
+  OS preference) and `:root[data-theme="dark"]` (manual override). No-FOUC
+  bootstrap inline `<script>` in `<head>` reads `localStorage` before the
+  stylesheet is parsed, so the correct theme paints on first frame.
+  `static/theme.js` (new, self-contained IIFE) handles the toggle button,
+  a `⌘/Ctrl+Shift+L` keyboard shortcut, cross-tab `storage` event sync, and
+  updates `aria-pressed` on state change. `<meta name="theme-color">` pairs
+  per colour-scheme repaint the browser chrome.
+- **Accessibility:** Added a "skip to content" link on both surfaces
+  (`index.html` → `#calendarStudio`, `admin.html` → `#reservationsDeck`),
+  positioned -48px off-screen and snapping in on focus. Every interactive
+  element routes through a unified `:focus-visible` ring (4px brand-soft halo)
+  so keyboard users always see where they are. `prefers-reduced-motion` zeroes
+  out the animation layer entirely.
+- **Mobile responsive:** At ≤760px, reservation/user tables collapse into
+  stacked cards via `data-label` pseudo-elements on each `<td>`, so the same
+  markup works in both layouts without JS branching. Stat grids, hero, and
+  calendar re-flow with CSS grid `auto-fit`.
+- **Micro-interactions:** Stat cards lift on hover with a gradient top-border
+  reveal; nav links get an underline-reveal; form fields shake on validation
+  error; newly inserted list items slide in; loading states use a shimmer
+  animation; dialogs scale-and-fade. The theme toggle button rotates -12° and
+  swaps sun/moon SVGs on press.
+- **Templates:** `templates/index.html` and `templates/admin.html` gained the
+  theme-color metas, description meta, no-FOUC bootstrap, deferred
+  `theme.js`, skip link, and theme-toggle button in `.topbar__actions`. All
+  existing IDs that `app.js` queries (`notificationBadge`, `calendarStudio`,
+  `reservationsDeck`, `userCreatePanel`, `usersDeck`, etc.) are preserved —
+  the rewrite is additive at the template layer.
+- **Print:** New print stylesheet hides chrome (topbar, buttons, dialogs) and
+  keeps data-dense cards readable on paper.
+- **Verification:** `pytest -q` → 44 passed (HTML-string assertions in
+  `test_health_and_ui` still match; no route or template-ID regressions).
+  Smoke-tested by diff review; no `app.js` class selector was dropped.
+
+### 2026-04-19 - Production bootstrap-admin gate + bulk approve/reject
+
+- **Phase 3.3 — harden admin bootstrap:** New `bootstrap_tokens.py` module
+  generates a random, URL-safe, 32-byte one-shot token at service startup
+  **only when** `APP_ENV != "dev"` and no admin yet exists. The plaintext is
+  logged to stdout exactly once (warning level, bannered) so ops can grab it
+  from the deploy logs; only the sha256 digest lives in process memory with
+  a 30-minute TTL. `POST /auth/bootstrap-admin` now requires an
+  `X-Bootstrap-Token` header in non-dev environments — invalid, expired, or
+  already-used tokens get a 403 with a Bulgarian-friendly detail. Dev stays
+  permissive so the local smoke flow (`pytest`, Docker compose) is unchanged.
+  After a successful bootstrap the token record is explicitly cleared, so a
+  race between two in-flight requests can't both win.
+  - New tests (`tests/test_bootstrap_token.py`, 5 cases): prod-no-header → 403,
+    prod-wrong-token → 403, prod-correct-token → 201 + second call fails,
+    expired token → 403, dev stays permissive without the header.
+- **Phase 2.4 — bulk approve/reject pending reservations:** New admin-only
+  endpoints `POST /reservations/bulk-approve` and `POST /reservations/bulk-reject`
+  accept `{ ids: [int], reason?: str }` and process every id inside a single
+  transaction. Partial failures (not-found, already-decided) don't abort the
+  batch — each result surfaces as `{ id, status: "approved"|"rejected"|"skipped", error? }`
+  so the admin UI can show "3 approved, 2 skipped" without an extra round-trip.
+  Outbound notification fan-out runs once after the response is sent, via
+  BackgroundTasks, regardless of batch size. Duplicate ids in the request are
+  collapsed; empty `ids` is a 422.
+  - New schemas (`schemas.py`): `BulkDecisionPayload`, `BulkDecisionItem`,
+    `BulkDecisionResponse`.
+  - New tests (`tests/test_bulk_decisions.py`, 6 cases): 403 for non-admin,
+    all-succeed, mixed with already-decided (skipped + error code), missing
+    ids (not_found), dedup, empty-ids validator.
+- **Verification:** `pytest -q` → 55 passed (44 prior + 5 bootstrap-token +
+  6 bulk-decide). No new runtime dependencies. Routes verified via live
+  inspection (`/reservations/bulk-approve` registered, no collision with the
+  single-id `/{id}/approve` route).
+
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._
