@@ -99,8 +99,10 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Outbound notification hooks for email, Slack and Teams.
 - Admin password reset, role change and per-user audit history.
 - Dev-only deterministic seed accounts/cars and auth rate limiting.
-- Current automated coverage: 24 `pytest` cases plus JS syntax checks used in
-  shipped verification.
+- CI quality gates for Python compile, `pytest`, JS syntax, `pip-audit` and
+  production Docker image build across Python 3.12/3.14.
+- Current automated coverage: 24 `pytest` cases plus JS syntax checks and
+  dependency audit used in shipped verification.
 
 ### Active product gaps
 
@@ -112,8 +114,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Bulk approve/reject, date filters and search remain admin productivity gaps.
 - The monolithic `static/app.js` should be split before the frontend grows much
   further.
-- The GitHub Dependabot banner still reports `1 moderate` alert on the default
-  branch; inspect and close it through GitHub Security when credentials allow.
+- The last visible GitHub security banner pointed at the Docker base image;
+  FleetFlow now builds from `python:3.14.4-alpine`, but GitHub Security must be
+  rechecked after push to confirm the alert is closed.
 
 ### Quality bar
 
@@ -870,6 +873,8 @@ these before exposing FleetFlow beyond a trusted internal network.
 - **Goal:** The default branch has no open GitHub security alerts.
 - **Files:** `requirements.txt`, lock/constraints file if introduced,
   `Dockerfile`, `README.md`
+- **Status:** Local dependency audit and Docker base-image remediation shipped
+  in `0503e95`; GitHub alert closure still needs confirmation after push.
 - **Approach:**
   1. Open the GitHub alert referenced on push:
      `https://github.com/dmedarov/Lessons-C-/security/dependabot/1`.
@@ -889,22 +894,27 @@ these before exposing FleetFlow beyond a trusted internal network.
 ### 7.2 CI quality gates
 
 - **Goal:** Every push/PR runs the checks currently performed manually.
-- **Files:** `.github/workflows/ci.yml`, `requirements-dev.txt`, `README.md`
+- **Files:** `.github/workflows/tests.yml`, `requirements-dev.txt`,
+  `Dockerfile`, `README.md`
+- **Status:** Shipped in `0503e95`; monitor the first GitHub Actions run after
+  push.
 - **Approach:**
-  1. Add a GitHub Actions workflow for Python 3.12.
+  1. Add a GitHub Actions workflow for Python 3.12 and 3.14.
   2. Install runtime and dev dependencies.
   3. Run `python -m py_compile` on app/router modules.
   4. Run `pytest -q`.
   5. Run `node --check static/app.js static/i18n.js`.
-  6. Run `pip-audit -r requirements.txt` once the Dependabot alert is closed.
-  7. Upload test output as artifacts only on failure.
+  6. Run `pip-audit -r requirements.txt`.
+  7. Build the production Docker image on the Python 3.14 lane.
+  8. Upload test output as artifacts only on failure.
 - **Acceptance criteria:**
   - A broken backend test blocks merge.
   - A JS syntax error blocks merge.
-  - A vulnerable dependency blocks merge after 7.1.
+  - A vulnerable dependency blocks merge.
+  - A broken production Docker build blocks merge.
 - **Verification:** Open a PR or push a branch and confirm checks pass/fail as
   expected.
-- **Depends on:** 7.1 for the audit gate.
+- **Depends on:** —
 - **Effort:** S
 
 ### 7.3 PostgreSQL migration smoke and backup posture
@@ -1016,10 +1026,10 @@ these before exposing FleetFlow beyond a trusted internal network.
 
 ## Suggested sequencing (from current state)
 
-1. **7.1 Resolve Dependabot alert** - the repo still reports one moderate
-   vulnerability on push, so close this before adding more surface area.
-2. **7.2 CI quality gates** - encode the checks already used manually:
-   `pytest`, Python compile, JS syntax and dependency audit.
+1. **Confirm 7.1 on GitHub Security** - local audit and Docker remediation are
+   shipped; confirm the default branch alert closes after push.
+2. **Monitor 7.2 CI quality gates** - first Actions run should validate
+   Python 3.12/3.14, dependency audit, JS syntax and Docker build.
 3. **3.1 Refresh token flow + logout** - current access-token-only auth works,
    but production sessions need rotation and explicit logout invalidation.
 4. **3.3 Harden admin bootstrap** - before external exposure, first-admin setup
@@ -1112,6 +1122,18 @@ If time is limited, execute the first three items before any new feature work.
   until auth/role gating runs.
 - **Verification:** `pytest` (`24 passed` at shipment), `node --check`,
   `git diff --check`, Docker healthcheck and HTML smoke for `/` + `/admin`.
+
+### 2026-04-19 - CI quality gates and Alpine Docker base (`0503e95`)
+
+- **Shipped:** Replaced the placeholder GitHub Actions workflow with
+  production quality gates for Python compile, `pytest`, JS syntax,
+  `pip-audit` and Docker image build on the Python 3.14 lane.
+- **Shipped:** Corrected the unavailable `uvicorn[standard]==0.44.0` pin to
+  `0.39.0` and moved the Docker default runtime from Debian slim to
+  `python:3.14.4-alpine` with Alpine-native non-root user creation.
+- **Verification:** `pip-audit -r requirements.txt` clean, `pytest`
+  (`24 passed`), `node --check`, `git diff --check`, Docker no-cache build and
+  container `/health` smoke with healthy status.
 
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._
