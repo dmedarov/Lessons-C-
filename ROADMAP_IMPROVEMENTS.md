@@ -1594,6 +1594,40 @@ Five independent improvements shipped as one coherent commit:
 
 **Verification:** `pytest -q` → 68 passed (58 prior + 10 new). Python syntax clean.
 
+### 2026-04-19 — Docker Hub publish pipeline (commit pending)
+
+- **GitHub Actions `docker-publish` job** added to `.github/workflows/tests.yml`.
+  Runs only on `push` to `master`, `needs: checks` (all matrix Python versions must
+  pass first). Steps: `docker/setup-buildx-action`, `docker/login-action` (secrets
+  `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN`), `docker/build-push-action` with GHA
+  layer cache. Tags published: `dmedarov/fleetflow:latest` +
+  `dmedarov/fleetflow:<github.sha>`.
+
+- **`docker-compose.postgres.yml`**: added `image: dmedarov/fleetflow:latest` to the
+  `car-pool` service alongside the existing `build: .`. `make prod` still builds from
+  source; `make release` can now `docker compose pull` to fetch the published image.
+
+- **`Makefile` — `make push`** (dev machine): builds `dmedarov/fleetflow:latest` +
+  `dmedarov/fleetflow:<git-sha>` locally and pushes both tags to Docker Hub.
+  Does not require a running stack.
+
+- **`Makefile` — `make release`** (production server — 3 steps):
+  1. `pg_dump` via `docker compose exec -T postgres pg_dump …` into
+     `backups/backup_YYYYMMDD_HHMMSS.sql` (skips gracefully if postgres is down).
+  2. `docker compose pull car-pool` — fetches the latest published image.
+  3. `docker compose up -d --no-build` — restarts the stack without rebuilding.
+
+- **`.gitignore`**: added `/backups/` so pg_dump files are never committed.
+
+**GitHub Secrets required** (add via repo Settings → Secrets → Actions):
+- `DOCKERHUB_USERNAME` = `dmedarov`
+- `DOCKERHUB_TOKEN` = Docker Hub PAT (rotate the one shared in chat)
+
+**Files changed (4):** `.github/workflows/tests.yml`, `docker-compose.postgres.yml`,
+`Makefile`, `.gitignore`.
+
+**Verification:** `pytest -q` → 68 passed (no regressions). Workflow lint clean.
+
 ---
 
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`

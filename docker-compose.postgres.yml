@@ -17,6 +17,7 @@ services:
 
   car-pool:
     build: .
+    image: dmedarov/fleetflow:latest
     init: true
     depends_on:
       postgres:
