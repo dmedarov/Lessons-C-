@@ -767,6 +767,19 @@ def test_health_and_ui(client: TestClient) -> None:
     assert 'class="glass-card hidden" id="usersDeck"' in admin_res.text
 
 
+def test_request_id_and_security_headers(client: TestClient) -> None:
+    request_id = "fleetflow-test-request"
+    res = client.get("/health", headers={"X-Request-ID": request_id})
+    generated = client.get("/health")
+
+    assert res.headers["x-request-id"] == request_id
+    assert len(generated.headers["x-request-id"]) == 32
+    assert res.headers["x-content-type-options"] == "nosniff"
+    assert res.headers["x-frame-options"] == "DENY"
+    assert res.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+    assert res.headers["permissions-policy"] == "camera=(), microphone=(), geolocation=()"
+
+
 def test_dev_cors_preflight_allows_local_clients(client: TestClient) -> None:
     res = client.options(
         "/health",
