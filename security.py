@@ -57,13 +57,34 @@ def verify_password(password: str, stored: str) -> bool:
     return hmac.compare_digest(candidate, expected)
 
 
+_MIN_SECRET_KEY_LEN = 32
+
+
+def _assert_secret_key_strong() -> None:
+    """Refuse to sign tokens with a weak secret outside dev."""
+    if settings.app_env == "dev":
+        return
+    if len(settings.secret_key) < _MIN_SECRET_KEY_LEN:
+        raise RuntimeError(
+            f"SECRET_KEY must be at least {_MIN_SECRET_KEY_LEN} bytes long in non-dev environments"
+        )
+
+
+# Fail fast at import time in production if the secret is misconfigured.
+_assert_secret_key_strong()
+
+
 def issue_token(user_id: int, username: str, display_name: str, role: Role) -> str:
+    issued_at = int(time.time())
     payload = {
         "sub": user_id,
         "u": username,
         "n": display_name,
         "r": role,
-        "exp": int(time.time()) + settings.token_ttl_seconds,
+        "iat": issued_at,
+        "exp": issued_at + settings.token_ttl_seconds,
+        # Random per-token id — reserved for a future revoke list (Phase 3.1).
+        "jti": _b64e(secrets.token_bytes(12)),
     }
     body = _b64e(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
     sig = hmac.new(settings.secret_key.encode("utf-8"), body.encode("ascii"), hashlib.sha256).digest()
@@ -78,6 +99,7 @@ def verify_token(token: str) -> AuthContext:
     except ValueError:
         raise HTTPException(status_code=401, detail="Malformed token")
 
+    # Timing-safe comparison: same work regardless of where the mismatch is.
     if not hmac.compare_digest(expected, given):
         raise HTTPException(status_code=401, detail="Invalid token signature")
 
@@ -86,7 +108,14 @@ def verify_token(token: str) -> AuthContext:
     except (ValueError, UnicodeDecodeError):
         raise HTTPException(status_code=401, detail="Malformed token payload")
 
-    if payload.get("exp", 0) < int(time.time()):
+    now = int(time.time())
+    # Reject tokens that claim to be issued in the future — small clock-skew
+    # tolerance keeps legitimate drift from failing.
+    iat = payload.get("iat")
+    if isinstance(iat, (int, float)) and iat > now + 60:
+        raise HTTPException(status_code=401, detail="Token issued in the future")
+
+    if payload.get("exp", 0) < now:
         raise HTTPException(status_code=401, detail="Token expired")
 
     role = payload.get("r")

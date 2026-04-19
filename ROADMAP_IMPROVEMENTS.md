@@ -931,5 +931,33 @@ auditable and safe enough for real company operations.
   new rate-limit cases). No new runtime dependencies; new dev-only
   deps: `pre-commit`, `ruff`.
 
+### 2026-04-19 - Token hardening + admin invariant coverage + CSV export
+
+- **Phase 3.5 — harden signed-token format:** `security.py` gains a minimum
+  32-byte `SECRET_KEY` guard that fires at import time in non-dev
+  environments, so a misconfigured prod deploy fails fast instead of silently
+  signing weak tokens. Every issued token now carries `iat` (issued-at) and a
+  random 12-byte `jti` reserved for a future revocation list once Phase 3.1
+  (refresh tokens) lands. `verify_token` rejects tokens whose `iat` is more
+  than 60 s in the future (small clock-skew tolerance) as defence against
+  backdated forgeries. Signature comparison continues to use
+  `hmac.compare_digest` — covered explicitly by a regression test.
+- **Phase 3.4 — at-least-one-active-admin invariant:** The guard is already
+  in place in `routers/users.py` (both `deactivate_user` and
+  `change_user_role` call `_active_admin_count`), but lacked dedicated tests.
+  Added `tests/test_admin_invariant.py` with five cases pinning the
+  behaviour — last admin can't be deactivated, can't be demoted, demotion
+  succeeds when a second admin exists, a second admin can deactivate the
+  first, and an *inactive* admin doesn't count toward the invariant.
+- **Phase 5.2 — CSV export of reservations:** New admin-only endpoint
+  `GET /reservations/export.csv` in `routers/reservations.py`. Streams via
+  `fastapi.responses.StreamingResponse` with a UTF-8 BOM prefix so Excel
+  opens Cyrillic correctly, supports `car_id` / `status_filter` / `start` /
+  `end` query filters, joins car plates into the output. Tests cover the
+  auth boundary (401 unauth, 403 employee), BOM + header shape + Bulgarian
+  round-trip, and both filters.
+- **Verification:** `pytest -q` → 44 passed (27 prior + 7 token + 5 admin
+  invariant + 5 CSV export). No new runtime dependencies.
+
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._

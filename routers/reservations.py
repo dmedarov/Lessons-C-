@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import csv
+import io
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 
 from db import PostgresConnectionAdapter, SQLiteConnectionAdapter, get_conn, transaction
 from notifications_service import create_notification, create_notifications, dispatch_outbound_notifications
@@ -468,3 +472,102 @@ def list_reservations(
     total = len(items)
     paged = items[offset : offset + limit]
     return {"items": paged, "total": total, "limit": limit, "offset": offset}
+
+
+_CSV_COLUMNS = [
+    "id",
+    "car_id",
+    "plate_number",
+    "employee_id",
+    "employee_name",
+    "start_time",
+    "end_time",
+    "status",
+    "purpose",
+    "checked_out_at",
+    "returned_at",
+    "decision_reason",
+    "decided_by_id",
+    "created_at",
+    "updated_at",
+]
+
+
+def _stream_reservations_csv(
+    rows: list[Any], plates: dict[int, str]
+) -> Iterator[bytes]:
+    # UTF-8 BOM so Excel opens Cyrillic correctly.
+    yield b"\xef\xbb\xbf"
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(_CSV_COLUMNS)
+    yield buffer.getvalue().encode("utf-8")
+    buffer.seek(0)
+    buffer.truncate()
+
+    for row in rows:
+        payload = _serialize_reservation(row)
+        writer.writerow(
+            [
+                payload.get("id", ""),
+                payload.get("car_id", ""),
+                plates.get(int(payload["car_id"]), "") if payload.get("car_id") else "",
+                payload.get("created_by_id", ""),
+                payload.get("employee_name", "") or "",
+                payload.get("start_time", "") or "",
+                payload.get("end_time", "") or "",
+                payload.get("status", "") or "",
+                payload.get("purpose", "") or "",
+                payload.get("checked_out_at", "") or "",
+                payload.get("returned_at", "") or "",
+                payload.get("decision_reason", "") or "",
+                payload.get("decided_by_id", "") or "",
+                payload.get("created_at", "") or "",
+                payload.get("updated_at", "") or "",
+            ]
+        )
+        yield buffer.getvalue().encode("utf-8")
+        buffer.seek(0)
+        buffer.truncate()
+
+
+@router.get("/export.csv")
+def export_reservations_csv(
+    car_id: Optional[int] = None,
+    status_filter: Optional[ReservationStatus] = Query(default=None, alias="status_filter"),
+    start: Optional[datetime] = None,
+    end: Optional[datetime] = None,
+    _: AuthContext = Depends(require_admin),
+) -> StreamingResponse:
+    """Admin-only CSV export of reservations with optional car / status / date filters."""
+    clauses: list[str] = []
+    params: list[Any] = []
+    if car_id is not None:
+        clauses.append("car_id = ?")
+        params.append(car_id)
+    if start is not None:
+        clauses.append("start_time >= ?")
+        params.append(_to_utc_iso(start))
+    if end is not None:
+        clauses.append("end_time <= ?")
+        params.append(_to_utc_iso(end))
+
+    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+    query = f"SELECT * FROM reservations{where} ORDER BY start_time"
+
+    with get_conn() as conn:
+        rows = conn.execute(query, tuple(params)).fetchall()
+        plate_rows = conn.execute("SELECT id, plate_number FROM cars").fetchall()
+
+    plates = {int(row["id"]): str(row["plate_number"]) for row in plate_rows}
+
+    if status_filter is not None:
+        rows = [row for row in rows if _presentation_status(row) == status_filter]
+
+    filename = f"reservations-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.csv"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return StreamingResponse(
+        _stream_reservations_csv(rows, plates),
+        media_type="text/csv; charset=utf-8",
+        headers=headers,
+    )
