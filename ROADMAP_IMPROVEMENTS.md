@@ -476,7 +476,7 @@ Bundle these small items into a single PR to share review overhead:
 - **Depends on:** 1.1, 1.2
 - **Effort:** S
 
-### 2.10 Blackout прозорец — редактиране
+### 2.10 Blackout прозорец — редактиране ✅ shipped `16443ad`
 
 - **Goal:** Fleet admin може да смени датите или вида на blackout прозорец, без да
   го изтрива и пресъздава.
@@ -501,7 +501,7 @@ Bundle these small items into a single PR to share review overhead:
 - **Depends on:** —
 - **Effort:** S
 
-### 2.11 Бележки за автомобил (car notes)
+### 2.11 Бележки за автомобил (car notes) ✅ shipped `16443ad`
 
 - **Goal:** Fleet admin може да записва оперативни бележки на автомобил ("смяна
   на гума", "предстои технически преглед") — бележката е видима за служителите при
@@ -523,7 +523,7 @@ Bundle these small items into a single PR to share review overhead:
 - **Depends on:** —
 - **Effort:** S
 
-### 2.12 Бутон „Тест известие"
+### 2.12 Бутон „Тест известие" ✅ shipped `16443ad`
 
 - **Goal:** Admin може да провери дали каналите за известия (in-app / SMTP / Slack)
   работят, без да прави реална резервация.
@@ -1557,6 +1557,42 @@ Five independent improvements shipped as one coherent commit:
 `templates/index.html`.
 
 **Verification:** `pytest -q` → 58 passed (no regressions). `node --check` clean.
+
+### 2026-04-19 — Items 2.10–2.12: blackout edit, car notes, test notification (commit `16443ad`)
+
+- **2.10 Blackout edit:** `PUT /cars/{car_id}/blackouts/{blackout_id}` (admin-only).
+  Validates `end > start`, excludes self from overlap check (returns 409 on conflict,
+  404 if inactive/missing). `BlackoutUpdatePayload` schema mirrors `CarBlackoutCreate`.
+  Admin UI: each blackout card gains an „Редактирай" button that opens
+  `editBlackoutDialog()` — a `userDialog` variant pre-filled with current values
+  (kind select, start/end datetime-local, reason textarea). On confirm issues a `PUT`
+  and refreshes. 4 tests: happy path, overlap 409, employee 403, invalid window 400.
+
+- **2.11 Car notes:** Alembic migration `20260419_0004_car_notes` adds `notes TEXT`
+  to `cars`. `_ensure_column` in `db.py` for runtime upgrade on existing DBs.
+  `CarNotesPayload` schema + `PUT /cars/{car_id}/notes` endpoint (admin-only).
+  Admin car card: inline `<textarea class="notes-textarea">` + „Запази бележки"
+  button — `saveCarNotes()` issues the PUT and updates `state.cars` in place without
+  a full reload. Employee car card: renders `.car-note-hint` (amber italic) when
+  `car.notes` is non-empty; renders nothing when null. CSS: `.car-card__notes`,
+  `.notes-textarea`, `.action-btn--notes`, `.car-note-hint`.
+  3 tests: save+retrieve (verified via list_cars), clear to null, employee 403.
+
+- **2.12 Test notification:** `notifications_service.test_dispatch(notification_id)`
+  runs per-channel dispatch synchronously and returns
+  `[{name, status, error?}]` — `"sent"`, `"failed"`, or `"not_configured"`.
+  Failures are logged to `notification_deliveries`. `POST /notifications/test`
+  (admin-only) creates an in-app notification then calls `test_dispatch`; returns
+  `{notification_id, channels}`. Admin Notifications header: „Тест" chip button
+  → `sendTestNotification()` shows a toast with per-channel status lines.
+  3 tests: in-app created + visible in inbox, employee 403, unauthenticated 401.
+
+**Files changed (11):** `alembic/versions/20260419_0004_car_notes.py` (new),
+`db.py`, `notifications_service.py`, `routers/cars.py`, `routers/notifications.py`,
+`schemas.py`, `static/app.js`, `static/i18n.js`, `static/styles.css`,
+`templates/admin.html`, `tests/test_app.py`.
+
+**Verification:** `pytest -q` → 68 passed (58 prior + 10 new). Python syntax clean.
 
 ---
 
