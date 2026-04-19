@@ -906,5 +906,30 @@ auditable and safe enough for real company operations.
 - **Verification:** `pytest` (`24 passed` at shipment), `node --check`,
   `git diff --check`, Docker healthcheck and HTML smoke for `/` + `/admin`.
 
+### 2026-04-19 - Async notification dispatch + pre-commit hooks + rate-limit tests
+
+- **Phase 3.2 — async notification dispatch:** Every call to
+  `dispatch_outbound_notifications` in `routers/reservations.py` and
+  `routers/users.py` moved off the request thread via FastAPI
+  `BackgroundTasks`. The in-app notification write stays inside the
+  transaction (inbox consistency); only the SMTP / Slack / Teams fan-out
+  runs after the response is sent. Handlers now declare
+  `background_tasks: BackgroundTasks` as a non-defaulted parameter. SMTP
+  timeouts no longer block API latency.
+- **Phase 5.6 — pre-commit hooks:** `.pre-commit-config.yaml` (new),
+  `pyproject.toml` (new), `requirements-dev.txt`. Hooks: `ruff --fix`,
+  `ruff-format`, `prettier` (JS/CSS/HTML/MD/YAML), trailing whitespace,
+  end-of-file fixer, 500 KB large-file guard, merge-conflict check, LF
+  line endings. `pyproject.toml` pins the ruff config (line length 110,
+  standard rule set, `B008` ignore for `Depends(...)`). Developer install:
+  `pip install -r requirements-dev.txt && pre-commit install`.
+- **Rate-limit test coverage:** New `tests/test_rate_limit.py` with three
+  cases (login 429, bootstrap 429, `limiter.reset()` recovery) using the
+  existing `InMemoryRateLimiter` + `RateLimitRule` API with tightened
+  env-var windows per test.
+- **Verification:** `pytest -q` → 27 passed (24 from origin/master + 3
+  new rate-limit cases). No new runtime dependencies; new dev-only
+  deps: `pre-commit`, `ruff`.
+
 _Last updated: 2026-04-19. When you ship an item, move it to this `## Done`
 section with the commit or PR link._

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
 from db import PostgresConnectionAdapter, SQLiteConnectionAdapter, get_conn, transaction
 from notifications_service import create_notification, create_notifications, dispatch_outbound_notifications
@@ -94,6 +94,7 @@ def _blackout_conflict_rows(conn: DbConn, car_id: int, start_iso: str, end_iso: 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_reservation(
     payload: ReservationCreate,
+    background_tasks: BackgroundTasks,
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
     if payload.start_time <= datetime.now(timezone.utc):
@@ -161,7 +162,8 @@ def create_reservation(
         row = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
         response = _serialize_reservation(row)
 
-    dispatch_outbound_notifications(notification_ids)
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response
 
 
@@ -215,7 +217,13 @@ def reservation_conflicts(
     return {"items": items, "total": len(items)}
 
 
-def _decide(reservation_id: int, new_status: str, auth: AuthContext, reason: Optional[str]) -> dict[str, Any]:
+def _decide(
+    reservation_id: int,
+    new_status: str,
+    auth: AuthContext,
+    reason: Optional[str],
+    background_tasks: BackgroundTasks,
+) -> dict[str, Any]:
     now = _utcnow_iso()
     notification_ids: list[int] = []
     with get_conn() as conn, transaction(conn):
@@ -247,18 +255,29 @@ def _decide(reservation_id: int, new_status: str, auth: AuthContext, reason: Opt
         )
         response = _serialize_reservation(row)
 
-    dispatch_outbound_notifications(notification_ids)
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response
 
 
 @router.post("/{reservation_id}/approve")
-def approve(reservation_id: int, payload: DecisionPayload, auth: AuthContext = Depends(require_admin)) -> dict[str, Any]:
-    return _decide(reservation_id, "approved", auth, payload.reason)
+def approve(
+    reservation_id: int,
+    payload: DecisionPayload,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(require_admin),
+) -> dict[str, Any]:
+    return _decide(reservation_id, "approved", auth, payload.reason, background_tasks)
 
 
 @router.post("/{reservation_id}/reject")
-def reject(reservation_id: int, payload: DecisionPayload, auth: AuthContext = Depends(require_admin)) -> dict[str, Any]:
-    return _decide(reservation_id, "rejected", auth, payload.reason)
+def reject(
+    reservation_id: int,
+    payload: DecisionPayload,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(require_admin),
+) -> dict[str, Any]:
+    return _decide(reservation_id, "rejected", auth, payload.reason, background_tasks)
 
 
 def _load_reservation_for_transition(conn: DbConn, reservation_id: int) -> Any:
@@ -272,6 +291,7 @@ def _load_reservation_for_transition(conn: DbConn, reservation_id: int) -> Any:
 def start_trip(
     reservation_id: int,
     payload: LifecycleNotePayload,
+    background_tasks: BackgroundTasks,
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
     now = _utcnow_iso()
@@ -311,7 +331,8 @@ def start_trip(
         updated = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
         response = _serialize_reservation(updated)
 
-    dispatch_outbound_notifications(notification_ids)
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response
 
 
@@ -319,6 +340,7 @@ def start_trip(
 def return_trip(
     reservation_id: int,
     payload: LifecycleNotePayload,
+    background_tasks: BackgroundTasks,
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
     now = _utcnow_iso()
@@ -358,12 +380,17 @@ def return_trip(
         updated = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
         response = _serialize_reservation(updated)
 
-    dispatch_outbound_notifications(notification_ids)
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response
 
 
 @router.post("/{reservation_id}/cancel")
-def cancel(reservation_id: int, auth: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+def cancel(
+    reservation_id: int,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(get_auth_context),
+) -> dict[str, Any]:
     now = _utcnow_iso()
     notification_ids: list[int] = []
     with get_conn() as conn, transaction(conn):
@@ -405,7 +432,8 @@ def cancel(reservation_id: int, auth: AuthContext = Depends(get_auth_context)) -
         updated = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
         response = _serialize_reservation(updated)
 
-    dispatch_outbound_notifications(notification_ids)
+    if notification_ids:
+        background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response
 
 
