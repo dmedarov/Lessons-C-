@@ -1299,6 +1299,16 @@ select {
   animation: alert-slide-in var(--dur-base) var(--ease-spring);
 }
 
+.alert-strip--error {
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+}
+
+.alert-strip--success {
+  border-color: var(--success-border);
+  background: var(--success-soft);
+}
+
 @keyframes alert-slide-in {
   from {
     opacity: 0;
@@ -1315,6 +1325,14 @@ select {
   margin-bottom: var(--sp-1);
   color: var(--danger);
   font-size: 1rem;
+}
+
+.alert-strip--success strong {
+  color: var(--success);
+}
+
+.alert-strip--error strong {
+  color: var(--danger);
 }
 
 .alert-strip p,

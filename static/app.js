@@ -499,12 +499,10 @@ function setFieldError(id, message) {
 }
 
 function showMessage(title, text, type = "error", details = []) {
-  els.message.classList.remove("hidden");
+  els.message.classList.remove("hidden", "alert-strip--success", "alert-strip--error");
+  els.message.classList.add(type === "success" ? "alert-strip--success" : "alert-strip--error");
   els.messageTitle.textContent = title;
   els.messageText.textContent = text;
-  els.message.style.borderColor = type === "success" ? "rgba(35, 120, 78, 0.2)" : "rgba(184, 53, 79, 0.18)";
-  els.message.style.background = type === "success" ? "rgba(242, 251, 247, 0.92)" : "rgba(255, 244, 246, 0.92)";
-  els.message.style.color = type === "success" ? "#165538" : "#8f2740";
   els.messageList.innerHTML = "";
   details.forEach((detail) => {
     const item = document.createElement("li");

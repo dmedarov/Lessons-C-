@@ -48,3 +48,14 @@ def test_mobile_rail_respects_safe_area() -> None:
     styles = _read("static/styles.css")
     assert "padding-bottom: calc(88px + env(safe-area-inset-bottom));" in styles
     assert "bottom: max(8px, env(safe-area-inset-bottom));" in styles
+
+
+def test_message_alerts_use_theme_classes_not_inline_colors() -> None:
+    app_js = _read("static/app.js")
+    styles = _read("static/styles.css")
+    assert 'els.message.classList.add(type === "success" ? "alert-strip--success" : "alert-strip--error");' in app_js
+    assert "els.message.style.borderColor" not in app_js
+    assert "els.message.style.background" not in app_js
+    assert "els.message.style.color" not in app_js
+    assert ".alert-strip--success" in styles
+    assert ".alert-strip--error" in styles
