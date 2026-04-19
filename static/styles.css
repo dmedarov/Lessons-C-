@@ -395,8 +395,8 @@ svg {
 
 /* Theme toggle — minimal, keyboard-accessible. */
 .theme-toggle {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -1003,6 +1003,7 @@ select {
   font-weight: 600;
   font-size: 0.88rem;
   color: var(--ink);
+  min-height: 44px;
 }
 .ghost-link:hover {
   border-color: var(--brand);
@@ -1017,13 +1018,15 @@ select {
   color: var(--ink);
   font-weight: 600;
   font-size: 0.86rem;
+  min-height: 44px;
 }
 .chip:hover {
   border-color: var(--brand);
   color: var(--brand);
 }
 
-.chip--active {
+.chip--active,
+.chip[aria-pressed="true"] {
   background: var(--info-soft);
   border-color: rgba(37, 99, 235, 0.34);
   color: var(--brand-strong);
@@ -1040,6 +1043,7 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 44px;
 }
 .action-btn:hover {
   border-color: var(--brand);
@@ -1138,6 +1142,77 @@ select {
 .status-tag--returned {
   background: var(--violet-soft);
   color: var(--violet);
+}
+
+.status-stack {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.lifecycle-meter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lifecycle-meter--terminal {
+  display: inline-flex;
+}
+
+.lifecycle-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.lifecycle-step__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.lifecycle-step--complete {
+  color: var(--success);
+  border-color: var(--success-border);
+  background: var(--success-soft);
+}
+
+.lifecycle-step--complete .lifecycle-step__dot {
+  background: currentColor;
+}
+
+.lifecycle-step--current {
+  color: var(--brand-strong);
+  border-color: rgba(37, 99, 235, 0.34);
+  background: var(--info-soft);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+
+.lifecycle-step--current .lifecycle-step__dot {
+  background: currentColor;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.lifecycle-step--upcoming {
+  color: var(--muted);
+  background: transparent;
 }
 
 /* -----------------------------------------------------------------------------
@@ -1276,6 +1351,7 @@ select {
   font-weight: 600;
   font-size: 0.88rem;
   min-width: 36px;
+  min-height: 44px;
 }
 
 .segmented__btn:hover {
@@ -2046,6 +2122,16 @@ select {
     min-height: 21px;
     padding: 2px 6px;
     font-size: 0.66rem;
+  }
+
+  .lifecycle-meter {
+    justify-content: flex-end;
+  }
+
+  .lifecycle-step {
+    min-height: 26px;
+    padding: 4px 7px;
+    font-size: 0.68rem;
   }
 
   .segmented__btn {

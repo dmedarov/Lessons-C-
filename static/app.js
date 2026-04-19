@@ -447,6 +447,47 @@ function statusTag(status) {
   return `<span class="status-tag status-tag--${status}">${t(`status.${status}`)}</span>`;
 }
 
+function lifecycleLabel(status) {
+  return t(`status.${status}`);
+}
+
+function lifecycleMeter(item) {
+  const flow = ["pending", "approved", "checked_out", "returned"];
+  const currentIndex = flow.indexOf(item.status);
+  if (currentIndex === -1) {
+    return `
+      <div class="lifecycle-meter lifecycle-meter--terminal" aria-label="Lifecycle статус: ${lifecycleLabel(item.status)}">
+        <span class="lifecycle-step lifecycle-step--current">
+          <span class="lifecycle-step__dot" aria-hidden="true"></span>
+          <span>${lifecycleLabel(item.status)}</span>
+        </span>
+      </div>
+    `;
+  }
+
+  return `
+    <ol class="lifecycle-meter" aria-label="Lifecycle статус: ${lifecycleLabel(item.status)}">
+      ${flow
+        .map((status, index) => {
+          const stepClass =
+            index < currentIndex
+              ? "lifecycle-step--complete"
+              : index === currentIndex
+                ? "lifecycle-step--current"
+                : "lifecycle-step--upcoming";
+          const currentAttr = index === currentIndex ? ' aria-current="step"' : "";
+          return `
+            <li class="lifecycle-step ${stepClass}"${currentAttr}>
+              <span class="lifecycle-step__dot" aria-hidden="true"></span>
+              <span>${lifecycleLabel(status)}</span>
+            </li>
+          `;
+        })
+        .join("")}
+    </ol>
+  `;
+}
+
 function calendarPill(item, car) {
   const label = car ? car.plate_number : `Car ${item.car_id}`;
   return `<span class="calendar-pill calendar-pill--${item.status}">${escapeHtml(label)}</span>`;
@@ -682,10 +723,10 @@ function renderNotifications() {
     card.className = "notification-card";
     card.innerHTML = `
       <div class="notification-card__head">
-        <strong>${item.title}</strong>
+        <strong>${escapeHtml(item.title)}</strong>
         ${item.read_at ? `<span class="status-pill status-pill--muted">${t("status.read")}</span>` : `<span class="status-pill status-pill--employee">${t("status.new")}</span>`}
       </div>
-      <p>${item.body}</p>
+      <p>${escapeHtml(item.body)}</p>
       <div class="notification-card__foot">
         <span class="muted">${formatDateTime(item.created_at)}</span>
         ${item.read_at ? "" : `<button class="action-btn action-btn--toggle" type="button" data-notification-read="${item.id}">${t("action.markRead")}</button>`}
@@ -796,8 +837,8 @@ function renderCars() {
     card.innerHTML = `
       <div class="car-card__meta">
         <div>
-          <strong class="car-card__title">${car.model}</strong>
-          <p class="car-card__plate">${car.plate_number}</p>
+          <strong class="car-card__title">${escapeHtml(car.model)}</strong>
+          <p class="car-card__plate">${escapeHtml(car.plate_number)}</p>
         </div>
         <span class="status-tag ${car.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(car.active ? "status.active" : "status.inactive")}</span>
       </div>
@@ -819,7 +860,7 @@ function renderCars() {
 function renderCarSelect() {
   const cars = state.cars.filter((car) => car.active);
   const markup = cars.length
-    ? cars.map((car) => `<option value="${car.id}">${car.plate_number} · ${car.model}</option>`).join("")
+    ? cars.map((car) => `<option value="${car.id}">${escapeHtml(car.plate_number)} · ${escapeHtml(car.model)}</option>`).join("")
     : `<option value="">Няма активни автомобили</option>`;
   if (els.carId) {
     els.carId.innerHTML = markup;
@@ -936,10 +977,10 @@ function renderBlackouts() {
     card.className = "notification-card";
     card.innerHTML = `
       <div class="notification-card__head">
-        <strong>${car ? `${car.plate_number} · ${car.model}` : `Car ${item.car_id}`}</strong>
-        <span class="status-tag status-tag--returned">${item.kind}</span>
+        <strong>${escapeHtml(car ? `${car.plate_number} · ${car.model}` : `Car ${item.car_id}`)}</strong>
+        <span class="status-tag status-tag--returned">${escapeHtml(item.kind)}</span>
       </div>
-      <p>${item.reason || "Без конкретизирана причина"}</p>
+      <p>${escapeHtml(item.reason || "Без конкретизирана причина")}</p>
       <div class="notification-card__foot">
         <span class="muted">${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</span>
         ${item.active ? `<button class="action-btn action-btn--toggle" type="button" data-blackout-disable="${item.id}">Деактивирай</button>` : ""}
@@ -953,7 +994,7 @@ function renderHandoffCandidates() {
   if (!els.handoffUserId) return;
   const options = state.users
     .filter((user) => user.active && (!state.currentUser || user.id !== state.currentUser.id))
-    .map((user) => `<option value="${user.id}">${user.display_name} · ${t(`role.${user.role}`)}</option>`)
+    .map((user) => `<option value="${user.id}">${escapeHtml(user.display_name)} · ${t(`role.${user.role}`)}</option>`)
     .join("");
   els.handoffUserId.innerHTML = options || `<option value="">Няма подходящ потребител</option>`;
 }
@@ -981,17 +1022,17 @@ function reservationActions(item) {
   const isOwner = state.currentUser && item.created_by_id === state.currentUser.id;
 
   if (item.status === "pending" && canAdmin) {
-    actions.push(`<button class="action-btn action-btn--approve" type="button" data-reservation-action="approve" data-id="${item.id}">${t("action.approve")}</button>`);
-    actions.push(`<button class="action-btn action-btn--reject" type="button" data-reservation-action="reject" data-id="${item.id}">${t("action.reject")}</button>`);
+    actions.push(`<button class="action-btn action-btn--approve" type="button" data-reservation-action="approve" data-id="${item.id}" aria-label="${t("action.approve")} резервация #${item.id}">${t("action.approve")}</button>`);
+    actions.push(`<button class="action-btn action-btn--reject" type="button" data-reservation-action="reject" data-id="${item.id}" aria-label="${t("action.reject")} резервация #${item.id}">${t("action.reject")}</button>`);
   }
   if (item.status === "approved" && (canAdmin || isOwner)) {
-    actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="start" data-id="${item.id}">${t("action.startTrip")}</button>`);
+    actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="start" data-id="${item.id}" aria-label="${t("action.startTrip")} за резервация #${item.id}">${t("action.startTrip")}</button>`);
   }
   if (item.status === "checked_out" && (canAdmin || isOwner)) {
-    actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="return" data-id="${item.id}">${t("action.returnCar")}</button>`);
+    actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="return" data-id="${item.id}" aria-label="${t("action.returnCar")} за резервация #${item.id}">${t("action.returnCar")}</button>`);
   }
   if (["pending", "approved"].includes(item.status) && (canAdmin || isOwner)) {
-    actions.push(`<button class="action-btn action-btn--cancel" type="button" data-reservation-action="cancel" data-id="${item.id}">${t("action.cancel")}</button>`);
+    actions.push(`<button class="action-btn action-btn--cancel" type="button" data-reservation-action="cancel" data-id="${item.id}" aria-label="${t("action.cancel")} резервация #${item.id}">${t("action.cancel")}</button>`);
   }
   return actions.join("");
 }
@@ -1025,7 +1066,12 @@ function renderReservations() {
         <div class="muted">до ${formatDateTime(item.end_time)}</div>
       </td>
       <td data-label="Статус">${statusTag(item.status)}</td>
-      <td data-label="Контекст">${reservationContext(item) || '<span class="muted">Без допълнителен контекст</span>'}</td>
+      <td data-label="Контекст">
+        <div class="status-stack">
+          ${lifecycleMeter(item)}
+          ${reservationContext(item) || '<span class="muted">Без допълнителен контекст</span>'}
+        </div>
+      </td>
       <td data-label="Действия"><div class="table-actions">${reservationActions(item)}</div></td>
     `;
     els.reservationsTableBody.appendChild(row);
@@ -1065,6 +1111,11 @@ function renderCalendar() {
       .filter(Boolean)
       .join(" ");
     button.dataset.dateKey = key;
+    button.setAttribute("aria-pressed", key === state.selectedDateKey ? "true" : "false");
+    button.setAttribute(
+      "aria-label",
+      `${formatDayLabel(key)} · ${items.length ? pluralRecord(items.length) : "няма записи"}`
+    );
     button.innerHTML = `
       <div class="calendar-day__head">
         <span class="calendar-day__number">${current.getDate()}</span>
@@ -1115,6 +1166,7 @@ function renderDayTimeline() {
         ${statusTag(item.status)}
       </div>
       <p>${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</p>
+      ${lifecycleMeter(item)}
       <p>${escapeHtml(item.purpose || "Без уточнена цел")}</p>
     `;
     els.dayTimeline.appendChild(card);
@@ -1920,12 +1972,20 @@ async function markAllRead() {
   }
 }
 
+function updateToolbarPressedStates(buttons, key) {
+  buttons.forEach((button) => {
+    const active = button.dataset[key] === state[key];
+    button.classList.toggle("chip--active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
 function wireToolbar(buttons, key, callback) {
+  updateToolbarPressedStates(buttons, key);
   buttons.forEach((button) => {
     button.addEventListener("click", async () => {
-      buttons.forEach((item) => item.classList.remove("chip--active"));
-      button.classList.add("chip--active");
       state[key] = button.dataset[key];
+      updateToolbarPressedStates(buttons, key);
       await callback();
       updateSummary();
       updateOverview();

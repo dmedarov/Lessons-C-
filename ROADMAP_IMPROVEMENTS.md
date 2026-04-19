@@ -62,11 +62,11 @@ templates/
   index.html                 employee surface
   admin.html                 admin surface
 static/
-  app.js                     ~1940-line SPA logic
+  app.js                     ~2000-line SPA logic
   i18n.js                    Bulgarian UI copy dictionary + interpolation
-  styles.css                 ~1060-line stylesheet
+  styles.css                 Design system stylesheet with responsive cockpit UI
 alembic/                     migration scripts
-tests/test_app.py            24 FastAPI TestClient regression cases
+tests/test_app.py            Core FastAPI TestClient regression cases
 ```
 
 > ⚠️ The prior UI audit referenced `static/index.html`. The correct path is
@@ -102,7 +102,12 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - CI quality gates for Python compile, `pytest`, JS syntax, `pip-audit` and
   production Docker image build across Python 3.12/3.14.
 - Request ID propagation and baseline browser security headers.
-- Current automated coverage: 25 `pytest` cases plus JS syntax checks and
+- Admin reservation productivity: status/scope filters, search by plate/model/
+  requester/purpose, date-window filtering and CSV export that follows the
+  current filtered view.
+- Calendar density affordance: visible `+N more` indicator when a day has more
+  than three events.
+- Current automated coverage: 58 `pytest` cases plus JS syntax checks and
   dependency audit used in shipped verification.
 
 ### Active product gaps
@@ -112,7 +117,8 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Bootstrap hardening for exposed production deployments is still missing.
 - Async notification dispatch via `BackgroundTasks` or queue is still missing.
 - Mobile calendar ergonomics remain a high-value UX gap.
-- Bulk approve/reject, date filters and search remain admin productivity gaps.
+- Bulk approve/reject API exists, but the admin table still needs a first-class
+  checkbox selection/action bar UX.
 - The monolithic `static/app.js` should be split before the frontend grows much
   further.
 - The last visible GitHub security banner pointed at the Docker base image;
@@ -126,6 +132,28 @@ FleetFlow should be treated like a premium operations cockpit: calm UI, strong
 defaults, explicit confirmations, auditable admin actions and no hidden
 authorization assumptions. Every new endpoint needs a happy-path test, an
 authorization-negative test and a stale-role/inactive-user test where relevant.
+
+### UI/UX operating notes for future AI agents
+
+Use these official references as design guardrails for future UI work:
+
+- Apple HIG Layout: group related items, align components for scanning, keep
+  essential information near the top/leading area, and use progressive
+  disclosure for hidden content.
+- Apple HIG Buttons: every custom button needs an obvious press state, clear
+  role/content, and at least a 44 x 44 pt hit region. Keep prominent actions
+  rare and non-destructive.
+- USWDS Accessibility: design for keyboard-only and touch-only operation, do
+  not rely on hover or color alone, keep layouts readable/linear under zoom,
+  and announce state changes where practical.
+- NASA WDS Colors / Section 508 contrast: favor a calm blue/neutral
+  operational palette, strong text contrast, and explicit labels/shapes
+  alongside status color.
+
+For FleetFlow specifically: status must always have text, tables must collapse
+into labeled cards on phones, chips/toggles must expose `aria-pressed`, dynamic
+regions should use polite live updates, and every workflow should have a visible
+next action.
 
 ---
 
@@ -268,8 +296,9 @@ related follow-up commits. Items remain here as historical handoff detail.
 
 Deeper UX work; pays off every day the product is used.
 
-**Status:** Items 2.3, 2.5 and 2.6 are shipped. Items 2.1, 2.2, 2.4 and 2.7
-remain active backlog.
+**Status:** Items 2.3, 2.5, 2.6 and 2.7 are shipped. Item 2.4 is partially
+shipped at the API/test layer but still needs the admin table bulk-selection
+UX. Items 2.1 and 2.2 remain active backlog.
 
 ### 2.1 Mobile calendar - collapse to list/day view below 768 px
 
@@ -400,6 +429,10 @@ remain active backlog.
 
 ### 2.7 Missing affordances
 
+**Status:** Shipped in `9d61cdd` for date-range filters, search, CSV export
+following current filters, `+N more` calendar overflow and preserving booking
+start/end after submit.
+
 Bundle these small items into a single PR to share review overhead:
 
 - **Date-range filter** on reservations table (two `<input type="date">` with
@@ -412,6 +445,50 @@ Bundle these small items into a single PR to share review overhead:
 
 - **Files:** `static/app.js`, `static/styles.css`, templates as needed
 - **Effort:** M
+
+### 2.8 Global accessibility and lifecycle polish
+
+**Status:** Shipped on 2026-04-19 in the global UI/UX polish iteration.
+
+- **Goal:** Make core controls and lifecycle state readable without relying on
+  color alone, while keeping premium cockpit density.
+- **Files:** `templates/index.html`, `templates/admin.html`, `static/app.js`,
+  `static/styles.css`, `tests/test_app.py`
+- **Approach:**
+  1. Add `aria-label` to top-level navigation and `role="group"` to filter
+     toolbars.
+  2. Keep `aria-pressed` synchronized for chip-style filters in `wireToolbar`.
+  3. Add a text-labeled lifecycle meter for reservation rows and day timeline
+     cards: pending -> approved -> checked_out -> returned, with explicit
+     terminal states for rejected/cancelled.
+  4. Ensure custom buttons/chips/segmented controls meet the Apple 44 px hit
+     target guidance and expose press/active states.
+  5. Keep reservations table updates polite (`aria-live="polite"`) so assistive
+     tech users understand filtered state changes.
+- **Acceptance criteria:**
+  - Filter chips expose correct `aria-pressed` on initial render and after
+    interaction.
+  - Lifecycle state includes text labels, not only colored pills.
+  - All custom clickable controls used in the global shell are at least 44 px
+    tall.
+- **Verification:** `pytest`, `node --check static/app.js`, template smoke for
+  `/` and `/admin`, manual keyboard Tab pass.
+- **Depends on:** 1.1, 1.2
+- **Effort:** S
+
+### 2.9 Mobile quick navigation
+
+- **Goal:** Restore fast navigation on phones after `.topbar__nav` collapses,
+  without crowding the header.
+- **Files:** `templates/index.html`, `templates/admin.html`, `static/styles.css`
+- **Approach:** Add a mobile-only bottom navigation/command rail with 3-4
+  high-frequency destinations per surface. Keep links text-labeled, 44 px
+  minimum, and visible only below the tablet breakpoint.
+- **Acceptance criteria:** At 375 px width, users can jump to calendar,
+  reservations, fleet and inbox/admin sections without scrolling from the top.
+- **Verification:** Browser mobile viewport smoke at 375, 430 and 768 px.
+- **Depends on:** 2.8
+- **Effort:** S
 
 ---
 
@@ -1044,13 +1121,14 @@ these before exposing FleetFlow beyond a trusted internal network.
    block approvals or lifecycle actions.
 6. **2.1 Mobile calendar + 2.2 loading states** - the daily employee/admin UX
    needs mobile ergonomics and clear pending states.
-7. **2.4 Bulk approve/reject + 2.7 filters/search** - admin productivity wave.
+7. **2.4 Bulk approve/reject table UX** - backend exists; add checkbox
+   selection and a floating action bar for pending queues.
 8. **7.3 PostgreSQL migration smoke + backups** - required before serious
    production rollout.
 9. **7.4 Request IDs/security headers/logging** - production observability and
    browser baseline hardening.
 10. **4.1 Split `static/app.js` into modules** - do this before large frontend
-    additions; the file is already ~1940 lines.
+    additions; the file is already ~2000 lines.
 11. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
     after the core flows stabilize.
 12. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish

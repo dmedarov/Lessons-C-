@@ -35,7 +35,7 @@
           </div>
         </div>
 
-        <nav class="topbar__nav">
+        <nav class="topbar__nav" aria-label="Основна навигация">
           <a href="#calendarStudio">Календар</a>
           <a href="#reservationsDeck">Курсове</a>
           <a href="#fleetDeck">Флот</a>
@@ -346,14 +346,14 @@
                   <p class="panel__eyebrow">Operations</p>
                   <h2>Резервации и lifecycle</h2>
                 </div>
-                <div class="toolbar">
-                  <button class="chip chip--active" type="button" data-scope="smart">Стандартен изглед</button>
-                  <button class="chip" type="button" data-scope="mine">Само мои</button>
-                  <button class="chip chip--active" type="button" data-status="all">Всички</button>
-                  <button class="chip" type="button" data-status="pending">Чакащи</button>
-                  <button class="chip" type="button" data-status="approved">Одобрени</button>
-                  <button class="chip" type="button" data-status="checked_out">Активни</button>
-                  <button class="chip" type="button" data-status="returned">Върнати</button>
+                <div class="toolbar" role="group" aria-label="Филтри за резервации">
+                  <button class="chip chip--active" type="button" data-scope="smart" aria-pressed="true">Стандартен изглед</button>
+                  <button class="chip" type="button" data-scope="mine" aria-pressed="false">Само мои</button>
+                  <button class="chip chip--active" type="button" data-status="all" aria-pressed="true">Всички</button>
+                  <button class="chip" type="button" data-status="pending" aria-pressed="false">Чакащи</button>
+                  <button class="chip" type="button" data-status="approved" aria-pressed="false">Одобрени</button>
+                  <button class="chip" type="button" data-status="checked_out" aria-pressed="false">Активни</button>
+                  <button class="chip" type="button" data-status="returned" aria-pressed="false">Върнати</button>
                 </div>
               </div>
 
@@ -370,7 +370,7 @@
                       <th>Действия</th>
                     </tr>
                   </thead>
-                  <tbody id="reservationsTableBody"></tbody>
+                  <tbody id="reservationsTableBody" aria-live="polite"></tbody>
                 </table>
               </div>
             </section>
@@ -381,9 +381,9 @@
                   <p class="panel__eyebrow">Fleet</p>
                   <h2>Наличност</h2>
                 </div>
-                <div class="toolbar">
-                  <button class="chip chip--active" type="button" data-car-filter="active">Само активни</button>
-                  <button class="chip" type="button" data-car-filter="all">Всички</button>
+                <div class="toolbar" role="group" aria-label="Филтри за флот">
+                  <button class="chip chip--active" type="button" data-car-filter="active" aria-pressed="true">Само активни</button>
+                  <button class="chip" type="button" data-car-filter="all" aria-pressed="false">Всички</button>
                 </div>
               </div>
 
