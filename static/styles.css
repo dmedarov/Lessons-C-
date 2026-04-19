@@ -393,6 +393,10 @@ svg {
   transform: scaleX(1);
 }
 
+.mobile-rail {
+  display: none;
+}
+
 /* Theme toggle — minimal, keyboard-accessible. */
 .theme-toggle {
   width: 44px;
@@ -2110,6 +2114,7 @@ select {
   .page-shell {
     width: min(100% - 16px, 100%);
     padding-top: var(--sp-3);
+    padding-bottom: 88px;
   }
 
   .topbar {
@@ -2125,6 +2130,55 @@ select {
 
   .topbar__nav {
     display: none;
+  }
+
+  .mobile-rail {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    z-index: 60;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 5px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-xl);
+    background: var(--surface-strong);
+    backdrop-filter: blur(22px) saturate(1.15);
+    -webkit-backdrop-filter: blur(22px) saturate(1.15);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .mobile-rail a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 0;
+    padding: 8px 6px;
+    border-radius: var(--radius-lg);
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1.1;
+    text-align: center;
+    overflow-wrap: anywhere;
+    transition:
+      background var(--dur-base) var(--ease-out),
+      color var(--dur-base) var(--ease-out),
+      transform var(--dur-fast) var(--ease-out);
+  }
+
+  .mobile-rail a:hover,
+  .mobile-rail a:focus-visible {
+    color: var(--brand-strong);
+    background: var(--info-soft);
+  }
+
+  .mobile-rail a:active {
+    transform: scale(0.98);
   }
 
   .topbar__actions {
@@ -2359,6 +2413,7 @@ select {
   .hero__secondary,
   .calendar-toolbar,
   .mission-filter,
+  .mobile-rail,
   .toolbar,
   .action-btn,
   .btn {

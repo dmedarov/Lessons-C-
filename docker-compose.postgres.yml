@@ -22,7 +22,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "${APP_PORT:-8000}:8000"
     environment:
       APP_ENV: "${APP_ENV:-prod}"
       SECRET_KEY: "${SECRET_KEY:?set SECRET_KEY in .env}"

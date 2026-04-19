@@ -837,6 +837,8 @@ def test_health_and_ui(client: TestClient) -> None:
     assert 'id="notificationBadge"' in admin_res.text
     assert 'aria-label="Основна навигация"' in res.text
     assert 'aria-label="Административна навигация"' in admin_res.text
+    assert 'aria-label="Бърза мобилна навигация"' in res.text
+    assert 'aria-label="Бърза административна навигация"' in admin_res.text
     assert 'role="group" aria-label="Филтри за резервации"' in res.text
     assert 'role="group" aria-label="Филтри за резервации"' in admin_res.text
     assert 'id="reservationsTableBody" aria-live="polite"' in res.text

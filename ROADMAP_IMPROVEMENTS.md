@@ -547,6 +547,8 @@ Bundle these small items into a single PR to share review overhead:
 
 ### 2.9 Mobile quick navigation
 
+**Status:** Shipped on 2026-04-19 after 2.8.
+
 - **Goal:** Restore fast navigation on phones after `.topbar__nav` collapses,
   without crowding the header.
 - **Files:** `templates/index.html`, `templates/admin.html`, `static/styles.css`

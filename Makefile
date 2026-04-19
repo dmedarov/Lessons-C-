@@ -35,13 +35,13 @@ p.write_text(t)"; \
 prod: guard-env
 	$(COMPOSE_PROD) up --build -d
 	@echo ""
-	@echo "FleetFlow is up → http://localhost:8000"
+	@echo "FleetFlow is up → http://localhost:$${APP_PORT:-8000}"
 	@echo "Fresh install? Run 'make logs' to find your one-time bootstrap token."
 
 dev: guard-env
 	$(COMPOSE_DEV) up --build -d
 	@echo ""
-	@echo "FleetFlow (dev) → http://localhost:8000"
+	@echo "FleetFlow (dev) → http://localhost:$${APP_PORT:-8000}"
 	@echo "Accounts: admin/AdminPass123  ivan/IvanPass123  maria/MariaPass123"
 
 down:

@@ -77,6 +77,7 @@ docker compose down
 
 1. Попълни `.env` с реални стойности за `SECRET_KEY`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` и `DATABASE_URL`.
 2. Ако искаш външни нотификации, попълни и `SMTP_*`, `SLACK_WEBHOOK_URL`, `TEAMS_WEBHOOK_URL`.
+   Ако порт `8000` е зает, задай `APP_PORT=8001` или друг свободен порт в `.env`.
 
 3. Стартирай production-ready стека:
 
