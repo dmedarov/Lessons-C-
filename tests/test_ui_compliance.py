@@ -28,8 +28,23 @@ def test_dialog_helpers_restore_focus_to_trigger() -> None:
     assert app_js.count("returnFocusTo?.focus();") == 2
 
 
+def test_dialog_helpers_expose_modal_names_and_descriptions() -> None:
+    app_js = _read("static/app.js")
+    assert app_js.count('dialog.setAttribute("aria-labelledby", titleId);') == 2
+    assert app_js.count('dialog.setAttribute("aria-describedby", descriptionId);') == 2
+    assert app_js.count('dialog.setAttribute("aria-modal", "true");') == 2
+    assert app_js.count("copy.id = descriptionId;") == 2
+    assert 'role="alert" aria-live="polite"' in app_js
+
+
 def test_field_errors_are_programmatically_associated() -> None:
     app_js = _read("static/app.js")
     assert 'inputNode.setAttribute("aria-invalid", "true");' in app_js
     assert 'inputNode.setAttribute("aria-describedby", `${id}Error`);' in app_js
     assert 'inputNode.removeAttribute("aria-describedby");' in app_js
+
+
+def test_mobile_rail_respects_safe_area() -> None:
+    styles = _read("static/styles.css")
+    assert "padding-bottom: calc(88px + env(safe-area-inset-bottom));" in styles
+    assert "bottom: max(8px, env(safe-area-inset-bottom));" in styles

@@ -254,14 +254,18 @@ function confirmAction(message, confirmLabel = t("action.confirm")) {
     const returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = document.createElement("dialog");
     const titleId = `confirm-title-${Date.now()}`;
+    const descriptionId = `confirm-description-${Date.now()}`;
     dialog.className = "confirm-dialog";
     dialog.setAttribute("aria-labelledby", titleId);
+    dialog.setAttribute("aria-describedby", descriptionId);
+    dialog.setAttribute("aria-modal", "true");
 
     const title = document.createElement("h2");
     title.id = titleId;
     title.textContent = t("confirm.title");
 
     const copy = document.createElement("p");
+    copy.id = descriptionId;
     copy.textContent = message;
 
     const actions = document.createElement("div");
@@ -308,20 +312,26 @@ function userDialog({ title, body, confirmLabel, renderFields, readValue, valida
     const returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = document.createElement("dialog");
     const titleId = `user-dialog-title-${Date.now()}`;
+    const descriptionId = `user-dialog-description-${Date.now()}`;
+    const errorId = `user-dialog-error-${Date.now()}`;
     dialog.className = "confirm-dialog user-admin-dialog";
     dialog.setAttribute("aria-labelledby", titleId);
+    dialog.setAttribute("aria-describedby", descriptionId);
+    dialog.setAttribute("aria-modal", "true");
 
     const heading = document.createElement("h2");
     heading.id = titleId;
     heading.textContent = title;
 
     const copy = document.createElement("p");
+    copy.id = descriptionId;
     copy.textContent = body;
 
     const form = document.createElement("form");
     form.className = "stack";
     form.method = "dialog";
-    form.innerHTML = `${renderFields()}<small class="field__error" data-dialog-error></small>`;
+    form.setAttribute("aria-describedby", errorId);
+    form.innerHTML = `${renderFields()}<small class="field__error" id="${errorId}" data-dialog-error role="alert" aria-live="polite"></small>`;
 
     const actions = document.createElement("div");
     actions.className = "confirm-dialog__actions";

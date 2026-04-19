@@ -1437,8 +1437,9 @@ browser-computed checks for translucent surfaces and message styles.
 
 **Status:** Started on 2026-04-20 for small high-confidence fixes:
 notification list live regions, dialog focus return, admin calendar accessible
-names and field-error `aria-describedby` wiring. Continue with keyboard and
-screen-reader evidence.
+names, field-error `aria-describedby` wiring, dialog modal
+name/description/error semantics and mobile safe-area handling. Continue with
+keyboard and screen-reader evidence.
 
 - **Goal:** Make FleetFlow operable and understandable without a mouse or
   visual styling.
@@ -1638,8 +1639,10 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Phase 8.4 first fixes:** Notification lists are polite live regions,
   dialog helpers restore focus to the triggering element, admin calendar
   previous/next glyph buttons have accessible names and field validation errors
-  now set `aria-describedby`.
-- **Verification:** `pytest -q` passes with 77 tests, JS syntax checks,
+  now set `aria-describedby`. Follow-up commit extended dialogs with modal
+  name/description/error semantics and made the mobile bottom rail safe-area
+  aware for iOS-style home indicator layouts.
+- **Verification:** `pytest -q` passes with 79 tests, JS syntax checks,
   `git diff --check`, Docker compose rebuild and `/health` smoke.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation

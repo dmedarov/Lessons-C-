@@ -44,9 +44,9 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Admin users | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Destructive confirmations, role-change clarity, audit timeline readability | Verify reset/deactivate/role dialog focus return and success/error copy. |
 | Admin fleet/cars | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Notes textarea labels, active/inactive text state, 44 px controls | Verify notes save path, employee visibility and mobile card spacing. |
 | Blackout management | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Dialog APG behavior, date validation, conflict errors, no overlap | Test create/edit/deactivate via keyboard and invalid dates. |
-| Dialog system | `static/app.js`, `static/styles.css` | needs evidence | APG modal focus trap/return, ESC cancel, destructive role clarity | Native `<dialog>` is used, ESC cancel exists and helper-level focus return is now covered by `tests/test_ui_compliance.py`. Manual screen-reader pass still needed. |
+| Dialog system | `static/app.js`, `static/styles.css` | needs evidence | APG modal focus trap/return, ESC cancel, destructive role clarity | Native `<dialog>` is used, ESC cancel exists, helper-level focus return is covered, and dialogs now expose modal name/description/error semantics. Manual screen-reader pass still needed. |
 | Toast/message system | `static/app.js`, `static/styles.css` | needs evidence | Polite live region, non-color-only severity, visible long enough | `#message` uses `role=alert` and receives focus. Verify success/error styles in dark mode after contrast matrix expands to message colors. |
-| Mobile bottom nav | `templates/index.html`, `templates/admin.html`, `static/styles.css` | needs evidence | 44 px targets, safe-area padding, no content occlusion | CSS sets `min-height: 44px`; screenshot 390 px bottom area and keyboard focus order still required. |
+| Mobile bottom nav | `templates/index.html`, `templates/admin.html`, `static/styles.css` | needs evidence | 44 px targets, safe-area padding, no content occlusion | CSS sets `min-height: 44px` and accounts for `safe-area-inset-bottom`; screenshot 390 px bottom area and keyboard focus order still required. |
 | Theme/dark mode | `static/theme.js`, `static/styles.css` | needs evidence | NASA/WCAG contrast matrix, focus ring visibility, reduced motion | Solid text/status token pairs now covered by `tests/test_design_tokens.py`; translucent surfaces still need browser-computed contrast evidence. |
 
 ## Contrast Matrix To Automate
@@ -71,6 +71,9 @@ styles.
 
 - `pass`: dialog helpers in `static/app.js` now capture the triggering element
   and restore focus after close; covered by `tests/test_ui_compliance.py`.
+- `pass`: dialog helpers now expose `aria-modal`, `aria-labelledby`,
+  `aria-describedby` and live validation error semantics; covered by
+  `tests/test_ui_compliance.py`.
 - `pass`: notification lists in both templates are polite live regions for
   non-blocking inbox changes; covered by `tests/test_ui_compliance.py`.
 - `pass`: admin and employee calendar previous/next glyph controls have
@@ -81,6 +84,8 @@ styles.
 - `pass`: custom button/chip/action controls have visible active/hover/focus
   states and the global focus ring is centralized in `static/styles.css`.
 - `pass`: mobile bottom nav anchors are at least 44 px high in CSS.
+- `pass`: mobile bottom nav and page bottom padding account for iOS safe-area
+  insets; covered by `tests/test_ui_compliance.py`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
 

@@ -2234,7 +2234,7 @@ select {
   .page-shell {
     width: min(100% - 16px, 100%);
     padding-top: var(--sp-3);
-    padding-bottom: 88px;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
   }
 
   .topbar {
@@ -2265,7 +2265,7 @@ select {
     position: fixed;
     left: 8px;
     right: 8px;
-    bottom: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
     z-index: 60;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
