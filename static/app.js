@@ -623,14 +623,23 @@ function updateOverview() {
   const activeCars = state.cars.filter((car) => car.active).length;
   const pending = state.reservations.filter((item) => item.status === "pending").length;
   const activeTrips = state.reservations.filter((item) => item.status === "checked_out").length;
-  const unread = state.notifications.filter((item) => !item.read_at).length;
 
-  [activeCars, pending, activeTrips, unread].forEach((value, index) => {
-    const node = els.overviewStats.querySelectorAll(".stat-card__value")[index];
-    if (node) {
-      node.textContent = value;
-    }
-  });
+  const kpiPending = document.getElementById("kpiPending");
+  const kpiActive = document.getElementById("kpiActive");
+  const kpiAvailable = document.getElementById("kpiAvailable");
+
+  if (kpiPending) {
+    kpiPending.querySelector(".stat-card__value").textContent = pending;
+    kpiPending.classList.toggle("stat-card--urgent", pending > 0);
+  }
+  if (kpiActive) {
+    kpiActive.querySelector(".stat-card__value").textContent = activeTrips;
+    kpiActive.classList.toggle("stat-card--active-trips", activeTrips > 0);
+  }
+  if (kpiAvailable) {
+    kpiAvailable.querySelector(".stat-card__value").textContent = activeCars;
+    kpiAvailable.classList.toggle("stat-card--available", activeCars > 0);
+  }
 }
 
 function updateNotificationBadge() {
@@ -794,6 +803,7 @@ function renderUsers() {
       </div>
       <div class="user-card__meta">
         <span class="status-tag ${user.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(user.active ? "status.active" : "status.inactive")}</span>
+        ${user.email ? `<span class="muted">${escapeHtml(user.email)}</span>` : ""}
         <span class="muted">създаден: ${formatDateTime(user.created_at)}</span>
       </div>
       <div class="car-card__actions">
@@ -940,9 +950,24 @@ function renderConflictPreview() {
     })
     .join("");
 
+  const latestEnd = preview.items.reduce((max, item) => {
+    const end = new Date(item.end_time);
+    return end > max ? end : max;
+  }, new Date(0));
+  const requestedDuration = els.endTime?.value && els.startTime?.value
+    ? new Date(els.endTime.value) - new Date(els.startTime.value)
+    : 2 * 60 * 60 * 1000;
+  const suggestedStart = latestEnd;
+  const suggestedEnd = new Date(latestEnd.getTime() + requestedDuration);
+  const slotKey = `${suggestedStart.toISOString()}|${suggestedEnd.toISOString()}`;
+
   els.conflictPreview.innerHTML = `
     <strong>${t("conflict.warningTitle", { count: preview.items.length })}</strong>
     <ul>${items}</ul>
+    <div class="conflict-suggestion">
+      <span>${t("conflict.nextSlot", { start: formatDateTime(suggestedStart), end: formatDateTime(suggestedEnd) })}</span>
+      <button class="action-btn action-btn--approve" type="button" data-apply-slot="${escapeHtml(slotKey)}">${t("conflict.applySlot")}</button>
+    </div>
   `;
   renderCalendar();
 }
@@ -1004,14 +1029,18 @@ function reservationContext(item) {
   if (item.purpose) {
     details.push(`<strong>${escapeHtml(item.purpose)}</strong>`);
   }
+  if (item.decided_by_name) {
+    const key = item.status === "rejected" ? "reservation.rejectedBy" : "reservation.decidedBy";
+    details.push(`<div class="muted">${escapeHtml(t(key, { name: item.decided_by_name }))}</div>`);
+  }
   if (item.decision_reason) {
     details.push(`<div class="muted">${escapeHtml(item.decision_reason)}</div>`);
   }
   if (item.checked_out_at) {
-    details.push(`<div class="muted">Start: ${formatDateTime(item.checked_out_at)}</div>`);
+    details.push(`<div class="muted">Старт: ${formatDateTime(item.checked_out_at)}</div>`);
   }
   if (item.returned_at) {
-    details.push(`<div class="muted">Return: ${formatDateTime(item.returned_at)}</div>`);
+    details.push(`<div class="muted">Върнат: ${formatDateTime(item.returned_at)}</div>`);
   }
   return details.join("");
 }
@@ -1693,6 +1722,7 @@ async function handleUserCreate(event) {
   }
 
   try {
+    const newEmail = document.getElementById("newEmail");
     await apiFetch("/users", {
       method: "POST",
       headers: authHeaders(),
@@ -1701,6 +1731,7 @@ async function handleUserCreate(event) {
         display_name: els.newDisplayName.value.trim(),
         password: els.newUserPassword.value,
         role: els.newRole.value,
+        email: newEmail?.value.trim() || null,
       }),
     });
     els.userForm.reset();
@@ -1902,8 +1933,35 @@ async function deactivateBlackout(blackoutId) {
 }
 
 async function reservationAction(id, action) {
+  if (action === "reject") {
+    const result = await userDialog({
+      title: t("admin.rejectTitle", { id }),
+      body: t("admin.rejectBody"),
+      confirmLabel: t("action.reject"),
+      renderFields: () => `
+        <label class="field">
+          <span>${t("admin.rejectReasonLabel")}</span>
+          <textarea name="reason" rows="3" placeholder="${t("conflict.noPurpose")}"></textarea>
+        </label>
+      `,
+      readValue: (form) => ({ reason: form.elements.reason.value.trim() || t("audit.rejectedViaUi") }),
+    });
+    if (!result) return;
+    try {
+      await apiFetch(`/reservations/${id}/reject`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(result),
+      });
+      showMessage("Lifecycle е обновен", t("message.lifecycleSuccess", { id, action: t("action.reject") }), "success");
+      await refreshData();
+    } catch (error) {
+      showMessage("Неуспешно действие", error.message);
+    }
+    return;
+  }
+
   const confirmationByAction = {
-    reject: [t("confirm.reject"), t("action.reject")],
     cancel: [t("confirm.cancel"), t("action.cancel")],
     return: [t("confirm.return"), t("action.returnCar")],
   };
@@ -1916,9 +1974,7 @@ async function reservationAction(id, action) {
   const payload =
     action === "approve"
       ? { reason: t("audit.approvedViaUi") }
-      : action === "reject"
-        ? { reason: t("audit.rejectedViaUi") }
-        : action === "start"
+      : action === "start"
           ? { note: t("audit.tripStartedViaUi") }
           : action === "return"
             ? { note: t("audit.vehicleReturnedViaUi") }
@@ -2077,7 +2133,16 @@ document.addEventListener("click", (event) => {
   const userAuditButton = event.target.closest("[data-user-audit]");
   const blackoutButton = event.target.closest("[data-blackout-disable]");
   const handoffButton = event.target.closest("[data-handoff-candidate]");
+  const applySlotButton = event.target.closest("[data-apply-slot]");
 
+  if (applySlotButton) {
+    const [start, end] = applySlotButton.dataset.applySlot.split("|");
+    if (els.startTime && els.endTime) {
+      els.startTime.value = localInputValue(new Date(start));
+      els.endTime.value = localInputValue(new Date(end));
+      scheduleConflictPreview();
+    }
+  }
   if (calendarButton) {
     setSelectedDate(calendarButton.dataset.dateKey);
   }

@@ -38,6 +38,7 @@ class UserCreatePayload(BaseModel):
     display_name: str = Field(min_length=2, max_length=120)
     password: str = Field(min_length=8, max_length=128)
     role: Role = "employee"
+    email: Optional[str] = Field(default=None, max_length=254)
 
 
 class UserResponse(BaseModel):
@@ -46,6 +47,7 @@ class UserResponse(BaseModel):
     display_name: str
     role: Role
     active: bool
+    email: Optional[str] = None
     created_at: str
 
 

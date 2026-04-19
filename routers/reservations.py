@@ -608,9 +608,10 @@ def list_reservations(
     )
     where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
     query = f"""
-        SELECT r.*
+        SELECT r.*, COALESCE(decider.display_name, NULL) AS decided_by_name
         FROM reservations r
         JOIN cars c ON c.id = r.car_id
+        LEFT JOIN users decider ON decider.id = r.decided_by_id
         {where}
         ORDER BY r.start_time
     """

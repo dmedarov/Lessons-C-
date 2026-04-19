@@ -17,6 +17,7 @@ SQLITE_SCHEMA = [
         password_hash TEXT NOT NULL,
         role TEXT NOT NULL CHECK(role IN ('employee','fleet_admin')),
         active INTEGER NOT NULL DEFAULT 1,
+        email TEXT,
         created_at TEXT NOT NULL
     )
     """,
@@ -132,6 +133,7 @@ POSTGRES_SCHEMA = [
         password_hash TEXT NOT NULL,
         role TEXT NOT NULL CHECK(role IN ('employee','fleet_admin')),
         active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+        email TEXT,
         created_at TEXT NOT NULL
     )
     """,
@@ -371,6 +373,7 @@ def _ensure_column(
 def _apply_runtime_upgrades(conn: SQLiteConnectionAdapter | PostgresConnectionAdapter) -> None:
     _ensure_column(conn, "reservations", "checked_out_at", "TEXT")
     _ensure_column(conn, "reservations", "returned_at", "TEXT")
+    _ensure_column(conn, "users", "email", "TEXT")
 
 
 def _upsert_demo_user(

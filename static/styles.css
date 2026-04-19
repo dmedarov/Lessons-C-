@@ -663,6 +663,10 @@ h3 {
   margin-top: var(--sp-4);
 }
 
+.stats-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .stat-card {
   padding: var(--sp-4);
   border-radius: var(--radius-xl);
@@ -711,6 +715,49 @@ h3 {
   letter-spacing: -0.02em;
   color: var(--ink-strong);
   font-variant-numeric: tabular-nums;
+}
+
+.stat-card--urgent {
+  border-color: var(--warning-border);
+  background: linear-gradient(135deg, var(--warning-soft) 0%, var(--surface-raised) 65%);
+}
+.stat-card--urgent::after {
+  background: linear-gradient(90deg, transparent, var(--warning), transparent);
+  opacity: 1;
+}
+.stat-card--urgent .stat-card__value { color: var(--warning); }
+
+.stat-card--active-trips {
+  border-color: rgba(36, 107, 255, 0.24);
+  background: linear-gradient(135deg, var(--info-soft) 0%, var(--surface-raised) 65%);
+}
+.stat-card--active-trips::after {
+  background: linear-gradient(90deg, transparent, var(--brand), transparent);
+  opacity: 1;
+}
+.stat-card--active-trips .stat-card__value { color: var(--brand); }
+
+.stat-card--available {
+  border-color: var(--success-border);
+  background: linear-gradient(135deg, var(--success-soft) 0%, var(--surface-raised) 65%);
+}
+.stat-card--available::after {
+  background: linear-gradient(90deg, transparent, var(--success), transparent);
+  opacity: 1;
+}
+.stat-card--available .stat-card__value { color: var(--success); }
+
+.conflict-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  background: var(--success-soft);
+  border: 1px solid var(--success-border);
+  font-size: 0.88rem;
 }
 
 /* -----------------------------------------------------------------------------
