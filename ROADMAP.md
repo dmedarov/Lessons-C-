@@ -304,8 +304,9 @@ operations assistant for internal mobility**, което е:
   the cockpit wireframe's "available now" mental model.
 - Latest local verification for this slice: `pytest -q` -> 143 passed,
   `pytest tests/test_ui_compliance.py -q` -> 32 passed, Playwright browser
-  smoke -> 7 passed with public/employee/employee-admin-deny/approver/admin/
-  mobile/reception coverage, JS syntax checks and Python compile check. UI date/time now
+  smoke -> 8 passed with public/browser-computed-contrast/employee/
+  employee-admin-deny/approver/admin/mobile/reception coverage, JS syntax
+  checks and Python compile check. UI date/time now
   renders as `dd.mm.yyyy, HH:MM` with 24-hour time. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
   was rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on
@@ -340,8 +341,8 @@ visible modules.
 
 ### Current risks to address before broad production use
 
-- **Frontend size:** `static/app.js` is 4048 lines and `static/styles.css` is
-  3140 lines. New UX work should stop growing the monolith and start extracting
+- **Frontend size:** `static/app.js` is 4146 lines and `static/styles.css` is
+  3142 lines. New UX work should stop growing the monolith and start extracting
   stable vanilla modules.
 - **Reservation router size:** `routers/reservations.py` is 960 lines and owns
   creation, conflict checks, suggestions, lifecycle, bulk decisions, listing
@@ -353,8 +354,9 @@ visible modules.
   head. Keep extending this when schema complexity grows.
 - **Browser evidence gap:** Playwright coverage is now split into role-specific
   tests for public overview/calendar, employee booking/current trip, approver
-  decisions, reception handoff/return and admin settings. Next evidence gap is
-  browser-computed contrast and more destructive-action recovery screenshots.
+  decisions, reception handoff/return, admin settings and browser-computed
+  light/dark contrast for translucent surfaces/status tokens. Next evidence
+  gap is destructive-action recovery screenshots and keyboard-only proof.
 - **External signal closure:** local audits and Docker Scout were clean, but
   GitHub Security/Dependabot must still be inspected directly after push
   before claiming the banner is closed.
@@ -367,10 +369,10 @@ visible modules.
 1. Confirm GitHub Actions **Production Gates** and inspect the open GitHub
    Dependabot alert directly; local `pip-audit` and Docker Scout evidence is
    clean, so do not chase phantom upgrades without the alert details.
-2. Browser-computed contrast checks for translucent surfaces, focus rings,
-   theme-aware message alerts and Fleet Pulse/status chips.
-3. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
+2. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
    change, handoff and blackout deactivate.
+3. Run the Phase 8.3 responsive density pass at 390/768/1024/1440 using the
+   current screenshots and hunt clipped text, weak hierarchy and overlap.
 4. Split `static/app.js` into small vanilla JS modules before the next large UI
    package. Suggested boundaries: API/session, shell/overview, reservations
    lifecycle, calendar, admin users/fleet/settings, notifications/dialogs.

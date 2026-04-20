@@ -41,7 +41,7 @@
   --brand-900: #14296b;
 
   /* Semantic colors (foreground-safe against light surfaces). */
-  --success: #17784a;
+  --success: #147245;
   --success-soft: rgba(30, 130, 76, 0.13);
   --success-border: rgba(30, 130, 76, 0.24);
   --warning: #8a5200;
@@ -106,6 +106,7 @@
     --bg-bottom: #0a0f1d;
     --ink: #f1f5fb;
     --ink-strong: #ffffff;
+    --brand-strong: #8bb8ff;
     --muted: #98a3be;
     --subtle: #687591;
     --surface: rgba(21, 28, 45, 0.78);
@@ -147,6 +148,7 @@
   --bg-bottom: #0a0f1d;
   --ink: #f1f5fb;
   --ink-strong: #ffffff;
+  --brand-strong: #8bb8ff;
   --muted: #98a3be;
   --subtle: #687591;
   --surface: rgba(21, 28, 45, 0.78);

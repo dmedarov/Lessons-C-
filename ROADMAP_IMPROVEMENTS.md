@@ -66,9 +66,9 @@ templates/
   index.html                 employee surface
   admin.html                 admin surface
 static/
-  app.js                     4048-line SPA logic; split before next large UI package
+  app.js                     4146-line SPA logic; split before next large UI package
   i18n.js                    Bulgarian UI copy dictionary + interpolation
-  styles.css                 3140-line design system stylesheet with responsive cockpit UI
+  styles.css                 3142-line design system stylesheet with responsive cockpit UI
 alembic/                     migration scripts
 tests/test_app.py            Core FastAPI TestClient regression cases
 e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
@@ -168,8 +168,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   the logged-in role is operational (`fleet_approver`, `fleet_reception` or
   `fleet_admin`).
 - Current automated coverage: growing `pytest` suite plus optional Playwright
-  browser smoke (`e2e/`) that captures desktop/mobile screenshots, JS syntax
-  checks, Python compile checks and Docker smoke used in shipped verification.
+  browser smoke (`e2e/`) that captures desktop/mobile screenshots, computes
+  real light/dark contrast in Chromium, runs JS syntax checks, Python compile
+  checks and Docker smoke used in shipped verification.
 - Premium QA commands are now first-class: `make qa-premium` runs release gates
   plus browser role smoke, and `make smoke-live APP_URL=...` checks health,
   readiness and public overview on a running stack.
@@ -180,9 +181,10 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   needs a formal audit report, automated contrast checks and browser-level
   accessibility regression tests before claiming "compliant" in release notes.
 - Browser-level end-to-end coverage is now role-specific for public, employee,
-  approver, admin, mobile employee and reception flows. It still needs
-  browser-computed contrast checks and more destructive-action recovery
-  screenshots.
+  approver, admin, mobile employee and reception flows, with a separate
+  browser-computed light/dark contrast guard for translucent surfaces and
+  status chips. It still needs destructive-action recovery screenshots and
+  keyboard-only proof.
 - Production observability now has structured request logs; next hardening is
   external alert delivery and an operator-facing log retention/export decision.
 - Intelligence snapshots/materialized insights remain intentionally deferred
@@ -191,7 +193,7 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
 - The monolithic `static/app.js` should be split before the frontend grows much
-  further; it is now 4048 lines and `static/styles.css` is 3140 lines.
+  further; it is now 4146 lines and `static/styles.css` is 3142 lines.
 - `routers/reservations.py` is now 960 lines and carries too many concerns:
   creation, conflict checks, lifecycle transitions, suggestions, bulk decisions,
   listing and export. Keep endpoints stable, but extract service modules before
@@ -215,9 +217,9 @@ Use it before choosing the next implementation task.
 | Product model | Role-separated pool process is clear: employee, approver, reception, admin. | Extra roles/features can make the app feel like ERP. | Preserve the four-role model; add permissions only when a real pool workflow requires them. |
 | Backend API | FastAPI routers, auth rebinding, refresh rotation, readiness and audit trail are strong. | `routers/reservations.py` has too many responsibilities. | Extract reservation services in small slices without changing routes or schemas. |
 | Frontend | Intent-driven cockpit, rails, timeline and NetFleet context are already premium. | `static/app.js` is too large for safe autonomous edits. | Create module boundaries before the next large UI addition. |
-| CSS/design system | Responsive cockpit styling and compliance principles exist. | 3140-line stylesheet makes overlap/contrast regressions easy. | Add browser-computed contrast checks, then split component CSS if churn continues. |
+| CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies the riskiest token pairs. | 3142-line stylesheet still makes overlap regressions easy. | Run responsive density evidence, then split component CSS if churn continues. |
 | Database | Alembic production path and PostgreSQL smoke exist. | Runtime bootstrap/upgrades in `db.py` can drift from migrations. | Add schema parity tests for SQLite bootstrap, PostgreSQL bootstrap and Alembic head. |
-| E2E evidence | Playwright smoke now runs separate public, employee, approver, admin, mobile and reception flows. | More contrast and destructive-action evidence is still needed. | Add browser-computed contrast checks and targeted recovery screenshots. |
+| E2E evidence | Playwright smoke now runs separate public, contrast, employee, approver, admin, mobile and reception checks. | More destructive-action evidence is still needed. | Add targeted recovery screenshots and keyboard-only paths. |
 | NetFleet | Server-side key handling and scoped employee pickup context are correct. | Raw GPS can confuse users if freshness/location text is unclear. | Add freshness labels and human pickup wording before adding maps/complex telemetry. |
 | Production | Makefile, prod checks, Docker health, backups and restore drill are in place. | GitHub alert state still needs direct external confirmation. | Inspect GitHub Security/Dependabot after push and record exact closure evidence. |
 | Intelligence | Best-car scoring and compact Fleet Pulse are explainable and light. | Premature analytics tables would add complexity before real usage data. | Defer snapshots until production data volume or operator needs prove the need. |
@@ -1492,9 +1494,11 @@ PR/handoff checklist. Continue by adding screenshot evidence.
 
 ### 8.2 Design-token compliance matrix
 
-**Status:** Started on 2026-04-20. `tests/test_design_tokens.py` covers the
-first solid light/dark text and status token pairs. Continue with
-browser-computed checks for translucent surfaces and message styles.
+**Status:** Shipped on 2026-04-20. `tests/test_design_tokens.py` covers the
+solid light/dark token pairs, and
+`e2e/test_browser_smoke.py::test_browser_computed_contrast_guard` covers the
+high-risk browser-computed pairs for translucent surfaces, focus rings,
+primary buttons and status chips.
 
 - **Goal:** Make NASA/508/WCAG contrast compliance measurable from
   `static/styles.css`.
@@ -1515,8 +1519,9 @@ browser-computed checks for translucent surfaces and message styles.
   - Automated test fails for a deliberately low-contrast token pair.
   - Every status color has text and shape support, not color alone.
   - Light and dark themes both pass.
-- **Verification:** `pytest tests/test_design_tokens.py`, manual browser check
-  in light/dark mode and 200% zoom.
+- **Verification:** `pytest tests/test_design_tokens.py` plus
+  `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e/test_browser_smoke.py::test_browser_computed_contrast_guard -q`.
+  Continue with manual 200% zoom evidence in Phase 8.3/8.7.
 - **Depends on:** 8.1
 - **Effort:** M
 
@@ -1665,9 +1670,10 @@ with return/deactivate/role/handoff/blackout recovery checks.
   - Screenshots are deterministic enough for review artifacts.
   - CI failure tells agents which surface and viewport regressed.
 - **Verification:** `pytest` + Playwright command documented in README and
-  audit doc; latest local browser run -> 6 passed with `public-mobile.png`,
-  `employee-desktop.png`, `approver-desktop.png`, `admin-desktop.png`,
-  `employee-mobile.png`, `reception-desktop.png`.
+  audit doc; latest local browser run -> 8 passed. Screenshot artifacts include
+  `public-mobile.png`, `employee-desktop.png`, `approver-desktop.png`,
+  `admin-desktop.png`, `employee-mobile.png`, `reception-desktop.png`; the
+  contrast guard is assertion-only and does not write a screenshot.
 - **Depends on:** 8.2, 8.3, 8.4
 - **Effort:** L
 
@@ -2087,31 +2093,29 @@ employee mobile calendar and reception handoff/calendar flows.
    Note: local `gh` is not installed and unauthenticated `curl` to the private
    Dependabot API returns 401, so use GitHub web UI or an authenticated API
    token to inspect the exact alert.
-2. **8.2 browser-computed contrast** - close translucent surfaces, focus rings
-   and alert/status pair evidence.
-3. **8.3 responsive density pass** - use the new screenshots to hunt overlap,
+2. **8.3 responsive density pass** - use the new screenshots to hunt overlap,
    clipped text and weak hierarchy at 390/768/1024/1440.
-4. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
+3. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
    handoff and blackout deactivate.
-5. **5.4/5.9 production proof** - PostgreSQL migration smoke, backup/restore
+4. **5.4/5.9 production proof** - PostgreSQL migration smoke, backup/restore
    playbook and structured logs.
-6. **7.3 PostgreSQL migration smoke + backups** - required before serious
+5. **7.3 PostgreSQL migration smoke + backups** - required before serious
    production rollout.
-7. **10.3 Split `static/app.js` into modules** - do this before large frontend
-   additions; the file is already 4048 lines.
-8. **10.4 reservation service extraction** - keep endpoints stable while
+6. **10.3 Split `static/app.js` into modules** - do this before large frontend
+   additions; the file is already 4146 lines.
+7. **10.4 reservation service extraction** - keep endpoints stable while
     moving lifecycle/domain logic out of the router.
-9. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
+8. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
     after the core flows stabilize.
-10. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
+9. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
    the frontend is modular enough.
-11. **10.5 Session-management UI** - list active refresh sessions per user,
+10. **10.5 Session-management UI** - list active refresh sessions per user,
    revoke current/all sessions and expose security audit history.
-12. **10.6 NetFleet pickup clarity** - freshness labels and human pickup
+11. **10.6 NetFleet pickup clarity** - freshness labels and human pickup
     wording before maps or telemetry-heavy features.
-13. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
+12. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
     for real fleet accountability.
-14. **10.7 materialized intelligence snapshots** - only after live usage proves
+13. **10.7 materialized intelligence snapshots** - only after live usage proves
     inline metrics are too slow or historical trend review is needed.
 
 If time is limited, execute items 1-4 before any new feature work.
@@ -2119,6 +2123,22 @@ If time is limited, execute items 1-4 before any new feature work.
 ---
 
 ## Done
+
+### 2026-04-20 - Browser-computed contrast guard
+
+- **Goal:** Close the highest-risk Apple/NASA/USWDS contrast evidence gap with
+  real browser-computed values, not only static token parsing.
+- **E2E:** `e2e/test_browser_smoke.py` now has
+  `test_browser_computed_contrast_guard`, which sets light and dark themes,
+  reads actual CSS custom properties in Chromium, composites translucent
+  surfaces over the page background and checks WCAG ratios for primary text,
+  muted text, primary button text, focus rings and pending/approved/rejected/
+  checked-out status chips.
+- **Tokens:** light `--success` is slightly darker for approved status chips;
+  dark `--brand-strong` is brighter so checked-out/info labels remain readable
+  on soft backgrounds.
+- **Verification:** targeted contrast guard -> 1 passed. Full `make qa-premium`
+  reports 143 pytest cases and 8 browser checks after this item.
 
 ### 2026-04-20 - Premium QA command gate
 
@@ -2128,9 +2148,10 @@ If time is limited, execute items 1-4 before any new feature work.
   and `make smoke-live APP_URL=...` for live health/readiness/public overview
   checks against a running container or deployment URL.
 - **Latest QA run:** `make qa-premium` passed after network-enabled
-  dependency audit; full pytest reported 143 passed; full Playwright role smoke
-  reported 7 passed. `make smoke-live APP_URL=http://127.0.0.1:8001` returned
-  ok/ready and public overview data from PostgreSQL.
+  dependency audit; full pytest reported 143 passed; full Playwright browser
+  checks reported 8 passed after the contrast guard.
+  `make smoke-live APP_URL=http://127.0.0.1:8001` returned ok/ready and
+  public overview data from PostgreSQL.
 - **Operator note:** `.env` is absent in the checkout, so `make prod-check`
   remains intentionally blocked until `make setup` or a real production `.env`
   is present.

@@ -57,10 +57,10 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Dialog system | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | APG modal focus trap/return, ESC cancel, destructive role clarity, exact invalid-field recovery | Native `<dialog>` is used, ESC cancel exists, helper-level focus return is covered, dialogs expose modal name/description/error semantics, and validation can focus/mark the exact invalid field for reject/cancel/password/blackout flows. Manual screen-reader pass still needed. |
 | Toast/message system | `static/app.js`, `static/styles.css` | needs evidence | Polite live region, non-color-only severity, visible long enough | `#message` uses `role=alert`, receives focus and now uses theme-aware alert classes instead of inline light-theme colors. Verify with screen reader and dark-mode screenshots. |
 | Mobile bottom nav | `templates/index.html`, `templates/admin.html`, `static/styles.css` | needs evidence | 44 px targets, safe-area padding, no content occlusion | CSS sets `min-height: 44px` and accounts for `safe-area-inset-bottom`; screenshot 390 px bottom area and keyboard focus order still required. |
-| Theme/dark mode | `static/theme.js`, `static/styles.css` | needs evidence | NASA/WCAG contrast matrix, focus ring visibility, reduced motion | Solid text/status token pairs now covered by `tests/test_design_tokens.py`; translucent surfaces still need browser-computed contrast evidence. |
+| Theme/dark mode | `static/theme.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | NASA/WCAG contrast matrix, focus ring visibility, reduced motion | Solid token pairs are covered by `tests/test_design_tokens.py`; translucent surfaces, status soft backgrounds, primary buttons and focus rings are covered by `test_browser_computed_contrast_guard` in Chromium. |
 | Production cutover | `Makefile`, `scripts/prod_check.py`, `production_readiness.py`, `routers/ops.py`, `docker-compose.postgres.yml`, `README.md`, `docs/PRODUCTION_USER_GUIDE.md` | pass | No demo seed, generated secrets, real CORS origin, matching DB URL, pinned PostgreSQL image, runtime env propagation, secret-safe admin readiness | `make prod-check` validates `.env` without starting containers; compose now pins PostgreSQL major version and passes CORS, refresh TTL, rate limits, DB password and notification settings to the app container. `/health/ready` checks DB reachability; `/ops/readiness` powers the Admin UI preflight panel without returning secret values. |
 | Production CI gates | `.github/workflows/production-gates.yml`, `Makefile`, `requirements.txt`, `requirements-dev.txt`, `Dockerfile` | needs external evidence | Python 3.12/3.14 tests, JS syntax, production dependency audit, Docker build | Local `make audit-prod` audits pinned runtime dependencies and `make release-check` runs the repeatable local gate. CI runs full resolver audit with `pip-audit -r requirements.txt`. After push, confirm GitHub Actions **Production Gates** passes on `master`. |
-| Premium QA gate | `Makefile`, `README.md`, `ROADMAP_IMPROVEMENTS.md`, `e2e/test_browser_smoke.py` | pass | Release-check, browser role smoke, live URL smoke, clear handoff evidence | `make qa-premium` chains release gates and browser role smoke. `make smoke-live APP_URL=...` checks `/health`, `/health/ready` and `/public/overview` on a running stack. Latest local run passed release-check, 143 pytest cases, 7 browser role flows and live `8001` smoke. |
+| Premium QA gate | `Makefile`, `README.md`, `ROADMAP_IMPROVEMENTS.md`, `e2e/test_browser_smoke.py` | pass | Release-check, browser role smoke, live URL smoke, clear handoff evidence | `make qa-premium` chains release gates and browser role smoke. `make smoke-live APP_URL=...` checks `/health`, `/health/ready` and `/public/overview` on a running stack. Latest local run passed release-check, 143 pytest cases, 8 browser checks and live `8001` smoke. |
 | Structured access logs | `app.py`, `config.py`, `logging_config.py`, `docker-compose.postgres.yml`, `README.md` | pass | Production JSON logs, request correlation, no secret values | Request middleware emits access logs with request id, method, path, route, status and latency. `LOG_FORMAT=auto` keeps dev text logs and production JSON logs; `fleetflow.access` writes one stdout JSON line per request. |
 | Backup / restore drill | `Makefile`, `scripts/backup_postgres.sh`, `scripts/restore_postgres_drill.sh`, `docs/PRODUCTION_USER_GUIDE.md` | pass | Backup files outside git, custom PostgreSQL dump, restore test isolated from production volume | `make prod-backup` writes a `pg_dump --format=custom` file under ignored `backups/`; `make prod-restore-drill BACKUP=...` restores into project `fleetflow_restore_drill`, checks `alembic_version` and removes the temporary volume by default. |
 | User contact fields | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `schemas.py`, `routers/users.py`, `db.py`, `alembic/versions/20260420_0007_user_gsm_number.py` | pass | GSM is optional contact metadata, not auth; field has tel keyboard, max length guard and visible card text | Admin can enter optional GSM number when creating a user. API returns `gsm_number`, user cards show text-backed `GSM: ...`, and tests cover optional/too-long values. |
@@ -72,21 +72,22 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 
 ## Contrast Matrix To Automate
 
-First automated coverage exists in `tests/test_design_tokens.py`. It checks
-solid light/dark text and status token pairs against WCAG AA. Browser-computed
-checks are still needed for translucent surfaces, gradients and inline message
-styles.
+Automated coverage exists in `tests/test_design_tokens.py` and
+`e2e/test_browser_smoke.py::test_browser_computed_contrast_guard`.
+The unit test checks solid light/dark token pairs; the browser guard computes
+real CSS values in Chromium, composites translucent surfaces over the page
+background and checks the high-risk cockpit combinations.
 
 | Pair | Light Status | Dark Status | Required Ratio | Notes |
 | --- | --- | --- | --- | --- |
 | page background / primary text | pass | pass | 4.5:1 | Covered against `--bg-bottom`. |
-| surface / primary text | needs evidence | needs evidence | 4.5:1 | Needs browser-computed check because surfaces are translucent. |
+| surface / primary text | pass | pass | 4.5:1 | Browser-computed over translucent `--surface`. |
 | muted text / page background | pass | pass | 4.5:1 preferred | Covered against `--bg-bottom`. |
 | primary button / button text | pass | pass | 4.5:1 | White on `--brand` covered. |
 | danger status / page background | pass | pass | 4.5:1 | Must include label/shape too. |
 | warning status / page background | pass | pass | 4.5:1 | Light warning token darkened to `#8a5200`. |
 | success status / page background | pass | pass | 4.5:1 | Must work for color-blind users. |
-| focus ring / adjacent background | needs evidence | needs evidence | 3:1 | Needs screenshot/browser-computed check over translucent cards. |
+| focus ring / adjacent background | pass | pass | 3:1 | Browser-computed over translucent `--surface-strong`. |
 
 ## Current Findings
 
@@ -207,6 +208,11 @@ styles.
   `test-results/e2e/reception-desktop.png`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
+- `pass`: browser-computed light/dark contrast now covers translucent
+  surfaces, muted text on strong surfaces, primary buttons, focus rings and
+  pending/approved/rejected/checked-out status chips. The light success token
+  is slightly darker and the dark `--brand-strong` token is brighter so status
+  labels stay readable on soft backgrounds.
 - `pass`: `make audit-prod` reports no known vulnerabilities for pinned
   production runtime dependencies; direct `pip-audit -r requirements.txt`
   also reports no known vulnerabilities when the local resolver completes.
@@ -220,7 +226,7 @@ styles.
 - `evidence`: latest local handoff check ran `pytest -q` -> 143 passed,
   `pytest tests/test_schema_contracts.py -q` -> 5 passed,
   `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
-  -> 7 passed, `node --check static/app.js`,
+  -> 8 passed, `node --check static/app.js`,
   `node --check static/i18n.js` and Python compile check for
   `e2e/test_browser_smoke.py tests/test_schema_contracts.py`.
   `make prod-check` fails fast when `.env` is missing in a clean checkout. Old

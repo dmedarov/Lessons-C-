@@ -403,9 +403,9 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 
 `make test-e2e` стартира fresh FastAPI server с временна SQLite база за всеки
 role flow, за да няма скрита зависимост между сценариите. Покрива public
-pre-login orientation, employee quick-booking, employee admin-deny redirect,
-approver Decision Rail, admin control surface, employee mobile calendar и
-reception handoff/calendar.
+pre-login orientation, browser-computed light/dark contrast guard, employee
+quick-booking, employee admin-deny redirect, approver Decision Rail, admin
+control surface, employee mobile calendar и reception handoff/calendar.
 При `E2E_ARTIFACT_DIR` записва:
 `public-mobile.png`, `employee-desktop.png`, `approver-desktop.png`,
 `admin-desktop.png`, `employee-mobile.png` и `reception-desktop.png`.
@@ -448,10 +448,16 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 
 Последна premium QA проверка:
 `make qa-premium` -> passed (dependency audit, Python compile, 143 pytest
-cases, JS syntax, 7 Playwright role flows). `make smoke-live
+cases, JS syntax, 8 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Активният Docker stack `fleetflow_prod_smoke` е
 healthy на `8001`.
+
+Последна локална проверка за browser-computed contrast:
+`E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e/test_browser_smoke.py::test_browser_computed_contrast_guard -q`
+-> 1 passed. Guard-ът изчислява реалните CSS token стойности в Chromium,
+композира translucent surfaces върху фона и пази light/dark primary text,
+muted text, primary button, focus ring и status chips от WCAG regressions.
 
 Предишна локална проверка за request-first/role-separated-lifecycle/reception-calendar пакета:
 `make audit-prod` -> no known vulnerabilities for pinned runtime dependencies,
@@ -495,7 +501,7 @@ restore в изолиран `fleetflow_restore_drill` project с провере�
 - Fleet Intelligence Seed: best-car scoring, admin intelligence pulse и `car_assignments` traceability
 - timeline-first reservation cards before the secondary table, including lifecycle actions and admin pending selection
 - route/schema contracts: duplicate route registry guard, SQLite bootstrap execution, SQLite/PostgreSQL schema parity and single Alembic head
-- role-specific Playwright browser evidence: public, employee, approver, admin, mobile employee и reception flows с отделни failure points и screenshots
+- role-specific Playwright browser evidence: public, browser-computed contrast, employee, approver, admin, mobile employee и reception flows с отделни failure points и screenshots
 - pickup GPS refresh after approval: reservation lifecycle notifications trigger reservation + pickup telemetry reload, with visible fallback copy when NetFleet is missing/unavailable
 
 ## Alembic migrations
@@ -516,7 +522,7 @@ alembic revision -m "describe change"
 
 - Няма UI за управление на активни sessions по устройства; logout ревокира текущия refresh token, а replay защита чисти активната refresh верига за user-а.
 - Rate limiting-ът е in-memory и е подходящ за single-container deployment; за multi-instance production го изнеси към Redis, API gateway или WAF.
-- Следващата production/UI стъпка е външно closure доказателство и визуална проверимост: потвърди GitHub Actions Production Gates + Dependabot alert, добави browser-computed contrast checks и продължи с модулното разделяне на `static/app.js`.
+- Следващата production/UI стъпка е външно closure доказателство и визуална проверимост: потвърди GitHub Actions Production Gates + Dependabot alert, разшири destructive-action browser evidence и продължи с модулното разделяне на `static/app.js`.
 
 ## План за развитие
 

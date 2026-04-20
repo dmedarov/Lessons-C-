@@ -165,6 +165,99 @@ def _element_is_before(page: Page, first_selector: str, second_selector: str) ->
     )
 
 
+def _browser_contrast_failures(page: Page) -> list[str]:
+    failures = page.evaluate(
+        """
+        () => {
+          const root = document.documentElement;
+
+          function parseColor(value) {
+            const probe = document.createElement("span");
+            probe.style.color = value;
+            probe.style.position = "absolute";
+            probe.style.pointerEvents = "none";
+            probe.style.visibility = "hidden";
+            document.body.appendChild(probe);
+            const raw = getComputedStyle(probe).color;
+            probe.remove();
+            const match = raw.match(/rgba?\\(([^)]+)\\)/);
+            if (!match) throw new Error(`Cannot parse color: ${value}`);
+            const parts = match[1].split(",").map((part) => Number(part.trim()));
+            return { r: parts[0], g: parts[1], b: parts[2], a: Number.isFinite(parts[3]) ? parts[3] : 1 };
+          }
+
+          function composite(top, bottom) {
+            const alpha = top.a + bottom.a * (1 - top.a);
+            return {
+              r: (top.r * top.a + bottom.r * bottom.a * (1 - top.a)) / alpha,
+              g: (top.g * top.a + bottom.g * bottom.a * (1 - top.a)) / alpha,
+              b: (top.b * top.a + bottom.b * bottom.a * (1 - top.a)) / alpha,
+              a: alpha,
+            };
+          }
+
+          function luminance(color) {
+            const channels = [color.r, color.g, color.b].map((channel) => {
+              const normalized = channel / 255;
+              return normalized <= 0.03928
+                ? normalized / 12.92
+                : Math.pow((normalized + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+          }
+
+          function ratio(foreground, background) {
+            const fg = luminance(foreground);
+            const bg = luminance(background);
+            return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+          }
+
+          function themePairs(theme) {
+            root.setAttribute("data-theme", theme);
+            const styles = getComputedStyle(root);
+            const token = (name) => styles.getPropertyValue(name).trim();
+            const background = parseColor(token("--bg-bottom"));
+            const surface = composite(parseColor(token("--surface")), background);
+            const surfaceStrong = composite(parseColor(token("--surface-strong")), background);
+            const warningSoft = composite(parseColor(token("--warning-soft")), background);
+            const successSoft = composite(parseColor(token("--success-soft")), background);
+            const dangerSoft = composite(parseColor(token("--danger-soft")), background);
+            const infoSoft = composite(parseColor(token("--info-soft")), background);
+
+            return [
+              [`${theme} ink on translucent surface`, token("--ink"), surface, 4.5],
+              [`${theme} muted on strong surface`, token("--muted"), surfaceStrong, 4.5],
+              [`${theme} primary button`, "#ffffff", token("--brand"), 4.5],
+              [`${theme} focus ring on surface`, token("--brand"), surfaceStrong, 3.0],
+              [`${theme} pending status`, token("--warning"), warningSoft, 4.5],
+              [`${theme} approved status`, token("--success"), successSoft, 4.5],
+              [`${theme} rejected status`, token("--danger"), dangerSoft, 4.5],
+              [`${theme} checked-out status`, token("--brand-strong"), infoSoft, 4.5],
+            ];
+          }
+
+          const failures = [];
+          for (const [name, foregroundValue, backgroundValue, minimum] of [
+            ...themePairs("light"),
+            ...themePairs("dark"),
+          ]) {
+            const actual = ratio(
+              parseColor(foregroundValue),
+              typeof backgroundValue === "string" ? parseColor(backgroundValue) : backgroundValue,
+            );
+            if (actual < minimum) {
+              failures.push(`${name}: ${actual.toFixed(2)} < ${minimum}`);
+            }
+          }
+          root.setAttribute("data-theme", "light");
+          return failures;
+        }
+        """
+    )
+    assert isinstance(failures, list)
+    return [str(item) for item in failures]
+
+
 def _create_reservation_via_api(
     server: str,
     token: str,
@@ -223,6 +316,17 @@ def test_public_orientation_surface(browser: Browser, server: str, artifact_dir:
     expect(page.locator("#kpiAvailable .stat-card__value")).to_have_text("5", timeout=10_000)
     expect(page.locator("#sessionPanel")).to_be_hidden()
     context.close()
+
+
+def test_browser_computed_contrast_guard(browser: Browser, server: str) -> None:
+    context = browser.new_context(viewport={"width": 1440, "height": 1000})
+    try:
+        page = context.new_page()
+        page.goto(f"{server}/", wait_until="domcontentloaded")
+        expect(page.locator("#loginPanel")).to_be_visible(timeout=10_000)
+        assert _browser_contrast_failures(page) == []
+    finally:
+        context.close()
 
 
 def test_employee_quick_booking_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
