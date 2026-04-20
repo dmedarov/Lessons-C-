@@ -2,8 +2,9 @@
 
 COMPOSE_PROD := docker compose -f docker-compose.postgres.yml
 COMPOSE_DEV  := docker compose
+PYTHON       := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: help setup prod dev down logs test guard-env
+.PHONY: help setup prod dev down logs test test-e2e guard-env
 
 help:
 	@echo "FleetFlow"
@@ -14,6 +15,7 @@ help:
 	@echo "  make down    Stop all containers"
 	@echo "  make logs    Tail application logs"
 	@echo "  make test    Run test suite"
+	@echo "  make test-e2e Run optional Playwright browser smoke"
 
 setup:
 	@if [ -f .env ]; then \
@@ -53,7 +55,10 @@ logs:
 	 $(COMPOSE_DEV)  logs --follow car-pool
 
 test:
-	pytest -q
+	$(PYTHON) -m pytest -q
+
+test-e2e:
+	$(PYTHON) -m pytest e2e -q || test $$? -eq 5
 
 guard-env:
 	@test -f .env || { echo "Run 'make setup' first to create .env"; exit 1; }

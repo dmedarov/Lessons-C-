@@ -67,6 +67,7 @@ static/
   styles.css                 Design system stylesheet with responsive cockpit UI
 alembic/                     migration scripts
 tests/test_app.py            Core FastAPI TestClient regression cases
+e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
 ```
 
 > ⚠️ The prior UI audit referenced `static/index.html`. The correct path is
@@ -123,15 +124,17 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   employees can read pickup location only for their own approved/active trip.
   The key can be supplied by `.env` or saved once/changed from Admin UI as a
   DB-backed setting; it must never be committed or echoed back to the browser.
-- Current automated coverage: 110 `pytest` cases plus JS syntax checks, Python
-  compile checks and Docker smoke used in shipped verification.
+- Current automated coverage: 111 `pytest` cases plus optional Playwright
+  browser smoke (`e2e/`) that captures desktop/mobile screenshots, JS syntax
+  checks, Python compile checks and Docker smoke used in shipped verification.
 
 ### Active product gaps
 
 - Apple / NASA / USWDS UI compliance is defined below, but the codebase still
   needs a formal audit report, automated contrast checks and browser-level
   accessibility regression tests before claiming "compliant" in release notes.
-- Browser-level end-to-end tests are still missing.
+- Browser-level end-to-end coverage has started, but still needs broader
+  lifecycle scenarios and browser-computed contrast checks.
 - Structured JSON logging and production observability remain incomplete.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
@@ -966,14 +969,21 @@ Order is by estimated value; pick based on user demand.
 
 ### 5.5 Playwright end-to-end tests
 
-- **Files:** new `e2e/` directory, CI workflow
+- **Status:** Started on 2026-04-20. `e2e/test_browser_smoke.py` runs a fresh
+  FastAPI server with temporary SQLite data, logs in employee/admin users,
+  checks one-tap booking, timeline-first cards, Admin Decision Rail, Fleet
+  Pulse copy and mobile calendar, and writes screenshots when
+  `E2E_ARTIFACT_DIR` is set.
+- **Files:** `e2e/`, `requirements-dev.txt`, `Makefile`, CI workflow later
 - **Approach:**
-  1. `playwright` with the Python API (matches the stack).
-  2. Three scenarios to start:
-     - Employee: bootstrap -> login -> request car -> wait for approval.
-     - Admin: login -> approve pending -> verify in employee inbox.
-     - Admin: create blackout -> verify overlapping reservation rejected.
-  3. Runs in CI against a real server + SQLite DB fresh per test.
+  1. Keep `pytest` fast by default through `pyproject.toml` `testpaths = ["tests"]`.
+  2. Run browser checks explicitly with `make test-e2e`.
+  3. Next scenarios to add:
+     - Admin approve/reject -> employee inbox and timeline update.
+     - Bulk reject empty-reason recovery.
+     - Admin NetFleet key configured/unconfigured states with mocked payloads.
+     - Current trip start/return and logout/refresh recovery.
+  4. Add CI only after timing and artifact behavior stay stable.
 - **Effort:** M
 
 ### 5.6 Pre-commit hooks
@@ -1535,10 +1545,13 @@ with return/deactivate/role/handoff/blackout recovery checks.
 
 ### 8.7 Automated UI regression harness
 
+- **Status:** Started on 2026-04-20. Optional Playwright smoke exists in
+  `e2e/test_browser_smoke.py`, `make test-e2e` is documented, and screenshot
+  artifacts are ignored under `test-results/`.
 - **Goal:** Turn "Apple/NASA quality" into repeatable checks, not taste-based
   review.
-- **Files:** `requirements-dev.txt` or package-free Playwright install plan,
-  new `tests/e2e/`, CI workflow, `docs/UI_UX_COMPLIANCE_AUDIT.md`
+- **Files:** `requirements-dev.txt`, `Makefile`, `pyproject.toml`, `e2e/`,
+  CI workflow later, `docs/UI_UX_COMPLIANCE_AUDIT.md`
 - **Approach:**
   1. Add Playwright e2e tests for login, booking, admin approve/reject, bulk
      actions, mobile calendar and logout/refresh recovery.
@@ -1552,7 +1565,8 @@ with return/deactivate/role/handoff/blackout recovery checks.
   - Screenshots are deterministic enough for review artifacts.
   - CI failure tells agents which surface and viewport regressed.
 - **Verification:** `pytest` + Playwright command documented in README and
-  audit doc.
+  audit doc; latest local browser run -> 1 passed with
+  `employee-desktop.png`, `admin-desktop.png`, `employee-mobile.png`.
 - **Depends on:** 8.2, 8.3, 8.4
 - **Effort:** L
 
@@ -1690,8 +1704,13 @@ detail view.
   actions, timeline-first reservation flow, timeline meter, next free slot
   action, smart prefill and intent-driven next step, plus Admin UI NetFleet key
   setup/change.
-- **Apply next:** browser evidence for timeline-first/one-tap/smart-prefill/
-  NetFleet flows.
+- **Now evidenced:** initial Playwright smoke verifies employee one-tap booking,
+  timeline-first cards, Admin Decision Rail, Fleet Pulse copy and mobile
+  calendar, with screenshots for employee desktop, admin desktop and employee
+  mobile.
+- **Apply next:** browser-computed contrast and broader Playwright evidence for
+  admin approve/reject, bulk reject reason recovery, NetFleet configured/
+  unconfigured states, refresh/logout and current trip start/return.
 - **Defer:** heavy BI dashboards, extra roles, settings labyrinth and generic
   chat assistant. GPS stays limited to read-only coordinates/availability
   context unless a specific operational flow needs more.
@@ -1724,16 +1743,17 @@ detail view.
 
 ## Suggested sequencing (from current state)
 
-1. **8.1 UI/UX compliance audit inventory** - creates the evidence backbone
-   before more visual changes.
-2. **8.2 Design-token compliance matrix** - automated contrast is the fastest
-   way to turn NASA/508/WCAG guidance into a guardrail.
-3. **8.3 Apple layout and responsive density pass** - directly targets overlap,
-   hit targets and premium adaptive layout.
-4. **8.4 WCAG/USWDS semantic accessibility pass** - keyboard, focus, labels,
-   dialogs and live regions.
-5. **8.7 Automated UI regression harness** - browser screenshots and e2e
-   flows so compliance doesn't regress.
+1. **8.2 browser-computed contrast** - close translucent surfaces, focus rings
+   and alert/status pair evidence.
+2. **8.7 expand Playwright flows** - admin approve/reject, bulk reject reason
+   recovery, NetFleet configured/unconfigured states, refresh/logout and current
+   trip start/return.
+3. **8.3 responsive density pass** - use the new screenshots to hunt overlap,
+   clipped text and weak hierarchy at 390/768/1024/1440.
+4. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
+   handoff and blackout deactivate.
+5. **5.4/5.9 production proof** - PostgreSQL migration smoke, backup/restore
+   playbook and structured logs.
 6. **Confirm 7.1 on GitHub Security** - local audit and Docker remediation are
    shipped; confirm the default branch alert closes after push.
 7. **Monitor 7.2 CI quality gates** - first Actions run should validate
@@ -1799,10 +1819,17 @@ If time is limited, execute items 1-4 before any new feature work.
   lifecycle cards before the table. Fleet Pulse GPS copy now reports `X/Y`
   active FleetFlow cars with a NetFleet position, so admins do not see raw
   NetFleet event counts such as `63`.
-- **Verification:** `pytest -q` passes with 110 tests, targeted
-  NetFleet/UI/API pack passes with 74 tests, JS syntax checks and Python
-  compile check. Old `fleetflow_test` containers were removed, Docker stack was
-  rebuilt, `/health` on `8001` returns ok and the app container is healthy.
+- **Phase 8.7 started:** Optional Playwright browser smoke now lives in
+  `e2e/test_browser_smoke.py`. It starts a fresh app server, verifies employee
+  one-tap booking, timeline-first cards, Admin Decision Rail, Fleet Pulse copy
+  and mobile calendar, and writes `employee-desktop.png`, `admin-desktop.png`
+  and `employee-mobile.png` under `test-results/e2e`.
+- **Verification:** `pytest -q` passes with 111 tests,
+  `pytest tests/test_ui_compliance.py -q` passes with 21 tests, Playwright
+  browser smoke passes with 1 test and screenshots, JS syntax checks and Python
+  compile check pass. Old `fleetflow_test` containers were removed, Docker
+  stack was rebuilt, `/health` on `8001` returns ok and the app container is
+  healthy.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation
 

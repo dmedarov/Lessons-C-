@@ -147,6 +147,7 @@ APP_PORT=8001
 make logs   # app logs, включително bootstrap token при fresh install
 make down   # спира production/dev compose контейнерите
 make test   # pytest suite
+make test-e2e # optional Playwright browser smoke
 ```
 
 ## Bootstrap token при fresh production install
@@ -233,6 +234,7 @@ alembic/            # versioned DB migrations
 templates/index.html
 static/
 tests/test_app.py
+e2e/test_browser_smoke.py  # optional Playwright browser smoke + screenshots
 conftest.py         # путва project root в sys.path
 docker-compose.postgres.yml
 ```
@@ -295,10 +297,32 @@ docker-compose.postgres.yml
 
 ```bash
 pip install -r requirements-dev.txt
-pytest -q
+make test
 ```
 
-Последна локална проверка за timeline-first/GPS copy пакета: `pytest -q` -> 110 passed, `node --check static/app.js`, `node --check static/i18n.js`, `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile app_settings.py routers/cars.py routers/reservations.py schemas.py netfleet_service.py db.py` и `pytest tests/test_netfleet_service.py tests/test_ui_compliance.py tests/test_app.py -q` -> 74 passed. Старият `fleetflow_test` stack беше премахнат с `down --remove-orphans`, Docker image-ът беше rebuild-нат, Alembic тръгна в PostgreSQL compose, `/health` на `8001` върна `{"status":"ok"}` и `fleetflow_test-car-pool-1` е healthy.
+Browser-level UI/UX smoke тестът е отделен от бързия unit/static suite, за да
+не прави всеки локален run зависим от Chromium:
+
+```bash
+python -m playwright install chromium
+make test-e2e
+```
+
+За handoff screenshots:
+
+```bash
+E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
+```
+
+`make test-e2e` стартира fresh FastAPI server с временна SQLite база, логва
+employee/admin demo users, проверява one-tap booking, timeline-first cards,
+Admin Decision Rail, Fleet Pulse copy и mobile calendar, после записва:
+`employee-desktop.png`, `admin-desktop.png` и `employee-mobile.png`.
+`test-results/` е игнориран от git.
+
+Последна локална проверка за browser-evidence пакета: `pytest -q` -> 111 passed,
+`pytest tests/test_ui_compliance.py -q` -> 21 passed, `node --check static/app.js`,
+`node --check static/i18n.js`, `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile e2e/test_browser_smoke.py app_settings.py routers/cars.py routers/reservations.py schemas.py netfleet_service.py db.py`, и `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q` -> 1 passed. Старият `fleetflow_test` stack беше премахнат с `down --remove-orphans`, Docker image-ът беше rebuild-нат, Alembic тръгна в PostgreSQL compose, `/health` на `8001` върна `{"status":"ok"}` и `fleetflow_test-car-pool-1` е healthy.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 

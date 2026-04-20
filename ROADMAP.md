@@ -202,6 +202,10 @@ operations assistant for internal mobility**, което е:
   exact-field `aria-invalid` recovery instead of silent generic fallback reasons
 - Cancel dialogs now require a human reason and send it to the reservation
   audit trail while keeping backward-compatible no-body API calls.
+- Browser-level evidence started: optional Playwright smoke logs into the
+  employee/admin surfaces, verifies one-tap booking, timeline-first cards,
+  Admin Decision Rail, Fleet Pulse copy and mobile calendar, and writes
+  handoff screenshots under `test-results/e2e`.
 - Intent-driven summary layer: employee/admin surfaces now expose contextual
   next-action buttons for free mode, active/approved trips, pending admin work,
   active trips and calm fleet state.
@@ -230,17 +234,22 @@ operations assistant for internal mobility**, което е:
   approved/active trip.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 110 passed, targeted
-  NetFleet/UI/API regression pack -> 74 passed, JS syntax checks and Python
-  compile check. Old `fleetflow_test` containers were removed, Docker stack
-  was rebuilt, Alembic ran in PostgreSQL compose, `/health` on `8001` returned
-  ok and the app container is healthy.
+- Latest local verification for this slice: `pytest -q` -> 111 passed,
+  `pytest tests/test_ui_compliance.py -q` -> 21 passed, Playwright browser
+  smoke -> 1 passed with desktop/mobile screenshots, JS syntax checks and
+  Python compile check. Old `fleetflow_test` containers were removed, Docker
+  stack was rebuilt, Alembic ran in PostgreSQL compose, `/health` on `8001`
+  returned ok and the app container is healthy.
 
 ## Next Recommended Slices
 
-1. Browser-level Playwright screenshots/e2e за timeline-first reservations, one-tap booking, smart prefill, employee booking, admin approve/reject, bulk reject reason validation, intent actions, current trip hero, admin decision rail, fleet pulse, admin NetFleet key update, NetFleet telemetry empty/configured states, refresh/logout и mobile calendar.
-2. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
-3. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
+1. Browser-computed contrast checks for translucent surfaces, focus rings,
+   theme-aware message alerts and Fleet Pulse/status chips.
+2. Expand Playwright scenarios beyond the initial smoke: admin approve/reject,
+   bulk reject reason validation, admin NetFleet key update, NetFleet
+   configured/unconfigured states, refresh/logout and current trip start/return.
+3. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
+   change, handoff and blackout deactivate.
 4. PostgreSQL migration smoke + backup/restore playbook за production оператори.
 5. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
 

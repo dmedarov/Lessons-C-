@@ -210,6 +210,24 @@ def test_reservation_timeline_is_primary_before_table() -> None:
     assert ".reservation-flow-card__rail" in styles
 
 
+def test_playwright_e2e_harness_is_documented_and_separate_from_unit_suite() -> None:
+    makefile = _read("Makefile")
+    pyproject = _read("pyproject.toml")
+    requirements = _read("requirements-dev.txt")
+    e2e = _read("e2e/test_browser_smoke.py")
+    gitignore = _read(".gitignore")
+
+    assert "testpaths = [\"tests\"]" in pyproject
+    assert "playwright==1.58.0" in requirements
+    assert "test-e2e:" in makefile
+    assert "$(PYTHON) -m pytest e2e -q || test $$? -eq 5" in makefile
+    assert "E2E_ARTIFACT_DIR" in e2e
+    assert "employee-desktop.png" in e2e
+    assert "admin-desktop.png" in e2e
+    assert "employee-mobile.png" in e2e
+    assert "test-results/" in gitignore
+
+
 def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     html = _read("templates/admin.html")
     app_js = _read("static/app.js")
