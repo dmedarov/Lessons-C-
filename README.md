@@ -401,6 +401,7 @@ Admin Decision Rail, Reception Rail, role-aware reception calendar, Fleet Pulse 
 Последна локална проверка за request-first/role-separated-lifecycle/reception-calendar пакета:
 `make audit-prod` -> no known vulnerabilities for pinned runtime dependencies,
 direct `pip-audit -r requirements.txt` -> no known vulnerabilities when the resolver completes,
+`docker scout cves fleetflow_prod_smoke-car-pool:latest` -> 0 vulnerable packages,
 `make release-check` -> passed,
 `pytest -q` -> 135 passed, `pytest tests/test_ui_compliance.py -q` -> 31 passed,
 `node --check static/app.js`, `node --check static/i18n.js`,

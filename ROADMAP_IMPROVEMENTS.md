@@ -1222,7 +1222,11 @@ these before exposing FleetFlow beyond a trusted internal network.
 - **Status:** Local dependency audit, zero-CVE app Dockerfile remediation and
   zero-CVE PostgreSQL service image remediation shipped across `0503e95`,
   `ab1a0f2`, `0076814` and `a71121d`; GitHub alert closure still needs
-  confirmation after push.
+  confirmation after push. On 2026-04-20, `make audit-prod`, direct
+  `pip-audit -r requirements.txt` and `docker scout cves
+  fleetflow_prod_smoke-car-pool:latest` were clean, but the GitHub push banner
+  still reported one moderate Dependabot alert, so the next step is to inspect
+  the Security tab item directly.
 - **Approach:**
   1. Open the GitHub alert referenced on push:
      `https://github.com/dmedarov/Lessons-C-/security/dependabot/1`.
@@ -1961,8 +1965,9 @@ If time is limited, execute items 1-4 before any new feature work.
   browser smoke passes with 1 test and screenshots, `make audit-prod` reports
   no known vulnerabilities for pinned runtime dependencies, direct
   `pip-audit -r requirements.txt` reports no known vulnerabilities when the
-  resolver completes, `make release-check` passes, JS syntax checks and Python
-  compile check pass.
+  resolver completes, `docker scout cves fleetflow_prod_smoke-car-pool:latest`
+  reports 0 vulnerable packages, `make release-check` passes, JS syntax checks
+  and Python compile check pass.
   `make prod-check` fails fast when `.env` is missing in a clean
   checkout. Old `fleetflow_test` containers were removed, Docker stack was
   rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on `8001`

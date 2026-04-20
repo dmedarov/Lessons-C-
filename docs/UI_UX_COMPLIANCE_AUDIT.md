@@ -187,6 +187,8 @@ styles.
 - `pass`: `make audit-prod` reports no known vulnerabilities for pinned
   production runtime dependencies; direct `pip-audit -r requirements.txt`
   also reports no known vulnerabilities when the local resolver completes.
+- `pass`: `docker scout cves fleetflow_prod_smoke-car-pool:latest` reports
+  0 vulnerable packages for the current app image.
 - `pass`: `make release-check` runs the local production gate successfully:
   pinned runtime audit, Python compile, `pytest -q`, and browser JS syntax.
 - `evidence`: latest local handoff check ran `pytest -q` -> 135 passed,
