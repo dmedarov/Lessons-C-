@@ -210,23 +210,29 @@ operations assistant for internal mobility**, което е:
 - Admin Decision Rail: `/admin` now promotes the top 3 pending decisions above
   the bulk bar/table, with direct approve/reject actions and a bulk approve
   path for the full pending queue.
+- Fleet Pulse strip: `/admin` now shows a calm executive strip for active
+  trips, cars releasing within 1 hour, pending decisions, busiest car and GPS
+  telemetry availability.
+- NetFleet telemetry: server-side proxy reads latest GPS events by plate number
+  from `NETFLEET_API_KEY`; the key never reaches browser code. Admins see
+  fleet-wide telemetry, while employees see pickup location only for their own
+  approved/active trip.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 88 passed, JS
-  syntax checks, `git diff --check`, Docker rebuild and `/health` on `8001`;
-  `fleetflow_test-car-pool-1` is healthy.
+- Latest local verification for this slice: `pytest -q` -> 94 passed, JS
+  syntax checks, Python compile check, `git diff --check`, Docker rebuild and
+  `/health` on `8001`; `fleetflow_test-car-pool-1` is healthy.
 
 ## Next Recommended Slices
 
-1. Fleet Pulse strip: 3-4 executive insights, not a heavy BI dashboard.
-2. One-tap booking: "резервирай най-подходящата свободна кола" върху вече наличните conflict/slot правила.
-3. Smart prefill: последна кола, често време и типична продължителност.
-4. Timeline-first reservation view; таблицата остава вторичен режим.
-5. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
-6. Browser-level Playwright screenshots/e2e за employee booking, admin approve/reject, bulk reject reason validation, intent actions, current trip hero, admin decision rail, refresh/logout и mobile calendar.
-7. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
-8. PostgreSQL migration smoke + backup/restore playbook за production оператори.
-9. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
+1. One-tap booking: "резервирай най-подходящата свободна кола" върху вече наличните conflict/slot правила.
+2. Smart prefill: последна кола, често време и типична продължителност.
+3. Timeline-first reservation view; таблицата остава вторичен режим.
+4. Browser-level Playwright screenshots/e2e за employee booking, admin approve/reject, bulk reject reason validation, intent actions, current trip hero, admin decision rail, fleet pulse, NetFleet telemetry empty/configured states, refresh/logout и mobile calendar.
+5. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
+6. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
+7. PostgreSQL migration smoke + backup/restore playbook за production оператори.
+8. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
 
 ## References
 

@@ -32,14 +32,21 @@ const state = {
   notificationPollId: null,
   cars: [],
   reservations: [],
+  pulseReservations: [],
   notifications: [],
+  telemetry: [],
+  telemetryConfigured: false,
+  pickupTelemetry: null,
   users: [],
   userAudit: {},
   blackouts: [],
   loading: {
     cars: false,
     reservations: false,
+    pulseReservations: false,
     notifications: false,
+    telemetry: false,
+    pickupTelemetry: false,
     users: false,
     blackouts: false,
   },
@@ -115,6 +122,7 @@ const els = {
   carsGrid: document.getElementById("carsGrid"),
   reservationsTableBody: document.getElementById("reservationsTableBody"),
   decisionRail: document.getElementById("decisionRail"),
+  fleetPulse: document.getElementById("fleetPulse"),
   overviewStats: document.getElementById("overviewStats"),
   currentTripHero: document.getElementById("currentTripHero"),
   message: document.getElementById("message"),
@@ -561,6 +569,19 @@ function formatDateTime(value) {
   return new Intl.DateTimeFormat("bg-BG", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
+function formatTelemetryTime(value) {
+  if (!value) return "—";
+  const raw = String(value);
+  const normalized = raw.includes("T") ? raw : `${raw.replace(" ", "T")}Z`;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? raw : formatDateTime(date.toISOString());
+}
+
+function formatCoordinate(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric.toFixed(5) : "—";
+}
+
 function formatMonthLabel(value) {
   return new Intl.DateTimeFormat("bg-BG", { month: "long", year: "numeric" }).format(value);
 }
@@ -649,6 +670,10 @@ function calendarPill(item, car) {
 
 function carMap() {
   return new Map(state.cars.map((car) => [car.id, car]));
+}
+
+function telemetryByPlate() {
+  return new Map(state.telemetry.map((item) => [String(item.plate_number || "").trim().toUpperCase(), item]));
 }
 
 function dayMap() {
@@ -839,8 +864,9 @@ function renderShell() {
 
 function updateOverview() {
   const activeCars = state.cars.filter((car) => car.active).length;
-  const pending = state.reservations.filter((item) => item.status === "pending").length;
-  const activeTrips = state.reservations.filter((item) => item.status === "checked_out").length;
+  const overviewReservations = state.currentRole === "fleet_admin" ? state.pulseReservations : state.reservations;
+  const pending = overviewReservations.filter((item) => item.status === "pending").length;
+  const activeTrips = overviewReservations.filter((item) => item.status === "checked_out").length;
   const availableCars = Math.max(activeCars - activeTrips, 0);
 
   const kpiPending = document.getElementById("kpiPending");
@@ -859,6 +885,107 @@ function updateOverview() {
     kpiAvailable.querySelector(".stat-card__value").textContent = availableCars;
     kpiAvailable.classList.toggle("stat-card--available", availableCars > 0);
   }
+  renderFleetPulse();
+}
+
+function mostBookedCar(reservations, cars) {
+  const counts = new Map();
+  reservations
+    .filter((item) => ["pending", "approved", "checked_out"].includes(item.status))
+    .forEach((item) => counts.set(item.car_id, (counts.get(item.car_id) || 0) + 1));
+  const [carId, count] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0] || [];
+  if (!carId) return { label: t("fleetPulse.noBusiestCar"), count: 0 };
+  const car = cars.get(carId);
+  return {
+    label: car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: carId }),
+    count,
+  };
+}
+
+function renderFleetPulse() {
+  if (!els.fleetPulse) return;
+  const showPulse = state.currentRole === "fleet_admin" && surface === "admin" && state.token;
+  toggleHidden(els.fleetPulse, !showPulse);
+  if (!showPulse) {
+    els.fleetPulse.innerHTML = "";
+    return;
+  }
+
+  if (state.loading.pulseReservations || state.loading.cars || state.loading.telemetry) {
+    els.fleetPulse.innerHTML = `
+      <div class="fleet-pulse__header">
+        <div>
+          <p class="panel__eyebrow">${escapeHtml(t("fleetPulse.eyebrow"))}</p>
+          <h2 id="fleetPulseTitle">${escapeHtml(t("fleetPulse.loadingTitle"))}</h2>
+        </div>
+      </div>
+      ${skeletonCards(1)}
+    `;
+    return;
+  }
+
+  const now = new Date();
+  const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+  const cars = carMap();
+  const activeTrips = state.pulseReservations.filter((item) => item.status === "checked_out");
+  const pending = state.pulseReservations.filter((item) => item.status === "pending").length;
+  const releasingSoon = activeTrips.filter((item) => {
+    const end = new Date(item.end_time);
+    return end > now && end <= oneHourFromNow;
+  }).length;
+  const busiestCar = mostBookedCar(state.pulseReservations, cars);
+  const telemetryCount = state.telemetry.length;
+
+  const items = [
+    {
+      label: t("fleetPulse.activeTrips"),
+      value: activeTrips.length,
+      detail: t(activeTrips.length ? "fleetPulse.activeTripsDetail" : "fleetPulse.activeTripsClear"),
+    },
+    {
+      label: t("fleetPulse.releasingSoon"),
+      value: releasingSoon,
+      detail: t(releasingSoon ? "fleetPulse.releasingSoonDetail" : "fleetPulse.releasingSoonClear"),
+    },
+    {
+      label: t("fleetPulse.pending"),
+      value: pending,
+      detail: t(pending ? "fleetPulse.pendingDetail" : "fleetPulse.pendingClear"),
+    },
+    {
+      label: t("fleetPulse.busiestCar"),
+      value: busiestCar.label,
+      detail: busiestCar.count
+        ? t("fleetPulse.busiestCarDetail", { count: busiestCar.count })
+        : t("fleetPulse.busiestCarClear"),
+    },
+    {
+      label: t("fleetPulse.telemetry"),
+      value: state.telemetryConfigured ? telemetryCount : "—",
+      detail: t(state.telemetryConfigured
+        ? (telemetryCount ? "fleetPulse.telemetryDetail" : "fleetPulse.telemetryEmpty")
+        : "fleetPulse.telemetryNotConfigured"),
+    },
+  ];
+
+  els.fleetPulse.innerHTML = `
+    <div class="fleet-pulse__header">
+      <div>
+        <p class="panel__eyebrow">${escapeHtml(t("fleetPulse.eyebrow"))}</p>
+        <h2 id="fleetPulseTitle">${escapeHtml(t("fleetPulse.title"))}</h2>
+        <p class="section-copy">${escapeHtml(t("fleetPulse.copy"))}</p>
+      </div>
+    </div>
+    <div class="fleet-pulse__grid">
+      ${items.map((item) => `
+        <article class="fleet-pulse__item">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.value)}</strong>
+          <p>${escapeHtml(item.detail)}</p>
+        </article>
+      `).join("")}
+    </div>
+  `;
 }
 
 function updateNotificationBadge() {
@@ -898,8 +1025,9 @@ function updateSummary() {
 
   const adminMode = state.currentRole === "fleet_admin";
   if (adminMode) {
-    const pending = state.reservations.filter((item) => item.status === "pending").length;
-    const activeTrips = state.reservations.filter((item) => item.status === "checked_out").length;
+    const adminReservations = state.pulseReservations;
+    const pending = adminReservations.filter((item) => item.status === "pending").length;
+    const activeTrips = adminReservations.filter((item) => item.status === "checked_out").length;
     const adminSurface = state.surface === "admin";
     els.modeHeading.textContent = adminSurface ? "Admin control surface" : "Admin on employee desk";
     els.modeCopy.textContent = adminSurface
@@ -1000,6 +1128,24 @@ function renderCurrentTripHero() {
   const purpose = item.purpose
     ? `<p class="current-trip-hero__purpose">${escapeHtml(t("trip.hero.reason", { purpose: item.purpose }))}</p>`
     : "";
+  const pickup = state.pickupTelemetry && state.pickupTelemetry.carId === item.car_id ? state.pickupTelemetry : null;
+  const pickupMarkup = state.loading.pickupTelemetry
+    ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.loading"))}</strong></div>`
+    : pickup?.item
+      ? `
+        <div class="pickup-location">
+          <strong>${escapeHtml(t("pickup.title"))}</strong>
+          <span>${escapeHtml(t("telemetry.coordinates", {
+            lat: formatCoordinate(pickup.item.latitude),
+            lon: formatCoordinate(pickup.item.longitude),
+          }))}</span>
+          <span>${escapeHtml(t("telemetry.updated", { time: formatTelemetryTime(pickup.item.utc_time) }))}</span>
+          ${pickup.item.latitude != null && pickup.item.longitude != null ? `<a class="ghost-link ghost-link--compact" href="https://www.google.com/maps?q=${encodeURIComponent(`${pickup.item.latitude},${pickup.item.longitude}`)}" target="_blank" rel="noreferrer">${escapeHtml(t("pickup.mapLink"))}</a>` : ""}
+        </div>
+      `
+      : pickup?.configured
+        ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.title"))}</strong><span>${escapeHtml(t("pickup.noSignal"))}</span></div>`
+        : "";
 
   els.currentTripHero.innerHTML = `
     <div class="current-trip-hero__content">
@@ -1011,6 +1157,7 @@ function renderCurrentTripHero() {
       }))}</p>
       <p class="section-copy">${escapeHtml(t(active ? "trip.hero.activeCopy" : "trip.hero.approvedCopy"))}</p>
       ${purpose}
+      ${pickupMarkup}
     </div>
     <div class="current-trip-hero__aside">
       <span class="status-tag status-tag--${item.status}">${escapeHtml(t("trip.hero.status", { status: lifecycleLabel(item.status) }))}</span>
@@ -1158,6 +1305,7 @@ function renderUsers() {
 
 function renderCars() {
   const carsToShow = state.cars.filter((car) => (state.carFilter === "active" ? car.active : true));
+  const telemetry = telemetryByPlate();
   els.carsGrid.innerHTML = "";
 
   if (state.loading.cars) {
@@ -1178,6 +1326,21 @@ function renderCars() {
   carsToShow.forEach((car) => {
     const card = document.createElement("article");
     card.className = "car-card";
+    const gps = telemetry.get(String(car.plate_number || "").trim().toUpperCase());
+    const telemetryMarkup = gps
+      ? `
+        <div class="car-card__telemetry">
+          <strong>${escapeHtml(t("telemetry.latest"))}</strong>
+          <span>${escapeHtml(t("telemetry.coordinates", {
+            lat: formatCoordinate(gps.latitude),
+            lon: formatCoordinate(gps.longitude),
+          }))}</span>
+          <span>${escapeHtml(t("telemetry.speed", { speed: gps.speed ?? "—" }))}</span>
+          <span>${escapeHtml(t("telemetry.updated", { time: formatTelemetryTime(gps.utc_time) }))}</span>
+          ${gps.latitude != null && gps.longitude != null ? `<a class="ghost-link ghost-link--compact" href="https://www.google.com/maps?q=${encodeURIComponent(`${gps.latitude},${gps.longitude}`)}" target="_blank" rel="noreferrer">${escapeHtml(t("telemetry.mapLink"))}</a>` : ""}
+        </div>
+      `
+      : "";
     card.innerHTML = `
       <div class="car-card__meta">
         <div>
@@ -1187,6 +1350,7 @@ function renderCars() {
         <span class="status-tag ${car.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(car.active ? "status.active" : "status.inactive")}</span>
       </div>
       <p class="mini-note">${car.active ? "Наличен за нови заявки." : "Изваден от нови резервации."}</p>
+      ${state.currentRole === "fleet_admin" ? telemetryMarkup : ""}
       ${
         state.currentRole === "fleet_admin"
           ? `<div class="car-card__notes">
@@ -1953,6 +2117,76 @@ async function loadReservations() {
   }
 }
 
+async function loadFleetPulseReservations() {
+  if (!state.token || state.currentRole !== "fleet_admin") {
+    state.pulseReservations = [];
+    renderFleetPulse();
+    return;
+  }
+
+  setLoading("pulseReservations", true);
+  renderFleetPulse();
+  try {
+    const data = await apiFetch("/reservations?limit=500", { headers: authHeaders() });
+    state.pulseReservations = data.items;
+  } finally {
+    setLoading("pulseReservations", false);
+    renderFleetPulse();
+  }
+}
+
+async function loadTelemetry() {
+  if (!state.token || state.currentRole !== "fleet_admin") {
+    state.telemetry = [];
+    state.telemetryConfigured = false;
+    renderFleetPulse();
+    renderCars();
+    return;
+  }
+
+  setLoading("telemetry", true);
+  renderFleetPulse();
+  try {
+    const data = await apiFetch("/cars/telemetry/latest", { headers: authHeaders() });
+    state.telemetryConfigured = Boolean(data.configured);
+    state.telemetry = data.items || [];
+  } catch (error) {
+    state.telemetry = [];
+    state.telemetryConfigured = false;
+    console.warn("NetFleet telemetry failed", error);
+  } finally {
+    setLoading("telemetry", false);
+    renderFleetPulse();
+    renderCars();
+  }
+}
+
+async function loadPickupTelemetry() {
+  const candidate = currentTripCandidate();
+  if (!state.token || !candidate) {
+    state.pickupTelemetry = null;
+    renderCurrentTripHero();
+    return;
+  }
+
+  setLoading("pickupTelemetry", true);
+  renderCurrentTripHero();
+  try {
+    const data = await apiFetch(`/cars/${candidate.car_id}/telemetry/latest`, { headers: authHeaders() });
+    state.pickupTelemetry = {
+      carId: candidate.car_id,
+      configured: Boolean(data.configured),
+      item: data.item || null,
+    };
+  } catch (error) {
+    state.pickupTelemetry = null;
+    console.warn("Pickup telemetry failed", error);
+  } finally {
+    setLoading("pickupTelemetry", false);
+    renderCurrentTripHero();
+  }
+}
+
 async function downloadCsv(url, filename) {
   const response = await fetch(url, { headers: authHeaders() });
   if (!response.ok) {
@@ -2127,7 +2361,8 @@ async function refreshData() {
   try {
     hideMessage();
     await loadCars();
-    await Promise.all([loadReservations(), loadNotifications(), loadUsers()]);
+    await Promise.all([loadReservations(), loadFleetPulseReservations(), loadTelemetry(), loadNotifications(), loadUsers()]);
+    await loadPickupTelemetry();
     updateOverview();
     updateSummary();
     renderCurrentTripHero();
@@ -2322,6 +2557,10 @@ async function handleLogout() {
   setSession(null, null);
   state.notifications = [];
   state.reservations = [];
+  state.pulseReservations = [];
+  state.telemetry = [];
+  state.telemetryConfigured = false;
+  state.pickupTelemetry = null;
   state.users = [];
   state.userAudit = {};
   state.blackouts = [];
@@ -2333,6 +2572,7 @@ async function handleLogout() {
   renderReservations();
   renderCurrentTripHero();
   renderDecisionRail();
+  renderFleetPulse();
   renderUsers();
   renderBlackouts();
   renderHandoffCandidates();

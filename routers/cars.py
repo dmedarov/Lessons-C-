@@ -6,8 +6,9 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from db import get_conn
+from netfleet_service import fetch_latest_gps_events
 from schemas import BlackoutUpdatePayload, CarBlackoutCreate, CarBlackoutResponse, CarCreate, CarNotesPayload
-from security import AuthContext, require_admin
+from security import AuthContext, get_auth_context, require_admin
 
 router = APIRouter(prefix="/cars", tags=["cars"])
 
@@ -69,6 +70,43 @@ def list_cars(active_only: bool = True) -> dict[str, list[dict]]:
     with get_conn() as conn:
         rows = conn.execute(query, params).fetchall()
     return {"items": [dict(r) for r in rows]}
+
+
+@router.get("/telemetry/latest")
+def latest_car_telemetry(_: AuthContext = Depends(require_admin)) -> dict:
+    try:
+        telemetry = fetch_latest_gps_events()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail="NetFleet telemetry unavailable") from exc
+    return {"configured": telemetry.configured, "items": telemetry.items}
+
+
+@router.get("/{car_id}/telemetry/latest")
+def latest_car_telemetry_for_car(car_id: int, auth: AuthContext = Depends(get_auth_context)) -> dict:
+    with get_conn() as conn:
+        car = conn.execute("SELECT id, plate_number FROM cars WHERE id=?", (car_id,)).fetchone()
+        if not car:
+            raise HTTPException(status_code=404, detail="Car not found")
+        if auth.role != "fleet_admin":
+            reservation = conn.execute(
+                """
+                SELECT id FROM reservations
+                WHERE car_id=? AND created_by_id=? AND status='approved' AND returned_at IS NULL
+                LIMIT 1
+                """,
+                (car_id, auth.user_id),
+            ).fetchone()
+            if not reservation:
+                raise HTTPException(status_code=403, detail="No approved trip for this car")
+
+    try:
+        telemetry = fetch_latest_gps_events()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail="NetFleet telemetry unavailable") from exc
+
+    plate = str(car["plate_number"]).strip().upper()
+    item = next((event for event in telemetry.items if event.get("plate_number") == plate), None)
+    return {"configured": telemetry.configured, "item": item}
 
 
 @router.post("/{car_id}/deactivate")

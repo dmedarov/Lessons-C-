@@ -39,6 +39,7 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Intent summary / next action | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | One primary action, clear next step, keyboard focus, 44 px targets | Summary deck now renders contextual next-action buttons for employee/admin modes. Capture desktop/mobile screenshots and verify no surface exposes competing primary actions. |
 | Current trip hero | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | One primary action, status text, keyboard focus, mobile fit | Active/next approved employee trip is promoted above calendar/table with `Старт` or `Върни`. Capture desktop/mobile screenshots and verify focus after action. |
 | Status bar / fleet KPIs | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Live system status, text labels, no color-only meaning, 390 px fit | KPI strip now reports pending, active trips and free cars. Verify mobile wrapping and screen-reader order. |
+| Fleet Pulse / NetFleet telemetry | `templates/admin.html`, `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/cars.py`, `netfleet_service.py` | needs evidence | No exposed API key, employee pickup authorization, text-backed GPS status, responsive strip, coordinates do not overwhelm decisions | Fleet Pulse now uses a global reservation snapshot and optional NetFleet GPS events by plate number. Employee pickup location is limited to the user's own approved/active trip. Capture configured/unconfigured screenshots and verify no key appears in browser payloads. |
 | Employee booking form | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Apple layout, NN/g error prevention, WCAG form semantics, conflict preview status | Test invalid date range, conflict warning, preserved input after failure. `conflictPreview` already has `role=status` + `aria-live=polite`. |
 | Calendar studio | `templates/index.html`, `static/app.js`, `static/styles.css` | needs evidence | Responsive 390/768/1440, keyboard reachability, color+text statuses, no overlap | Capture mobile day mode and desktop month screenshots; verify day controls. Month prev/next controls now have accessible labels on both surfaces. |
 | Reservation list/cards | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Status text, lifecycle clarity, cards at mobile, table/card labels, cancel recovery | Verify no color-only state and all actions have accessible names. Lifecycle meter has text labels; table body is `aria-live=polite`; cancel now requires a reason. |
@@ -112,12 +113,17 @@ styles.
 - `pass`: admin decision rail promotes the top 3 pending decisions before the
   table, keeps text-backed urgency and preserves 44 px direct approve/reject
   actions; covered by `tests/test_ui_compliance.py`.
+- `pass`: fleet pulse promotes admin executive insights before approvals, and
+  NetFleet GPS data stays behind server endpoints; employee pickup telemetry
+  is authorized only for the user's own approved/active trip; covered by
+  `tests/test_ui_compliance.py` and `tests/test_app.py`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
-- `evidence`: latest local handoff check ran `pytest -q` -> 88 passed,
-  `node --check static/app.js`, `node --check static/i18n.js`,
-  `git diff --check`, Docker rebuild and `/health` on `8001`;
-  `fleetflow_test-car-pool-1` is healthy.
+- `evidence`: latest local handoff check ran `pytest -q` -> 94 passed,
+  `node --check static/app.js`, `node --check static/i18n.js` and
+  Python compile check for `config.py`, `netfleet_service.py` and
+  `routers/cars.py`, plus `git diff --check`, Docker rebuild and `/health` on
+  `8001`; `fleetflow_test-car-pool-1` is healthy.
 
 ## PR/Handoff Checklist
 

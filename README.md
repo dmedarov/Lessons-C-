@@ -28,6 +28,9 @@
 - Intent-driven summary: началният operational слой показва следващия най-важен ход според режима.
 - Current Trip Hero: активната или следваща одобрена резервация излиза като основен hero блок с един primary action.
 - Admin Decision Rail: `/admin` започва с най-спешните pending заявки, директни approve/reject действия и bulk approve, преди таблицата.
+- Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола и GPS сигнал.
+- NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в `.env`.
+- Pickup location: служителят вижда къде да вземе колата само за своя одобрена/активна резервация.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
 - Реален месечен календарен изглед за планиране и натоварване по дни.
 - Mobile day calendar mode под 768px, с предишен/следващ ден и бързо резервиране.
@@ -116,6 +119,7 @@ make prod
 
 ```env
 CORS_ALLOW_ORIGINS=https://your-real-domain.example
+NETFLEET_API_KEY=your-netfleet-company-api-key   # optional, за live GPS координати
 ```
 
 Ако порт `8000` е зает, задай например:
@@ -177,6 +181,8 @@ make logs
 
 1. Попълни `.env` с реални стойности за `SECRET_KEY`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` и `DATABASE_URL`.
 2. Ако искаш външни нотификации, попълни и `SMTP_*`, `SLACK_WEBHOOK_URL`, `TEAMS_WEBHOOK_URL`.
+   Ако искаш live координати, попълни `NETFLEET_API_KEY`; `NETFLEET_BASE_URL`
+   по подразбиране е `https://api.netfleet.bg:8080`.
    Ако порт `8000` е зает, задай `APP_PORT=8001` или друг свободен порт в `.env`.
 
 3. Стартирай production-ready стека:
@@ -197,8 +203,9 @@ docker compose -f docker-compose.yml -f docker-compose.postgres.yml down
 
 ```
 app.py              # FastAPI factory + lifespan
-config.py           # Настройки от env (SECRET_KEY, DB_PATH, DATABASE_URL, TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS, CORS/rate limits)
+config.py           # Настройки от env (SECRET_KEY, DB_PATH, DATABASE_URL, TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS, CORS/rate limits, NetFleet)
 db.py               # SQLite/PostgreSQL adapters, schema bootstrap, runtime compatibility upgrades
+netfleet_service.py # Server-side NetFleet GPS telemetry client; ключът не стига до browser-а
 security.py         # HMAC-подписани токени, PBKDF2 пароли, auth deps
 schemas.py          # Pydantic request/response модели
 routers/
@@ -272,7 +279,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-Последна локална проверка за UI/admin-decision-rail пакета: `pytest -q` -> 88 passed, `node --check static/app.js`, `node --check static/i18n.js`, `git diff --check`, Docker rebuild и `/health` на `8001`; `fleetflow_test-car-pool-1` е healthy.
+Последна локална проверка за UI/fleet-pulse + NetFleet pickup telemetry пакета: `pytest -q` -> 94 passed, `node --check static/app.js`, `node --check static/i18n.js`, `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile config.py netfleet_service.py routers/cars.py`, `git diff --check`, Docker rebuild и `/health` на `8001`; `fleetflow_test-car-pool-1` е healthy.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 

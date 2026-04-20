@@ -1075,6 +1075,94 @@ def test_car_notes_employee_forbidden(client: TestClient) -> None:
 
 
 # ---------------------------------------------------------------------------
+# 2.13 NetFleet telemetry (GET /cars/telemetry/latest)
+# ---------------------------------------------------------------------------
+
+def test_car_telemetry_returns_unconfigured_without_secret(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+
+    res = client.get("/cars/telemetry/latest", headers=_auth(admin))
+    assert res.status_code == 200
+    assert res.json() == {"configured": False, "items": []}
+
+
+def test_car_telemetry_employee_forbidden(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "empgps", "Emp GPS", "EmpPass123")
+    emp = _login(client, "empgps", "EmpPass123")
+
+    res = client.get("/cars/telemetry/latest", headers=_auth(emp))
+    assert res.status_code == 403
+
+
+def test_car_telemetry_returns_normalized_netfleet_payload(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from routers import cars
+
+    admin = _bootstrap_admin(client)
+    monkeypatch.setattr(
+        cars,
+        "fetch_latest_gps_events",
+        lambda: SimpleNamespace(
+            configured=True,
+            items=[
+                {
+                    "plate_number": "CB9023AA",
+                    "latitude": 42.6977,
+                    "longitude": 23.3219,
+                    "speed": 12.5,
+                    "utc_time": "2024-04-29 14:48:05",
+                }
+            ],
+        ),
+    )
+
+    res = client.get("/cars/telemetry/latest", headers=_auth(admin))
+    assert res.status_code == 200
+    assert res.json()["configured"] is True
+    assert res.json()["items"][0]["plate_number"] == "CB9023AA"
+    assert res.json()["items"][0]["latitude"] == 42.6977
+
+
+def test_employee_can_read_pickup_telemetry_for_approved_trip(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from routers import cars
+
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "pick", "Pickup User", "PickupPass123")
+    employee = _login(client, "pick", "PickupPass123")
+    car_id = _create_car(client, admin, plate="CB9024AA")
+    reservation_id = _create_reservation(client, car_id, employee)
+    approve = client.post(f"/reservations/{reservation_id}/approve", json={"reason": "ok"}, headers=_auth(admin))
+    assert approve.status_code == 200
+    monkeypatch.setattr(
+        cars,
+        "fetch_latest_gps_events",
+        lambda: SimpleNamespace(
+            configured=True,
+            items=[{"plate_number": "CB9024AA", "latitude": 42.7, "longitude": 23.3, "speed": 0}],
+        ),
+    )
+
+    res = client.get(f"/cars/{car_id}/telemetry/latest", headers=_auth(employee))
+    assert res.status_code == 200
+    assert res.json()["configured"] is True
+    assert res.json()["item"]["plate_number"] == "CB9024AA"
+
+
+def test_employee_cannot_read_pickup_telemetry_without_approved_trip(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "nopick", "No Pickup", "PickupPass123")
+    employee = _login(client, "nopick", "PickupPass123")
+    car_id = _create_car(client, admin, plate="CB9025AA")
+
+    res = client.get(f"/cars/{car_id}/telemetry/latest", headers=_auth(employee))
+    assert res.status_code == 403
+
+
+# ---------------------------------------------------------------------------
 # 2.12 Test notification (POST /notifications/test)
 # ---------------------------------------------------------------------------
 

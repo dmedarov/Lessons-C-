@@ -155,3 +155,34 @@ def test_admin_decision_rail_promotes_pending_queue_before_table() -> None:
     assert '"decisionRail.emptyCopy": "Опашката е чиста.' in i18n_js
     assert ".decision-rail__actions .btn" in styles
     assert ".decision-card__actions .action-btn" in styles
+
+
+def test_fleet_pulse_promotes_admin_executive_insights() -> None:
+    html = _read("templates/admin.html")
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+    assert 'id="fleetPulse" aria-labelledby="fleetPulseTitle" aria-live="polite"' in html
+    assert html.index('id="fleetPulse"') < html.index('id="reservationsDeck"')
+    assert "pulseReservations: []" in app_js
+    assert "telemetry: []" in app_js
+    assert "function loadFleetPulseReservations()" in app_js
+    assert "function loadTelemetry()" in app_js
+    assert "function loadPickupTelemetry()" in app_js
+    assert 'apiFetch("/reservations?limit=500"' in app_js
+    assert 'apiFetch("/cars/telemetry/latest"' in app_js
+    assert 'apiFetch(`/cars/${candidate.car_id}/telemetry/latest`' in app_js
+    assert "function renderFleetPulse()" in app_js
+    assert "function mostBookedCar(reservations, cars)" in app_js
+    assert "function telemetryByPlate()" in app_js
+    assert 'const overviewReservations = state.currentRole === "fleet_admin" ? state.pulseReservations : state.reservations;' in app_js
+    assert 'const adminReservations = state.pulseReservations;' in app_js
+    assert '"fleetPulse.title": "Оперативен пулс"' in i18n_js
+    assert '"fleetPulse.busiestCar": "Най-натоварена кола"' in i18n_js
+    assert '"fleetPulse.telemetry": "GPS сигнали"' in i18n_js
+    assert '"pickup.title": "Къде да вземеш колата"' in i18n_js
+    assert '"telemetry.coordinates": "{lat}, {lon}"' in i18n_js
+    assert ".fleet-pulse__grid" in styles
+    assert ".car-card__telemetry" in styles
+    assert ".pickup-location" in styles
+    assert "grid-template-columns: repeat(5, minmax(0, 1fr));" in styles

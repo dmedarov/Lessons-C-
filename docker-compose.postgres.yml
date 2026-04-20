@@ -28,6 +28,9 @@ services:
       SECRET_KEY: "${SECRET_KEY:?set SECRET_KEY in .env}"
       TOKEN_TTL_SECONDS: "${TOKEN_TTL_SECONDS:-3600}"
       DATABASE_URL: "${DATABASE_URL:-postgresql://fleetflow:fleetflow-dev-password@postgres:5432/fleetflow}"
+      NETFLEET_API_KEY: "${NETFLEET_API_KEY:-}"
+      NETFLEET_BASE_URL: "${NETFLEET_BASE_URL:-https://api.netfleet.bg:8080}"
+      NETFLEET_TIMEOUT_SECONDS: "${NETFLEET_TIMEOUT_SECONDS:-5}"
       RUN_MIGRATIONS: "true"
     restart: unless-stopped
 
