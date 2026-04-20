@@ -322,7 +322,7 @@ operations assistant for internal mobility**, което е:
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
   Alembic revision `20260420_0009`.
 - Latest go-live gate verification: `pytest tests/test_prod_readiness.py -q`
-  -> 7 passed, `make qa-premium` -> 150 pytest cases + 12 browser checks,
+  -> 7 passed, `make qa-premium` -> 151 pytest cases + 12 browser checks,
   and `make smoke-live APP_URL=http://127.0.0.1:8001` returned
   health/ready/active-admin/public overview from the running PostgreSQL stack.
 - Latest calm-flow verification: Playwright captures responsive density
@@ -344,7 +344,9 @@ operations assistant for internal mobility**, което е:
 - Static asset cache guard: templates now use versioned `/static/*.css/js`
   URLs and the app sends `Cache-Control: no-cache, must-revalidate` for HTML,
   CSS and JS, preventing stale `i18n.js` from showing raw translation keys
-  after deploy.
+  after deploy. Literal `t("...")` keys are now checked against
+  `static/i18n.js`, and runtime missing-translation fallback avoids exposing
+  implementation keys to users.
 
 ## Go-Live Plan
 

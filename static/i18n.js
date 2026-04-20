@@ -289,12 +289,22 @@ const bg = {
   "notification.channelNotConfigured": "не е конфигуриран",
 };
 
+const missingTranslations = new Set();
+const missingTranslationFallback = "Текстът не е наличен";
+
 function interpolate(template, vars = {}) {
   return template.replace(/\{(\w+)\}/g, (_match, key) => String(vars[key] ?? ""));
 }
 
 function t(key, vars = {}) {
-  const template = bg[key] || key;
+  const template = bg[key];
+  if (!template) {
+    if (!missingTranslations.has(key)) {
+      missingTranslations.add(key);
+      console.warn(`Missing FleetFlow translation: ${key}`);
+    }
+    return missingTranslationFallback;
+  }
   return interpolate(template, vars);
 }
 
@@ -304,6 +314,8 @@ function pluralRecord(count) {
 
 window.FleetFlowI18n = {
   bg,
+  missingTranslations,
+  missingTranslationFallback,
   pluralRecord,
   t,
 };

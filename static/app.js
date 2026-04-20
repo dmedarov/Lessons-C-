@@ -1,5 +1,5 @@
 function t(key, vars = {}) {
-  return window.FleetFlowI18n?.t(key, vars) || key;
+  return window.FleetFlowI18n?.t(key, vars) || "Текстът се зарежда";
 }
 
 function pluralRecord(count) {

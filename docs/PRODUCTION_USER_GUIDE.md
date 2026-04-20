@@ -214,6 +214,10 @@ Production UX правилото е: всеки човек вижда следв
 responsive density screenshots и destructive recovery screenshots в
 `test-results/e2e/`.
 
+След deploy HTML/CSS/JS се сервират с `no-cache` guard и versioned static URLs.
+Ако потребител види raw UI ключ като `calendar.*`, това вече е blocker за
+cache или превод и трябва да се провери с `make qa-premium` преди реална работа.
+
 ## 8. Минимална live проверка
 
 Преди да кажеш “ползваме го реално”, провери:

@@ -199,6 +199,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Static asset deploy guard is shipped: `/`, `/admin` and `/static/*.css/js`
   responses are `no-cache, must-revalidate`, and both templates use versioned
   asset URLs so stale browser cache cannot leave raw i18n keys on screen.
+  Missing literal `t("...")` keys are now a UI compliance test failure, and
+  runtime missing translations fall back to Bulgarian neutral copy rather than
+  raw implementation keys.
 - Current production-readiness assessment is **90/100 for a controlled
   internal pilot** after final real `.env`, real domain/CORS, backup/restore
   drill, NetFleet verification and `make go-live-check APP_URL=<production-url>`.
@@ -2191,14 +2194,14 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Docs:** README, ROADMAP, ROADMAP_IMPROVEMENTS, Production User Guide,
   Role User Flows, UI/UX Compliance Audit and Production Readiness Assessment
   now all describe the same calm handoff flow and production status.
-- **Verification:** `tests/test_ui_compliance.py` -> 36 passed; targeted
+- **Verification:** `tests/test_ui_compliance.py` -> 38 passed; targeted
   Playwright reception/calendar + overdue signal -> 2 passed; `make
-  qa-premium` -> dependency audit, Python compile, 150 pytest cases, JS syntax
+  qa-premium` -> dependency audit, Python compile, 151 pytest cases, JS syntax
   and 12 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed. Follow-up mid-width calendar fix was rechecked with `node --check`,
-  `tests/test_ui_compliance.py` -> 36 passed, targeted Playwright reception
-  calendar/overdue signal -> 2 passed, and full `make qa-premium` -> 149
+  `tests/test_ui_compliance.py` -> 38 passed, targeted Playwright reception
+  calendar/overdue signal -> 2 passed, and full `make qa-premium` -> 151
   pytest cases + 12 Playwright checks.
 
 ### 2026-04-21 - Static asset cache guard for i18n correctness
@@ -2211,10 +2214,15 @@ If time is limited, execute items 1-4 before any new feature work.
   with a version query string so existing browser caches fetch the current
   bundle immediately.
 - **UX guard:** public browser smoke asserts the page does not display
-  `calendar.calmDayTitle` or `calendar.nextBusyDay`.
+  `calendar.calmDayTitle`, `calendar.nextBusyDay` or the neutral missing-copy
+  fallback.
+- **i18n guard:** `tests/test_ui_compliance.py` extracts literal `t("...")`
+  calls from `static/app.js` and fails if any are absent from `static/i18n.js`.
+  Runtime missing translations log once to the console and show
+  `Текстът не е наличен`, not the raw key.
 - **Verification:** `node --check static/app.js`, `node --check
-  static/i18n.js`, `tests/test_ui_compliance.py` + `test_health_and_ui` -> 38
-  passed; full `make qa-premium` -> dependency audit, Python compile, 150
+  static/i18n.js`, `tests/test_ui_compliance.py` + `test_health_and_ui` -> 39
+  passed; full `make qa-premium` -> dependency audit, Python compile, 151
   pytest cases, JS syntax and 12 Playwright browser checks.
 
 ### 2026-04-21 - Final go-live gate and docs review

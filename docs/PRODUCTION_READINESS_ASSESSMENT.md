@@ -43,6 +43,8 @@ UI guardrails, backup/restore discipline и browser evidence са достатъ
   да оставя статично empty state съобщение.
 - Static assets имат versioned URLs и `no-cache` headers, така че production
   deploy не оставя стар `i18n.js` в браузъра с raw translation keys.
+- Липсващи literal UI преводи вече се хващат от тестовете, а runtime fallback
+  показва неутрален български текст вместо raw key.
 - Reception и admin получават top next signal за просрочено връщане преди
   pending approvals, защото това е по-спешен operational риск.
 
@@ -77,11 +79,11 @@ UI guardrails, backup/restore discipline и browser evidence са достатъ
 
 - `node --check static/app.js` -> passed.
 - `node --check static/i18n.js` -> passed.
-- `pytest tests/test_ui_compliance.py -q` -> 36 passed.
+- `pytest tests/test_ui_compliance.py -q` -> 38 passed.
 - Targeted Playwright admin destructive recovery -> 1 passed.
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
 - Full Playwright smoke -> 12 passed.
-- `make qa-premium` -> dependency audit, Python compile, 150 pytest cases,
+- `make qa-premium` -> dependency audit, Python compile, 151 pytest cases,
   JS syntax and 12 Playwright browser checks passed.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> `/health`,
   `/health/ready`, `/auth/setup-status` and `/public/overview` passed.
@@ -109,7 +111,9 @@ reliable flows:
 - empty selected calendar days point to the next busy date instead of ending
   the flow;
 - HTML/CSS/JS cache headers and versioned asset URLs prevent stale i18n bundles
-  from leaking raw translation keys after deployment.
+  from leaking raw translation keys after deployment;
+- literal `t("...")` calls are checked against `static/i18n.js`, and runtime
+  missing translations do not expose raw implementation keys.
 
 The remaining UX risk before broad rollout is not a missing module; it is
 operational observation. Use the first week to collect where employees,

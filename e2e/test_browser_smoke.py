@@ -444,6 +444,7 @@ def test_public_orientation_surface(browser: Browser, server: str, artifact_dir:
     expect(page.locator("#calendarStudio")).to_be_visible()
     expect(page.locator("body")).not_to_contain_text("calendar.calmDayTitle")
     expect(page.locator("body")).not_to_contain_text("calendar.nextBusyDay")
+    expect(page.locator("body")).not_to_contain_text("Текстът не е наличен")
     page.screenshot(path=artifact_dir / "public-mobile.png", full_page=True)
 
     page.goto(f"{server}/admin", wait_until="domcontentloaded")

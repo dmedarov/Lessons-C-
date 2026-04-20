@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
@@ -62,6 +63,19 @@ def test_static_assets_are_cache_busted_in_templates() -> None:
         assert "/static/theme.js?v=20260421-calendar-cache" in html
         assert 'src="/static/i18n.js"' not in html
         assert 'src="/static/app.js"' not in html
+
+
+def test_i18n_literal_keys_are_defined_and_missing_keys_do_not_render_raw_keys() -> None:
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    defined_keys = set(re.findall(r'"([^"]+)"\s*:', i18n_js))
+    literal_t_keys = set(re.findall(r'(?<![A-Za-z0-9_.$])t\("([^"`]+)"', app_js))
+    missing = sorted(literal_t_keys - defined_keys)
+    assert missing == []
+    assert "const template = bg[key];" in i18n_js
+    assert "return missingTranslationFallback;" in i18n_js
+    assert "bg[key] || key" not in i18n_js
+    assert 'window.FleetFlowI18n?.t(key, vars) || "Текстът се зарежда"' in app_js
 
 
 def test_message_alerts_use_theme_classes_not_inline_colors() -> None:
