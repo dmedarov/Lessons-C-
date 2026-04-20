@@ -224,6 +224,9 @@ operations assistant for internal mobility**, което е:
 - User contact readiness: admin user creation now stores optional email and
   GSM number for operational coordination without turning GSM into an auth
   factor.
+- Authenticated requester contact: reservation lists/cards now surface the
+  requester's GSM number after login for records the current role can already
+  see, while public overview/calendar stay anonymous and never expose GSM.
 - Intent-driven summary layer: employee/admin surfaces now expose contextual
   next-action buttons for free mode, active/approved trips, pending admin work,
   active trips and calm fleet state.
@@ -269,7 +272,7 @@ operations assistant for internal mobility**, което е:
   operational records remain authenticated.
 - Pre-login public calendar: `/public/calendar` feeds month/day calendar
   occupancy before login with status, plate number and model, while requester,
-  purpose, GPS, reservation ids and lifecycle actions remain authenticated.
+  purpose, GSM, GPS, reservation ids and lifecycle actions remain authenticated.
 - NetFleet telemetry: server-side proxy reads latest GPS events by plate number
   from the admin-managed DB setting or `NETFLEET_API_KEY`; the key never
   reaches browser code and the UI never echoes the current secret. Admins see

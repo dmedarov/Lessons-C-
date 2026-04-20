@@ -281,6 +281,7 @@ def test_admin_decision_rail_promotes_pending_queue_before_table() -> None:
     assert 'setAllPendingReservationsSelected(true);' in app_js
     assert 'bulkReservationDecision("approve").catch' in app_js
     assert 'data-decision-card="${item.id}"' in app_js
+    assert "requesterGsmLine(item)" in app_js
     assert 't("decisionRail.eyebrow")' in app_js
     assert '"decisionRail.approveAll": "Одобри всички"' in i18n_js
     assert '"decisionRail.emptyCopy": "Опашката е чиста.' in i18n_js
@@ -303,6 +304,7 @@ def test_reception_rail_promotes_key_handoff_before_table() -> None:
     assert "if (!handoffItems.length && isFullAdmin())" in app_js
     assert 'data-reception-card="${item.id}"' in app_js
     assert 'data-reservation-action="${action}"' in app_js
+    assert "requesterGsmLine(item)" in app_js
     assert 'action = isActive ? "return" : "start"' in app_js
     assert 't("receptionRail.eyebrow")' in app_js
     assert '"receptionRail.emptyTitle": "Няма коли за предаване или връщане"' in i18n_js
@@ -318,6 +320,22 @@ def test_reception_calendar_uses_operational_snapshot_not_table_filter() -> None
     assert 'state.currentRole === "fleet_reception" ? ["approved", "checked_out"]' in app_js
     assert '["pending", "approved", "checked_out"]' in app_js
     assert "const calendarItems = calendarSourceItems();" in app_js
+
+
+def test_authenticated_reservation_surfaces_show_requester_gsm_without_public_leak() -> None:
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    router = _read("routers/reservations.py")
+    app_py = _read("app.py")
+
+    assert "requester.gsm_number AS requester_gsm_number" in router
+    assert "LEFT JOIN users requester ON requester.id = r.created_by_id" in router
+    assert "function requesterGsmLine(item)" in app_js
+    assert "if (!state.token || !item.requester_gsm_number) return \"\";" in app_js
+    assert 't("reservation.requesterGsm", { number: item.requester_gsm_number })' in app_js
+    assert '"reservation.requesterGsm": "GSM: {number}"' in i18n_js
+    assert "const requesterGsm = requesterGsmLine(item);" in app_js
+    assert "requester_gsm_number" not in app_py
     assert "renderCalendar();\n    renderDayTimeline();" in app_js
 
 

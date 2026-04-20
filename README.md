@@ -15,6 +15,7 @@
 - Bootstrap flow за първия `fleet_admin`, без demo users в production.
 - User management: създаване, activate/deactivate, password change и guarded admin handoff.
 - User contacts: admin може да добавя optional email и GSM номер към потребител.
+- Requester contact in requests: след login заявките показват GSM номера на заявителя за authenticated потребителите, които вече имат право да виждат резервацията; публичният pre-login календар остава без заявител/GSM.
 - Structured access logs: production режимът логва request id, route, status и latency като JSON.
 - Пагинация при списъка с резервации.
 - `health` endpoint за Docker healthcheck.
@@ -326,6 +327,7 @@ docker-compose.postgres.yml
 - `POST /users/me/password` — логнат потребител, със задължителна текуща парола.
 - `POST /cars/{id}/blackouts`, `GET /cars/{id}/blackouts`, `POST /cars/blackouts/{id}/deactivate` — blackout management за service/maintenance.
 - `POST /reservations` — всеки логнат потребител. Резервацията се записва на името на логнатия (не може да се прави „от името на колега").
+- `GET /reservations` — защитен списък; връща `requester_gsm_number` за видимите за текущия token резервации, за да може approver/reception/служител да се свържат със заявителя. `/public/*` endpoints не връщат GSM.
 - `GET /reservations/suggest` и `POST /reservations/quick-book` — employee quick-booking за най-подходящата свободна активна кола през същите conflict/blackout guardrails и Fleet Intelligence scoring.
 - `GET /reservations/suggest-best-car?start=&end=` — explainable best-car suggestion за конкретен слот.
 - `GET /admin/intelligence/pulse` — само `fleet_admin`; compact derived metrics + insight-и за Fleet Pulse.

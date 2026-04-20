@@ -534,7 +534,14 @@ def test_split_operational_roles_match_pool_process(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
     _create_user(client, admin, "approver", "Fleet Approver", "ApproverPass123", role="fleet_approver")
     _create_user(client, admin, "reception", "Reception Desk", "ReceptionPass123", role="fleet_reception")
-    _create_user(client, admin, "driver", "Driver User", "DriverPass123")
+    _create_user(
+        client,
+        admin,
+        "driver",
+        "Driver User",
+        "DriverPass123",
+        gsm_number="+359 88 555 0101",
+    )
     approver = _login(client, "approver", "ApproverPass123")
     reception = _login(client, "reception", "ReceptionPass123")
     driver = _login(client, "driver", "DriverPass123")
@@ -544,6 +551,15 @@ def test_split_operational_roles_match_pool_process(client: TestClient) -> None:
     approver_list = client.get("/reservations", headers=_auth(approver))
     assert approver_list.status_code == 200
     assert approver_list.json()["total"] == 1
+    assert approver_list.json()["items"][0]["requester_gsm_number"] == "+359 88 555 0101"
+
+    reception_list = client.get("/reservations", headers=_auth(reception))
+    assert reception_list.status_code == 200
+    assert reception_list.json()["items"][0]["requester_gsm_number"] == "+359 88 555 0101"
+
+    driver_list = client.get("/reservations", headers=_auth(driver))
+    assert driver_list.status_code == 200
+    assert driver_list.json()["items"][0]["requester_gsm_number"] == "+359 88 555 0101"
 
     approver_booking = client.post(
         "/reservations",
@@ -1128,6 +1144,7 @@ def test_public_calendar_exposes_anonymized_operational_slots_without_auth(clien
     }
     assert "employee_name" not in item
     assert "purpose" not in item
+    assert "requester_gsm_number" not in item
     assert "id" not in item
 
 

@@ -1947,6 +1947,11 @@ function reservationContext(item) {
   return details.join("");
 }
 
+function requesterGsmLine(item) {
+  if (!state.token || !item.requester_gsm_number) return "";
+  return `<span class="muted">${escapeHtml(t("reservation.requesterGsm", { number: item.requester_gsm_number }))}</span>`;
+}
+
 function reservationActions(item) {
   const actions = [];
   const canApprove = canApproveReservations();
@@ -1999,6 +2004,7 @@ function reservationFlowCard(item, car, canBulk) {
               <p class="panel__eyebrow">${escapeHtml(t("reservationFlow.itemEyebrow", { id: item.id }))}</p>
               <h3>${escapeHtml(carLabel)}</h3>
               <p class="reservation-flow-card__meta">${escapeHtml(item.employee_name)} · ${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</p>
+              ${requesterGsmLine(item)}
             </div>
           </div>
           ${statusTag(item.status)}
@@ -2134,6 +2140,7 @@ function renderDecisionRail() {
           <article class="decision-card" data-decision-card="${item.id}">
             <div>
               <strong>${escapeHtml(item.employee_name)}</strong>
+              ${requesterGsmLine(item)}
               <p>${escapeHtml(carLabel)}</p>
               <span class="muted">${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</span>
               ${item.purpose ? `<p class="decision-card__purpose">${escapeHtml(item.purpose)}</p>` : ""}
@@ -2230,6 +2237,7 @@ function renderReceptionRail() {
             <div>
               <strong>${escapeHtml(carLabel)}</strong>
               <p>${escapeHtml(item.employee_name)} · ${escapeHtml(t(timeKey, { time: formatDateTime(timeValue) }))}</p>
+              ${requesterGsmLine(item)}
               <span class="status-pill ${isActive ? "status-pill--warning" : "status-pill--success"}">${escapeHtml(t(`status.${item.status}`))}</span>
               ${item.purpose ? `<p class="decision-card__purpose">${escapeHtml(item.purpose)}</p>` : ""}
             </div>
@@ -2285,6 +2293,7 @@ function renderReservations() {
   state.reservations.forEach((item) => {
     const car = cars.get(item.car_id);
     const selectable = canBulk && item.status === "pending";
+    const requesterGsm = requesterGsmLine(item);
     const row = document.createElement("tr");
     row.dataset.reservationRow = String(item.id);
     row.dataset.reservationStatus = item.status;
@@ -2305,7 +2314,10 @@ function renderReservations() {
         <strong>${escapeHtml(car ? car.plate_number : t("entity.car", { id: item.car_id }))}</strong>
         <div class="muted">${escapeHtml(car ? car.model : t("entity.unknownCar"))}</div>
       </td>
-      <td data-label="Заявител"><strong>${escapeHtml(item.employee_name)}</strong></td>
+      <td data-label="Заявител">
+        <strong>${escapeHtml(item.employee_name)}</strong>
+        ${requesterGsm ? `<div>${requesterGsm}</div>` : ""}
+      </td>
       <td data-label="Период">
         <strong>${formatDateTime(item.start_time)}</strong>
         <div class="muted">до ${formatDateTime(item.end_time)}</div>
@@ -2448,6 +2460,7 @@ function renderDayTimeline() {
     const contextLine = state.token
       ? escapeHtml(item.employee_name)
       : escapeHtml(t("calendar.publicContext"));
+    const requesterGsm = requesterGsmLine(item);
     const purposeLine = state.token
       ? escapeHtml(item.purpose || "Без уточнена цел")
       : escapeHtml(t("calendar.publicDetails"));
@@ -2458,6 +2471,7 @@ function renderDayTimeline() {
         <div>
           <strong>${escapeHtml(carLabel)}</strong>
           <p class="muted">${contextLine}</p>
+          ${requesterGsm ? `<p>${requesterGsm}</p>` : ""}
         </div>
         ${statusTag(item.status)}
       </div>

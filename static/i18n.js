@@ -82,6 +82,7 @@ const bg = {
   "admin.rejectReasonRequired": "Добави причина за отказа, преди да продължиш.",
   "reservation.decidedBy": "Одобрено от: {name}",
   "reservation.rejectedBy": "Отказано от: {name}",
+  "reservation.requesterGsm": "GSM: {number}",
   "reservationFlow.eyebrow": "Lifecycle поток",
   "reservationFlow.title": "Курсовете като времева линия",
   "reservationFlow.copy": "Първо виж статуса, периода и следващото действие. Таблицата отдолу остава за детайлен преглед.",

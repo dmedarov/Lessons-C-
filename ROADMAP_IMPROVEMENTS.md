@@ -152,11 +152,15 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   approvals without leaking detailed records.
 - Pre-login calendar is now real: `/public/calendar` exposes calendar
   occupancy with status, registration number and model, while requester,
-  purpose, GPS, reservation ids and actions remain authenticated.
+  purpose, GSM, GPS, reservation ids and actions remain authenticated.
 - NetFleet latest GPS events are wired through an admin-only server-side proxy;
   employees can read pickup location only for their own approved/active trip.
   The key can be supplied by `.env` or saved once/changed from Admin UI as a
   DB-backed setting; it must never be committed or echoed back to the browser.
+- Requester GSM is now visible in authenticated reservation surfaces for the
+  records the current token may already see: Decision Rail, Reception Rail,
+  lifecycle cards, table rows and authenticated calendar day timeline. Public
+  overview/calendar stay anonymous and do not return requester GSM.
 - Current automated coverage: growing `pytest` suite plus optional Playwright
   browser smoke (`e2e/`) that captures desktop/mobile screenshots, JS syntax
   checks, Python compile checks and Docker smoke used in shipped verification.
@@ -2106,6 +2110,26 @@ If time is limited, execute items 1-4 before any new feature work.
 ---
 
 ## Done
+
+### 2026-04-20 - Authenticated requester GSM in reservation surfaces
+
+- **UX rule:** requester GSM is contact metadata for operational coordination,
+  not public data and not an auth factor.
+- **API:** `GET /reservations` now joins the requester user and returns
+  `requester_gsm_number` for reservations visible to the authenticated token.
+  Public `/public/overview` and `/public/calendar` remain anonymous.
+- **UI:** Decision Rail, Reception Rail, lifecycle cards, table requester cells
+  and authenticated calendar day timeline show `GSM: ...` when the reservation
+  payload has a requester GSM number.
+- **Verification:** targeted `tests/test_app.py` confirms approver, reception
+  and employee-visible reservation payloads include requester GSM, while public
+  calendar does not. `tests/test_ui_compliance.py` guards the UI/i18n/public
+  no-leak rule. Full local gate:
+  - `.venv/bin/python -m pytest -q` -> 142 passed
+  - `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
+    -> 6 passed
+  - `node --check static/app.js`
+  - `node --check static/i18n.js`
 
 ### 2026-04-20 - Deterministic Bulgarian date/time format
 
