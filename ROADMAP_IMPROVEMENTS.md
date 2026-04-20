@@ -72,6 +72,8 @@ alembic/                     migration scripts
 tests/test_app.py            Core FastAPI TestClient regression cases
 e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
 scripts/prod_check.py        Live cutover .env readiness guard
+scripts/backup_postgres.sh   PostgreSQL custom-format backup helper
+scripts/restore_postgres_drill.sh Isolated restore drill helper
 docs/PRODUCTION_USER_GUIDE.md Production user/operator guide
 ```
 
@@ -1856,17 +1858,23 @@ If time is limited, execute items 1-4 before any new feature work.
   `docs/PRODUCTION_USER_GUIDE.md` gives operators the first-use checklist.
   PostgreSQL is now major-pinned in compose so `latest` cannot silently advance
   a persistent volume from v16 to an incompatible major version.
+- **Backup posture started:** `make prod-backup` creates an ignored
+  custom-format PostgreSQL dump, and `make prod-restore-drill BACKUP=...`
+  validates that dump in isolated Docker project `fleetflow_restore_drill`
+  without touching the production volume. First real drill passed against the
+  active smoke stack using `/tmp/fleetflow-backups/fleetflow-20260420T075807Z.dump`.
 - **Calm default started:** Read notifications are hidden from the visible
   inbox and employee reservations default to `Текущи`, hiding returned,
   rejected and cancelled records until the user explicitly chooses a history
   filter.
-- **Verification:** `pytest -q` passes with 119 tests, targeted
-  UI/API/production readiness pack passes with 30 tests, Playwright browser
+- **Verification:** `pytest -q` passes with 121 tests, targeted
+  UI/API/production readiness pack passes with 32 tests, Playwright browser
   smoke passes with 1 test and screenshots, JS syntax checks and Python compile
   check pass. `make prod-check` fails fast when `.env` is missing in a clean
   checkout. Old `fleetflow_test` containers were removed, Docker stack was
   rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on `8001`
-  return ok/ready and the app container is healthy.
+  return ok/ready and the app container is healthy. Backup creation and
+  isolated restore drill were executed successfully.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation
 

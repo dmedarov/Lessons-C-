@@ -76,6 +76,19 @@ make logs
 Блокерите трябва да са 0 преди реална употреба. Бележките може да останат само
 ако са съзнателно решение, например NetFleet ще се добави по-късно.
 
+### Как да разчетеш най-честите блокери
+
+| Блокер | Какво означава | Как се оправя |
+| --- | --- | --- |
+| `Database password` | `POSTGRES_PASSWORD` още е dev/default стойност. | Пусни `make setup` за нов `.env` или задай силна парола ръчно. |
+| `Database URL` | `DATABASE_URL` не е PostgreSQL production URL или не съдържа същата парола. | Увери се, че паролата в `DATABASE_URL` съвпада с `POSTGRES_PASSWORD`. |
+| `CORS origin` | Домейнът липсва, е wildcard или е example. | Задай реалния адрес, например `CORS_ALLOW_ORIGINS=https://fleetflow.company.bg`. |
+| `PostgreSQL image` | Използван е `latest`, което може да счупи стар volume при major upgrade. | Остави `POSTGRES_IMAGE=postgres:16` или друг умишлено избран major pin. |
+
+`NetFleet GPS` и `Outbound notifications` са warning-и, не блокери. Може да
+стартираш без тях, ако решението е съзнателно: GPS ключът се добавя от Admin UI,
+а in-app нотификациите работят и без SMTP/Slack/Teams.
+
 ## 4. NetFleet ключ
 
 NetFleet ключът се добавя еднократно от admin:
@@ -132,3 +145,38 @@ Admin започва от:
 - NetFleet е конфигуриран или съзнателно отложен;
 - поне един реален служител може да влезе;
 - тестова заявка минава през pending -> approved -> checked out -> returned.
+
+## 8. Backup и restore drill
+
+Преди първа реална употреба направи поне един backup и dry-run restore.
+
+Създай backup:
+
+```bash
+make prod-backup
+```
+
+Файлът се записва в `backups/` като PostgreSQL custom dump и директорията е
+изключена от git. Пази backup файловете извън repo-то в защитено място.
+
+Провери, че backup-ът реално може да се възстанови:
+
+```bash
+make prod-restore-drill BACKUP=backups/fleetflow-YYYYmmddTHHMMSSZ.dump
+```
+
+Restore drill-ът стартира отделен Docker project
+`fleetflow_restore_drill`, възстановява dump-а в отделна база и проверява
+`alembic_version`. По подразбиране временният restore project се изтрива след
+успех. Ако искаш да го инспектираш:
+
+```bash
+KEEP_RESTORE_DRILL=1 make prod-restore-drill BACKUP=backups/fleetflow-YYYYmmddTHHMMSSZ.dump
+```
+
+Преди всяка production миграция:
+
+1. `make prod-backup`
+2. `make prod-restore-drill BACKUP=<новия backup>`
+3. `make prod`
+4. провери `/health/ready`

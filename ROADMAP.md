@@ -254,15 +254,20 @@ operations assistant for internal mobility**, което е:
 - PostgreSQL image is pinned to major version 16 by default; do not use
   `latest` against a persistent production volume without a planned dump/restore
   major upgrade.
+- Backup/restore posture: `make prod-backup` creates a custom-format PostgreSQL
+  dump under ignored `backups/`, and `make prod-restore-drill BACKUP=...`
+  restores it into an isolated Docker project before migrations.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 119 passed,
-  targeted UI/API/production readiness pack -> 30 passed, Playwright browser
+- Latest local verification for this slice: `pytest -q` -> 121 passed,
+  targeted UI/API/production readiness pack -> 32 passed, Playwright browser
   smoke -> 1 passed with desktop/mobile screenshots, JS syntax checks and
   Python compile check. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
   was rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on
-  `8001` returned ok/ready and the app container is healthy.
+  `8001` returned ok/ready and the app container is healthy. A real
+  backup/restore drill succeeded from `/tmp/fleetflow-backups/...dump` into
+  isolated project `fleetflow_restore_drill`.
 
 ## Next Recommended Slices
 
@@ -274,9 +279,10 @@ operations assistant for internal mobility**, което е:
    start/return.
 3. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
    change, handoff and blackout deactivate.
-4. Backup/restore playbook за production оператори, плюс dry-run restore доказателство.
-5. Add Playwright coverage for the new `/admin` production readiness panel and
+4. Add Playwright coverage for the new `/admin` production readiness panel and
    `/health/ready` probe state.
+5. Add structured JSON access logs with request id, route, status and latency
+   in production mode.
 6. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
 
 ## References

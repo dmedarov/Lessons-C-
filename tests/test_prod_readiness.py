@@ -89,3 +89,39 @@ def test_production_compose_passes_runtime_settings_to_app_container() -> None:
     ):
         assert f"{key}:" in compose
     assert "POSTGRES_IMAGE:-postgres:16" in compose
+
+
+def test_backup_restore_operator_scripts_are_documented_and_guarded() -> None:
+    makefile = (ROOT / "Makefile").read_text()
+    gitignore = (ROOT / ".gitignore").read_text()
+    guide = (ROOT / "docs/PRODUCTION_USER_GUIDE.md").read_text()
+    backup = (ROOT / "scripts/backup_postgres.sh").read_text()
+    restore = (ROOT / "scripts/restore_postgres_drill.sh").read_text()
+
+    assert "prod-backup" in makefile
+    assert "prod-restore-drill" in makefile
+    assert "backups/" in gitignore
+    assert "make prod-backup" in guide
+    assert "make prod-restore-drill BACKUP=" in guide
+    assert "Как да разчетеш най-честите блокери" in guide
+    assert "Database password" in guide
+    assert "CORS_ALLOW_ORIGINS=https://fleetflow.company.bg" in guide
+    assert "pg_dump" in backup
+    assert "--format=custom" in backup
+    assert "chmod 600" in backup
+    assert "fleetflow_restore_drill" in restore
+    assert "down -v --remove-orphans" in restore
+    assert "pg_restore" in restore
+
+
+def test_backup_restore_shell_scripts_have_valid_syntax() -> None:
+    for script in ("scripts/backup_postgres.sh", "scripts/restore_postgres_drill.sh"):
+        result = subprocess.run(
+            ["bash", "-n", str(ROOT / script)],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+        assert result.returncode == 0, result.stdout

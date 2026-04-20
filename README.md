@@ -172,9 +172,18 @@ make prod-check
 make logs   # app logs, включително bootstrap token при fresh install
 make down   # спира production/dev compose контейнерите
 make prod-check # проверява .env преди live cutover
+make prod-backup # създава PostgreSQL backup в backups/
+make prod-restore-drill BACKUP=backups/fleetflow-....dump # dry-run restore в отделен project
 make test   # pytest suite
 make test-e2e # optional Playwright browser smoke
 ```
+
+Преди първа реална употреба и преди всяка production миграция направи
+`make prod-backup`, после `make prod-restore-drill BACKUP=<backup-file>`. Drill
+командата възстановява dump-а в отделен Docker project
+`fleetflow_restore_drill`, проверява `alembic_version` и не пипа production
+volume-а. Подробната операторска инструкция е в
+[`docs/PRODUCTION_USER_GUIDE.md`](docs/PRODUCTION_USER_GUIDE.md).
 
 ## Bootstrap token при fresh production install
 
@@ -263,6 +272,8 @@ alembic/            # versioned DB migrations
 templates/index.html
 static/
 scripts/prod_check.py # .env readiness guard преди live cutover
+scripts/backup_postgres.sh # PostgreSQL custom-format backup helper
+scripts/restore_postgres_drill.sh # isolated restore validation helper
 tests/test_app.py
 e2e/test_browser_smoke.py  # optional Playwright browser smoke + screenshots
 conftest.py         # путва project root в sys.path
@@ -327,6 +338,7 @@ docker-compose.postgres.yml
 21. **Admin-owned lifecycle** — служителите заявяват и отменят свои заявки; само admin отбелязва активен курс и върната кола.
 22. **Production cutover check** — `make prod-check` валидира `.env` за real origin, generated secrets, matching `DATABASE_URL`, pinned PostgreSQL image, disabled demo seed и production mode.
 23. **Secret-safe readiness UI** — admin вижда blockers/warnings за live без да получава сурови secret-и, пароли или connection string.
+24. **Backup before migration** — production backup и restore drill са Make targets, а backup файловете са извън git.
 
 ## Тестове
 
@@ -356,7 +368,7 @@ Admin Decision Rail, Fleet Pulse copy и mobile calendar, после запис�
 `test-results/` е игнориран от git.
 
 Последна локална проверка за request-first/admin-lifecycle/production-readiness пакета:
-`pytest -q` -> 119 passed, targeted UI/API/production readiness pack -> 30 passed,
+`pytest -q` -> 121 passed, targeted UI/API/production readiness pack -> 32 passed,
 `node --check static/app.js`, `node --check static/i18n.js`,
 `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile production_readiness.py routers/ops.py scripts/prod_check.py app.py schemas.py`,
 и `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
@@ -364,7 +376,10 @@ Admin Decision Rail, Fleet Pulse copy и mobile calendar, после запис�
 repo. Старият `fleetflow_test` stack беше премахнат, Docker image-ът беше
 rebuild-нат, PostgreSQL compose мина с pin-нат `postgres:16`, `/health` върна
 `{"status":"ok"}`, `/health/ready` върна `{"status":"ready","database":"postgres"}`
-и актуалният `fleetflow_prod_smoke-car-pool-1` е healthy на `8001`.
+и актуалният `fleetflow_prod_smoke-car-pool-1` е healthy на `8001`. Backup
+drill доказателството мина: backup към `/tmp/fleetflow-backups/...dump` и
+restore в изолиран `fleetflow_restore_drill` project с проверен
+`alembic_version`.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 
