@@ -74,6 +74,7 @@ def test_reject_dialogs_require_reason_and_mark_invalid_field() -> None:
     app_js = _read("static/app.js")
     i18n_js = _read("static/i18n.js")
     styles = _read("static/styles.css")
+    assert "form.noValidate = true;" in app_js
     assert app_js.count('textarea name="reason" rows="3" required') == 3
     assert app_js.count('fieldName: "reason"') == 3
     assert 'targetField.setAttribute("aria-invalid", "true");' in app_js

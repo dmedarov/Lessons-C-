@@ -43,7 +43,7 @@ items are mostly independent and can be parallelised.
 
 ---
 
-## 1. Repository map (as of 2026-04-20)
+## 1. Repository map (as of 2026-04-21)
 
 ```text
 app.py                       FastAPI factory, router mounting, /, /admin, /health, /health/ready
@@ -66,9 +66,9 @@ templates/
   index.html                 employee surface
   admin.html                 admin surface
 static/
-  app.js                     4254-line SPA logic; split before next large UI package
+  app.js                     4255-line SPA logic; split before next large UI package
   i18n.js                    Bulgarian UI copy dictionary + interpolation
-  styles.css                 3177-line design system stylesheet with responsive cockpit UI
+  styles.css                 3179-line design system stylesheet with responsive cockpit UI
 alembic/                     migration scripts
 tests/test_app.py            Core FastAPI TestClient regression cases
 e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
@@ -78,6 +78,7 @@ scripts/smoke_live.py        Live URL smoke: health, DB readiness, active admin,
 scripts/backup_postgres.sh   PostgreSQL custom-format backup helper
 scripts/restore_postgres_drill.sh Isolated restore drill helper
 docs/PRODUCTION_USER_GUIDE.md Production user/operator guide
+docs/ROLE_USER_FLOWS.md       Role-by-role user flow and visibility contract
 ```
 
 > ⚠️ The prior UI audit referenced `static/index.html`. The correct path is
@@ -174,7 +175,8 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   `fleet_admin`).
 - Current automated coverage: growing `pytest` suite plus optional Playwright
   browser smoke (`e2e/`) that captures desktop/mobile screenshots, computes
-  real light/dark contrast in Chromium, runs JS syntax checks, Python compile
+  real light/dark contrast in Chromium, checks responsive density, captures
+  destructive recovery screenshots, runs JS syntax checks, Python compile
   checks and Docker smoke used in shipped verification.
 - Premium QA commands are now first-class: `make qa-premium` runs release gates
   plus browser role smoke, and `make smoke-live APP_URL=...` checks health,
@@ -189,10 +191,10 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   needs a formal audit report, automated contrast checks and browser-level
   accessibility regression tests before claiming "compliant" in release notes.
 - Browser-level end-to-end coverage is now role-specific for public, employee,
-  approver, admin, mobile employee and reception flows, with a separate
-  browser-computed light/dark contrast guard for translucent surfaces and
-  status chips. It still needs destructive-action recovery screenshots and
-  keyboard-only proof.
+  approver, admin, mobile employee and reception flows, with browser-computed
+  contrast, responsive density and destructive-action recovery proof. The next
+  coverage gap is deeper keyboard evidence for user deactivate, role change,
+  admin handoff and blackout deactivate.
 - Production observability now has structured request logs; next hardening is
   external alert delivery and an operator-facing log retention/export decision.
 - Intelligence snapshots/materialized insights remain intentionally deferred
@@ -225,9 +227,9 @@ Use it before choosing the next implementation task.
 | Product model | Role-separated pool process is clear: employee, approver, reception, admin. | Extra roles/features can make the app feel like ERP. | Preserve the four-role model; add permissions only when a real pool workflow requires them. |
 | Backend API | FastAPI routers, auth rebinding, refresh rotation, readiness and audit trail are strong. | `routers/reservations.py` has too many responsibilities. | Extract reservation services in small slices without changing routes or schemas. |
 | Frontend | Intent-driven cockpit, rails, timeline and NetFleet context are already premium. | `static/app.js` is too large for safe autonomous edits. | Create module boundaries before the next large UI addition. |
-| CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies the riskiest token pairs. | 3177-line stylesheet still makes overlap regressions easy. | Run responsive density evidence, then split component CSS if churn continues. |
+| CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies risky token pairs and density on key role surfaces. | 3177-line stylesheet still makes overlap regressions easy. | Keep density evidence green, then split component CSS if churn continues. |
 | Database | Alembic production path and PostgreSQL smoke exist. | Runtime bootstrap/upgrades in `db.py` can drift from migrations. | Add schema parity tests for SQLite bootstrap, PostgreSQL bootstrap and Alembic head. |
-| E2E evidence | Playwright smoke now runs separate public, contrast, employee, approver, admin, mobile and reception checks. | More destructive-action evidence is still needed. | Add targeted recovery screenshots and keyboard-only paths. |
+| E2E evidence | Playwright smoke now runs separate public, contrast, employee, approver, admin, mobile, reception, responsive density and destructive recovery checks. | More destructive-action evidence is still needed for settings/user-management flows. | Add keyboard recovery screenshots for deactivate, role change, handoff and blackout deactivate. |
 | NetFleet | Server-side key handling, scoped employee/reception pickup context and freshness wording are correct. | Real operators may still want an address/geocoding layer later. | Keep GPS read-only; consider address enrichment only after live use proves it helps. |
 | Production | Makefile, prod checks, Docker health, backups and restore drill are in place. | GitHub alert state still needs direct external confirmation. | Inspect GitHub Security/Dependabot after push and record exact closure evidence. |
 | Intelligence | Best-car scoring and compact Fleet Pulse are explainable and light. | Premature analytics tables would add complexity before real usage data. | Defer snapshots until production data volume or operator needs prove the need. |
@@ -2107,10 +2109,10 @@ from the last 60 minutes instead of raw NetFleet events.
    Note: local `gh` is not installed and unauthenticated `curl` to the private
    Dependabot API returns 401, so use GitHub web UI or an authenticated API
    token to inspect the exact alert.
-2. **8.3 responsive density pass** - use the new screenshots to hunt overlap,
-   clipped text and weak hierarchy at 390/768/1024/1440.
-3. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
-   handoff and blackout deactivate.
+2. **8.5 destructive-action recovery sweep** - extend the new reject/return
+   evidence to deactivate, role change, handoff and blackout deactivate.
+3. **Responsive density review** - inspect the new density screenshots for weak
+   hierarchy before production handoff and keep the automated guard green.
 4. **Production rehearsal with `make go-live-check`** - run the final gate
    against the actual production URL after backup/restore drill and record the
    result in the handoff notes.
@@ -2154,9 +2156,33 @@ If time is limited, execute items 1-4 before any new feature work.
   evidence.
 - **Verification:** `pytest tests/test_prod_readiness.py -q` -> 7 passed,
   `bash -n scripts/restore_postgres_drill.sh`, Python compile for production
-  scripts, `make qa-premium` -> 147 pytest cases + 8 Playwright checks, and
+  scripts, `make qa-premium` -> 147 pytest cases + 10 Playwright checks, and
   `make smoke-live APP_URL=http://127.0.0.1:8001` ->
   health/ready/active-admin/public overview passed.
+
+### 2026-04-21 - Calm role flows, density and destructive recovery
+
+- **Goal:** Document and verify the calm/reliable user flows by role before
+  production use.
+- **Docs:** added `docs/ROLE_USER_FLOWS.md` with separate employee, approver,
+  reception and admin expectations: what each role sees, what it must not see
+  and which recovery rituals protect the workflow.
+- **Responsive density:** Playwright now captures key role screenshots for
+  public, employee, approver, reception and admin at mobile/tablet/desktop
+  breakpoints and checks horizontal overflow, clipped controls and module
+  overlap.
+- **Destructive recovery:** Playwright now covers keyboard-opened reject,
+  required reason recovery, focus-to-textarea, `aria-invalid`, return
+  confirmation and Escape cancel/focus return.
+- **Bug fixed:** dynamic dialog forms now set `novalidate`, so native browser
+  required validation cannot bypass FleetFlow's Bulgarian recovery copy and
+  exact-field focus behavior.
+- **Verification:** targeted Playwright density -> 1 passed, targeted
+  destructive recovery -> 1 passed, full Playwright smoke -> 10 passed,
+  `tests/test_ui_compliance.py` -> 34 passed, `make qa-premium` -> 147 pytest
+  cases + 10 Playwright checks, and `make smoke-live
+  APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
+  passed.
 
 ### 2026-04-20 - NetFleet pickup clarity
 

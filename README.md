@@ -180,6 +180,11 @@ make prod-check
 първо пускане, bootstrap token, NetFleet настройка, role-separated pool процеса и
 минималната live проверка преди реална употреба.
 
+Отделната ръководна карта по роли е в
+[`docs/ROLE_USER_FLOWS.md`](docs/ROLE_USER_FLOWS.md). Тя описва какво виждат
+`employee`, `fleet_approver`, `fleet_reception` и `fleet_admin`, кои действия
+са забранени за всяка роля и кои calm/reliable flows не трябва да регресират.
+
 Полезни production команди:
 
 ```bash
@@ -413,11 +418,35 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 role flow, за да няма скрита зависимост между сценариите. Покрива public
 pre-login orientation, browser-computed light/dark contrast guard, employee
 quick-booking, employee admin-deny redirect, approver Decision Rail, admin
-control surface, employee mobile calendar и reception handoff/calendar.
+control surface, employee mobile calendar, reception handoff/calendar,
+responsive density evidence и destructive-action keyboard recovery.
 При `E2E_ARTIFACT_DIR` записва:
 `public-mobile.png`, `employee-desktop.png`, `approver-desktop.png`,
 `admin-desktop.png`, `employee-mobile.png` и `reception-desktop.png`.
+Новата calm-flow evidence вълна добавя `density-public-390.png`,
+`density-public-768.png`, `density-employee-390.png`,
+`density-approver-768.png`, `density-reception-768.png`,
+`density-admin-1024.png`, `density-admin-1440.png`,
+`destructive-reject-recovery.png` и `destructive-return-confirmation.png`.
 `test-results/` е игнориран от git.
+
+## Спокойни и надеждни flows
+
+FleetFlow трябва да се усеща като тих operational cockpit. Това значи:
+
+- **Employee:** вижда текущ/следващ курс или един ясен ход за заявка; архивът
+  и прочетените съобщения не се трупат в основния поток.
+- **Approver:** започва от Decision Rail; reject изисква причина, фокусира
+  точното поле при празен submit и не губи контекста.
+- **Reception:** започва от Reception Rail; approved handoff и active return
+  са пред таблицата, а return има confirmation ritual и Escape cancel.
+- **Admin:** вижда Fleet Pulse, readiness, NetFleet и configuration само когато
+  ролята има право; employee не остава на `/admin`.
+- **Public pre-login:** показва реални aggregate counts и календарна заетост
+  без заявител, GSM, GPS, reservation id или lifecycle действия.
+
+Подробният role-by-role документ е
+[`docs/ROLE_USER_FLOWS.md`](docs/ROLE_USER_FLOWS.md).
 
 Последна локална проверка за route/schema guardrails пакета:
 `pytest tests/test_schema_contracts.py -q` -> 5 passed,
@@ -456,7 +485,7 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 
 Последна premium QA проверка:
 `make qa-premium` -> passed (dependency audit, Python compile, 147 pytest
-cases, JS syntax, 8 Playwright browser checks). `make smoke-live
+cases, JS syntax, 10 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
 `pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,
@@ -522,7 +551,9 @@ restore в изолиран `fleetflow_restore_drill` project с провере�
 - Fleet Intelligence Seed: best-car scoring, admin intelligence pulse и `car_assignments` traceability
 - timeline-first reservation cards before the secondary table, including lifecycle actions and admin pending selection
 - route/schema contracts: duplicate route registry guard, SQLite bootstrap execution, SQLite/PostgreSQL schema parity and single Alembic head
-- role-specific Playwright browser evidence: public, browser-computed contrast, employee, approver, admin, mobile employee и reception flows с отделни failure points и screenshots
+- role-specific Playwright browser evidence: public, browser-computed contrast,
+  employee, approver, admin, mobile employee, reception, responsive density и
+  destructive recovery flows с отделни failure points и screenshots
 - pickup GPS refresh after approval: reservation lifecycle notifications trigger reservation + pickup telemetry reload, with visible fallback copy when NetFleet is missing/unavailable
 - NetFleet pickup clarity: employee/admin GPS blocks now show `Последно видяна`, freshness state and "потвърди с рецепция" copy for stale/unknown signals; Fleet Pulse counts only active cars with fresh coordinates from the last 60 minutes
 - Reception GPS handoff: `fleet_reception` can see scoped location for approved/checked-out cars in Reception Rail; employees cannot remain on `/admin` with either fresh login or restored session

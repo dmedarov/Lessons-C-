@@ -210,7 +210,7 @@ operations assistant for internal mobility**, което е:
   audit trail while keeping backward-compatible no-body API calls.
 - Browser-level evidence started: optional Playwright smoke now runs
   role-specific public, employee, employee-admin-deny, approver, admin, mobile
-  and reception flows
+  and reception flows, plus responsive density and destructive recovery checks
   with separate screenshots under `test-results/e2e`.
 - UX hierarchy review: employee requests/lifecycle now appear before the
   calendar, the new-request panel appears before inbox, and auth-only guidance
@@ -322,9 +322,16 @@ operations assistant for internal mobility**, което е:
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
   Alembic revision `20260420_0009`.
 - Latest go-live gate verification: `pytest tests/test_prod_readiness.py -q`
-  -> 7 passed, `make qa-premium` -> 147 pytest cases + 8 browser checks,
+  -> 7 passed, `make qa-premium` -> 147 pytest cases + 10 browser checks,
   and `make smoke-live APP_URL=http://127.0.0.1:8001` returned
   health/ready/active-admin/public overview from the running PostgreSQL stack.
+- Latest calm-flow verification: Playwright captures responsive density
+  evidence for public/employee/approver/reception/admin viewports and
+  destructive-action recovery screenshots for reject required-reason and return
+  confirmation. The dialog system uses custom validation (`novalidate`) so
+  errors are Bulgarian, focused and `aria-invalid` instead of browser-native
+  validation bubbles. Role-by-role user flows are documented in
+  `docs/ROLE_USER_FLOWS.md`.
 
 ## Go-Live Plan
 
@@ -380,9 +387,10 @@ visible modules.
   head. Keep extending this when schema complexity grows.
 - **Browser evidence gap:** Playwright coverage is now split into role-specific
   tests for public overview/calendar, employee booking/current trip, approver
-  decisions, reception handoff/return, admin settings and browser-computed
-  light/dark contrast for translucent surfaces/status tokens. Next evidence
-  gap is destructive-action recovery screenshots and keyboard-only proof.
+  decisions, reception handoff/return, admin settings, browser-computed
+  light/dark contrast, responsive density and destructive recovery. Remaining
+  evidence gap is deeper keyboard coverage for user deactivate, role change,
+  admin handoff and blackout deactivate.
 - **External signal closure:** local audits and Docker Scout were clean, but
   GitHub Security/Dependabot must still be inspected directly after push
   before claiming the banner is closed.
@@ -395,10 +403,10 @@ visible modules.
 1. Confirm GitHub Actions **Production Gates** and inspect the open GitHub
    Dependabot alert directly; local `pip-audit` and Docker Scout evidence is
    clean, so do not chase phantom upgrades without the alert details.
-2. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
-   change, handoff and blackout deactivate.
-3. Run the Phase 8.3 responsive density pass at 390/768/1024/1440 using the
-   current screenshots and hunt clipped text, weak hierarchy and overlap.
+2. Extend the Phase 8.5 error-prevention sweep to deactivate, role change,
+   handoff and blackout deactivate keyboard paths.
+3. Keep the responsive density pass green and inspect the current screenshots
+   for weak hierarchy before each production handoff.
 4. Split `static/app.js` into small vanilla JS modules before the next large UI
    package. Suggested boundaries: API/session, shell/overview, reservations
    lifecycle, calendar, admin users/fleet/settings, notifications/dialogs.

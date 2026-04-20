@@ -405,6 +405,7 @@ function userDialog({ title, body, confirmLabel, renderFields, readValue, valida
     const form = document.createElement("form");
     form.className = "stack";
     form.method = "dialog";
+    form.noValidate = true;
     form.setAttribute("aria-describedby", errorId);
     form.innerHTML = `${renderFields()}<small class="field__error" id="${errorId}" data-dialog-error role="alert" aria-live="polite"></small>`;
 

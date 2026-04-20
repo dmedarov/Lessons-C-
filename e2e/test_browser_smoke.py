@@ -59,7 +59,7 @@ def server(tmp_path: Path) -> Iterator[str]:
             "DEV_SEED_DEMO_DATA": "true",
             "SECRET_KEY": "fleetflow-e2e-secret-key",
             "TOKEN_TTL_SECONDS": "3600",
-            "LOGIN_RATE_LIMIT_ATTEMPTS": "20",
+            "LOGIN_RATE_LIMIT_ATTEMPTS": "100",
         }
     )
     process = subprocess.Popen(
@@ -258,6 +258,80 @@ def _browser_contrast_failures(page: Page) -> list[str]:
     return [str(item) for item in failures]
 
 
+def _layout_density_failures(page: Page) -> list[str]:
+    failures = page.evaluate(
+        """
+        () => {
+          const failures = [];
+          const tolerance = 2;
+          const root = document.documentElement;
+          const body = document.body;
+          if (root.scrollWidth > window.innerWidth + tolerance) {
+            failures.push(`document overflow: ${root.scrollWidth} > ${window.innerWidth}`);
+          }
+          if (body.scrollWidth > window.innerWidth + tolerance) {
+            failures.push(`body overflow: ${body.scrollWidth} > ${window.innerWidth}`);
+          }
+
+          function visible(el) {
+            const style = getComputedStyle(el);
+            const rect = el.getBoundingClientRect();
+            return (
+              style.display !== "none" &&
+              style.visibility !== "hidden" &&
+              !el.hidden &&
+              rect.width > 0 &&
+              rect.height > 0
+            );
+          }
+
+          for (const el of document.querySelectorAll("button, a.btn, .chip")) {
+            if (!visible(el)) continue;
+            if (el.matches(".calendar-day")) continue;
+            if (el.scrollWidth > el.clientWidth + tolerance) {
+              failures.push(`control text overflow: ${el.textContent.trim().slice(0, 48)}`);
+            }
+            if (el.getBoundingClientRect().height < 40) {
+              failures.push(`control target under 40px: ${el.textContent.trim().slice(0, 48)}`);
+            }
+          }
+
+          const candidates = [...document.querySelectorAll([
+            ".glass-card",
+            ".summary-card",
+            ".stat-card",
+            ".reservation-flow-card",
+            ".decision-card",
+            ".fleet-pulse__item",
+            ".pickup-location",
+          ].join(","))].filter(visible);
+
+          for (let i = 0; i < candidates.length; i += 1) {
+            for (let j = i + 1; j < candidates.length; j += 1) {
+              const a = candidates[i];
+              const b = candidates[j];
+              if (a.contains(b) || b.contains(a)) continue;
+              const ar = a.getBoundingClientRect();
+              const br = b.getBoundingClientRect();
+              const xOverlap = Math.max(0, Math.min(ar.right, br.right) - Math.max(ar.left, br.left));
+              const yOverlap = Math.max(0, Math.min(ar.bottom, br.bottom) - Math.max(ar.top, br.top));
+              const overlapArea = xOverlap * yOverlap;
+              if (overlapArea > 16) {
+                failures.push(
+                  `module overlap: ${a.id || a.className} / ${b.id || b.className}`
+                );
+              }
+            }
+          }
+
+          return failures;
+        }
+        """
+    )
+    assert isinstance(failures, list)
+    return [str(item) for item in failures]
+
+
 def _create_reservation_via_api(
     server: str,
     token: str,
@@ -300,6 +374,59 @@ def _seed_pending_reservation(server: str, car_index: int = 3) -> dict:
         start,
         f"E2E pending role smoke {car_index}",
     )
+
+
+def _seed_reception_work(server: str) -> None:
+    admin_token = _api_login(server, "admin", "AdminPass123")
+    ivan_token = _api_login(server, "ivan", "IvanPass123")
+    maria_token = _api_login(server, "maria", "MariaPass123")
+    _api_json(
+        server,
+        "/users",
+        "POST",
+        admin_token,
+        {
+            "username": "reception",
+            "display_name": "Reception Desk",
+            "password": "ReceptionPass123",
+            "role": "fleet_reception",
+        },
+    )
+    reception_token = _api_login(server, "reception", "ReceptionPass123")
+    cars_response = _api_json(server, "/cars", token=admin_token)
+    assert isinstance(cars_response, dict)
+    cars = cars_response["items"]
+    base_start = (datetime.now().astimezone() + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
+
+    approved_reservation = _api_json(
+        server,
+        "/reservations",
+        "POST",
+        ivan_token,
+        {
+            "car_id": cars[3]["id"],
+            "start_time": base_start.isoformat(),
+            "end_time": (base_start + timedelta(hours=1)).isoformat(),
+            "purpose": "Reception approved calendar smoke",
+        },
+    )
+    active_reservation = _api_json(
+        server,
+        "/reservations",
+        "POST",
+        maria_token,
+        {
+            "car_id": cars[4]["id"],
+            "start_time": (base_start + timedelta(hours=2)).isoformat(),
+            "end_time": (base_start + timedelta(hours=3)).isoformat(),
+            "purpose": "Reception active calendar smoke",
+        },
+    )
+    assert isinstance(approved_reservation, dict)
+    assert isinstance(active_reservation, dict)
+    _api_json(server, f"/reservations/{approved_reservation['id']}/approve", "POST", admin_token, {})
+    _api_json(server, f"/reservations/{active_reservation['id']}/approve", "POST", admin_token, {})
+    _api_json(server, f"/reservations/{active_reservation['id']}/start", "POST", reception_token, {"note": "Keys handed over"})
 
 
 def test_public_orientation_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
@@ -443,56 +570,8 @@ def test_employee_mobile_calendar_surface(browser: Browser, server: str, artifac
 
 
 def test_reception_handoff_calendar_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
-    admin_token = _api_login(server, "admin", "AdminPass123")
-    ivan_token = _api_login(server, "ivan", "IvanPass123")
-    maria_token = _api_login(server, "maria", "MariaPass123")
-    _api_json(
-        server,
-        "/users",
-        "POST",
-        admin_token,
-        {
-            "username": "reception",
-            "display_name": "Reception Desk",
-            "password": "ReceptionPass123",
-            "role": "fleet_reception",
-        },
-    )
-    reception_token = _api_login(server, "reception", "ReceptionPass123")
-    cars_response = _api_json(server, "/cars", token=admin_token)
-    assert isinstance(cars_response, dict)
-    cars = cars_response["items"]
+    _seed_reception_work(server)
     base_start = (datetime.now().astimezone() + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
-
-    approved_reservation = _api_json(
-        server,
-        "/reservations",
-        "POST",
-        ivan_token,
-        {
-            "car_id": cars[3]["id"],
-            "start_time": base_start.isoformat(),
-            "end_time": (base_start + timedelta(hours=1)).isoformat(),
-            "purpose": "Reception approved calendar smoke",
-        },
-    )
-    active_reservation = _api_json(
-        server,
-        "/reservations",
-        "POST",
-        maria_token,
-        {
-            "car_id": cars[4]["id"],
-            "start_time": (base_start + timedelta(hours=2)).isoformat(),
-            "end_time": (base_start + timedelta(hours=3)).isoformat(),
-            "purpose": "Reception active calendar smoke",
-        },
-    )
-    assert isinstance(approved_reservation, dict)
-    assert isinstance(active_reservation, dict)
-    _api_json(server, f"/reservations/{approved_reservation['id']}/approve", "POST", admin_token, {})
-    _api_json(server, f"/reservations/{active_reservation['id']}/approve", "POST", admin_token, {})
-    _api_json(server, f"/reservations/{active_reservation['id']}/start", "POST", reception_token, {"note": "Keys handed over"})
 
     reception = browser.new_context(viewport={"width": 1440, "height": 1000})
     reception_page = reception.new_page()
@@ -509,3 +588,99 @@ def test_reception_handoff_calendar_surface(browser: Browser, server: str, artif
     expect(reception_page.locator("#usersDeck")).to_be_hidden()
     reception_page.screenshot(path=artifact_dir / "reception-desktop.png", full_page=True)
     reception.close()
+
+
+def test_responsive_density_evidence_across_roles(browser: Browser, server: str, artifact_dir: Path) -> None:
+    admin_token = _api_login(server, "admin", "AdminPass123")
+    _api_json(
+        server,
+        "/users",
+        "POST",
+        admin_token,
+        {
+            "username": "densityapprover",
+            "display_name": "Density Approver",
+            "password": "DensityApprover123",
+            "role": "fleet_approver",
+        },
+    )
+    _seed_pending_reservation(server, car_index=2)
+    _seed_reception_work(server)
+
+    scenarios = [
+        ("public", "/", None, None, 390),
+        ("public", "/", None, None, 768),
+        ("employee", "/", "ivan", "IvanPass123", 390),
+        ("approver", "/admin", "densityapprover", "DensityApprover123", 768),
+        ("reception", "/admin", "reception", "ReceptionPass123", 768),
+        ("admin", "/admin", "admin", "AdminPass123", 1024),
+        ("admin", "/admin", "admin", "AdminPass123", 1440),
+    ]
+
+    for name, path, username, password, width in scenarios:
+        context = browser.new_context(viewport={"width": width, "height": 940}, is_mobile=width <= 430)
+        page = context.new_page()
+        if username and password:
+            _login(page, server, path, username, password)
+        else:
+            page.goto(f"{server}{path}", wait_until="domcontentloaded")
+            expect(page.locator("#loginPanel")).to_be_visible(timeout=10_000)
+        page.wait_for_timeout(350)
+        failures = _layout_density_failures(page)
+        page.screenshot(path=artifact_dir / f"density-{name}-{width}.png", full_page=False)
+        context.close()
+        assert failures == [], f"{name} {width}px: {failures}"
+
+
+def test_destructive_action_keyboard_recovery(browser: Browser, server: str, artifact_dir: Path) -> None:
+    admin_token = _api_login(server, "admin", "AdminPass123")
+    _api_json(
+        server,
+        "/users",
+        "POST",
+        admin_token,
+        {
+            "username": "destructiveapprover",
+            "display_name": "Destructive Approver",
+            "password": "DestructiveApprover123",
+            "role": "fleet_approver",
+        },
+    )
+    _seed_pending_reservation(server, car_index=1)
+    _seed_reception_work(server)
+
+    approver_context = browser.new_context(viewport={"width": 1024, "height": 900})
+    approver_page = approver_context.new_page()
+    _login(approver_page, server, "/admin", "destructiveapprover", "DestructiveApprover123")
+    reject_button = approver_page.locator('#decisionRail [data-reservation-action="reject"]').first
+    expect(reject_button).to_be_visible(timeout=10_000)
+    reject_button.focus()
+    approver_page.keyboard.press("Enter")
+    dialog = approver_page.locator("dialog[open]")
+    expect(dialog).to_be_visible()
+    expect(dialog.locator("textarea[name='reason']")).to_be_focused()
+    dialog.locator("button.btn--primary").press("Enter")
+    expect(dialog.locator("[data-dialog-error]")).to_contain_text("Добави причина", timeout=10_000)
+    expect(dialog.locator("textarea[name='reason']")).to_have_attribute("aria-invalid", "true")
+    expect(dialog.locator("textarea[name='reason']")).to_be_focused()
+    approver_page.screenshot(path=artifact_dir / "destructive-reject-recovery.png", full_page=True)
+    dialog.locator("textarea[name='reason']").fill("Няма свободен автомобил за този прозорец.")
+    dialog.locator("button.btn--primary").press("Enter")
+    expect(approver_page.locator("#messageTitle")).to_contain_text("Lifecycle е обновен", timeout=10_000)
+    approver_context.close()
+
+    reception_context = browser.new_context(viewport={"width": 1024, "height": 900})
+    reception_page = reception_context.new_page()
+    _login(reception_page, server, "/admin", "reception", "ReceptionPass123")
+    return_button = reception_page.locator('#receptionRail [data-reservation-action="return"]').first
+    expect(return_button).to_be_visible(timeout=10_000)
+    return_button.focus()
+    reception_page.keyboard.press("Enter")
+    return_dialog = reception_page.locator("dialog[open]")
+    expect(return_dialog).to_be_visible()
+    expect(return_dialog.locator("button.btn--primary")).to_be_focused()
+    reception_page.screenshot(path=artifact_dir / "destructive-return-confirmation.png", full_page=True)
+    reception_page.keyboard.press("Escape")
+    expect(return_dialog).to_be_hidden()
+    expect(return_button).to_be_focused()
+    reception_context.close()

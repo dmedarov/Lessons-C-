@@ -170,7 +170,36 @@ Admin започва от:
 2. одобрена предстояща заявка, ако има такава;
 3. бърза заявка, ако няма активен ангажимент.
 
-## 7. Минимална live проверка
+## 7. Спокойни и надеждни flows
+
+Production UX правилото е: всеки човек вижда следващия си ход, не всички
+възможни административни действия. Подробната инструкция по роли е в
+[`docs/ROLE_USER_FLOWS.md`](ROLE_USER_FLOWS.md).
+
+Кратко:
+
+- `employee` не вижда `/admin`, чужди заявки, чужд GSM/GPS или start/return;
+- `fleet_approver` вижда Decision Rail и решава заявки, но не управлява ключове
+  или настройки;
+- `fleet_reception` вижда Reception Rail и управлява start/return, но не
+  approve/reject;
+- `fleet_admin` има full control, но daily queue, readiness и настройки са
+  подредени с ясна йерархия.
+
+Надеждните destructive flows са ритуали:
+
+- отказът изисква причина и връща фокуса в полето, ако е празно;
+- връщането на автомобил има confirmation dialog и Escape cancel;
+- dialog формите използват нашия български recovery copy, `aria-invalid` и
+  точен focus target, не browser-native validation bubble;
+- след действие потребителят получава кратко потвърждение и списъците се
+  обновяват.
+
+Преди go-live пази тези flows с `make qa-premium`. Browser smoke-ът генерира
+responsive density screenshots и destructive recovery screenshots в
+`test-results/e2e/`.
+
+## 8. Минимална live проверка
 
 Преди да кажеш “ползваме го реално”, провери:
 
@@ -190,7 +219,7 @@ Admin започва от:
 - поне един реален служител може да влезе;
 - тестова заявка минава през pending -> approved -> checked out -> returned.
 
-## 8. Backup и restore drill
+## 9. Backup и restore drill
 
 Преди първа реална употреба направи поне един backup и dry-run restore.
 
@@ -237,7 +266,7 @@ KEEP_RESTORE_DRILL=1 make prod-restore-drill BACKUP=backups/fleetflow-YYYYmmddTH
 `/public/overview`. Така финалният smoke не може да мине на празна production
 инсталация без active admin.
 
-## 9. Логове и проследимост
+## 10. Логове и проследимост
 
 В production `LOG_FORMAT=auto` логва HTTP заявките като единичен JSON ред към
 stdout. Всеки access log
@@ -255,7 +284,7 @@ browser/network tooling и търси същия `request_id` в логовет�
 трябва да съдържат `SECRET_KEY`, `POSTGRES_PASSWORD`, NetFleet ключ или други
 секрети.
 
-## 10. Fleet Intelligence
+## 11. Fleet Intelligence
 
 Fleet Intelligence Seed е включен без отделен background worker. Бързата
 резервация и `GET /reservations/suggest-best-car` използват explainable scoring
@@ -269,7 +298,7 @@ dashboard. Snapshot таблици и scheduled recompute jobs са планир
 production употреба, ако inline метриките станат бавни или трябва исторически
 trend review.
 
-## 11. Първи екран преди login
+## 12. Първи екран преди login
 
 Преди вход FleetFlow зарежда `GET /public/overview`, за да покаже реални
 агрегирани стойности за чакащи одобрение, активни курсове и свободни коли.

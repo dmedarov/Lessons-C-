@@ -1585,6 +1585,7 @@ select {
   font-size: 1.02rem;
   font-weight: 600;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 .segmented {
@@ -2753,13 +2754,14 @@ select {
   }
 
   .calendar-toolbar {
+    width: 100%;
     justify-content: flex-start;
   }
 
   .calendar-toolbar__label {
     text-align: left;
     min-width: 0;
-    flex: 1;
+    flex: 1 1 100%;
   }
 }
 

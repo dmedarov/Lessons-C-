@@ -49,18 +49,18 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Calendar studio | `templates/index.html`, `static/app.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Responsive 390/768/1440, keyboard reachability, color+text statuses, role-aware operational visibility, no overlap | Mobile day mode is covered by `employee-mobile.png`; reception role calendar is covered by `reception-desktop.png`. Still capture tablet month and keyboard day controls. |
 | Reservation timeline/cards | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Timeline before table, status text, lifecycle clarity, 44 px actions, table remains secondary, cancel recovery | Employee reservations now render before calendar; browser smoke asserts timeline cards appear before tables. Continue with admin lifecycle action screenshots. |
 | Notifications | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | `aria-live`, unread badge clarity, concise copy, no noisy motion | Notification lists are polite live regions and show only unread items by default; read items are hidden with a calm note. Verify polling update announcement with a screen reader. |
-| Admin pending queue / decision rail | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Top pending decisions first, bulk selection semantics, action bar visibility, partial-failure feedback, required reject reason | Desktop Decision Rail is covered by `approver-desktop.png` and `admin-desktop.png`; still test keyboard checkbox selection, mobile and empty reject reason recovery. |
-| Admin reception queue / reception rail | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/cars.py`, `e2e/test_browser_smoke.py` | pass | Approved handoffs and active returns before table, role-separated start/return, direct 44 px actions, scoped pickup GPS, no dependency on current table filter | Reception Rail uses the global operational reservation snapshot, shows scoped GPS for approved/active handoff cars and is covered by `reception-desktop.png`. Continue with keyboard path evidence. |
+| Admin pending queue / decision rail | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Top pending decisions first, bulk selection semantics, action bar visibility, partial-failure feedback, required reject reason | Desktop Decision Rail is covered by `approver-desktop.png` and `admin-desktop.png`; empty reject reason recovery is covered by `destructive-reject-recovery.png` with keyboard activation, `aria-invalid` and focus-to-textarea evidence. Still test keyboard checkbox selection. |
+| Admin reception queue / reception rail | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/cars.py`, `e2e/test_browser_smoke.py` | pass | Approved handoffs and active returns before table, role-separated start/return, direct 44 px actions, scoped pickup GPS, no dependency on current table filter | Reception Rail uses the global operational reservation snapshot, shows scoped GPS for approved/active handoff cars and is covered by `reception-desktop.png`. Return confirmation keyboard/Escape recovery is covered by `destructive-return-confirmation.png`. |
 | Admin users | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Destructive confirmations, role-change clarity, audit timeline readability | Verify reset/deactivate/role dialog focus return and success/error copy. |
 | Admin fleet/cars | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Notes textarea labels, active/inactive text state, 44 px controls | Verify notes save path, employee visibility and mobile card spacing. |
 | Blackout management | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Dialog APG behavior, date validation, conflict errors, no overlap | Test create/edit/deactivate via keyboard and invalid dates. |
-| Dialog system | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | APG modal focus trap/return, ESC cancel, destructive role clarity, exact invalid-field recovery | Native `<dialog>` is used, ESC cancel exists, helper-level focus return is covered, dialogs expose modal name/description/error semantics, and validation can focus/mark the exact invalid field for reject/cancel/password/blackout flows. Manual screen-reader pass still needed. |
+| Dialog system | `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | APG modal focus trap/return, ESC cancel, destructive role clarity, exact invalid-field recovery | Native `<dialog>` is used, ESC cancel exists, helper-level focus return is covered, dialogs expose modal name/description/error semantics, and validation can focus/mark the exact invalid field for reject/cancel/password/blackout flows. Dynamic forms use `novalidate` so custom recovery copy is not bypassed by browser-native validation. Manual screen-reader pass still recommended. |
 | Toast/message system | `static/app.js`, `static/styles.css` | needs evidence | Polite live region, non-color-only severity, visible long enough | `#message` uses `role=alert`, receives focus and now uses theme-aware alert classes instead of inline light-theme colors. Verify with screen reader and dark-mode screenshots. |
 | Mobile bottom nav | `templates/index.html`, `templates/admin.html`, `static/styles.css` | needs evidence | 44 px targets, safe-area padding, no content occlusion | CSS sets `min-height: 44px` and accounts for `safe-area-inset-bottom`; screenshot 390 px bottom area and keyboard focus order still required. |
 | Theme/dark mode | `static/theme.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | NASA/WCAG contrast matrix, focus ring visibility, reduced motion | Solid token pairs are covered by `tests/test_design_tokens.py`; translucent surfaces, status soft backgrounds, primary buttons and focus rings are covered by `test_browser_computed_contrast_guard` in Chromium. |
 | Production cutover | `Makefile`, `scripts/prod_check.py`, `scripts/go_live_check.py`, `scripts/smoke_live.py`, `production_readiness.py`, `routers/ops.py`, `docker-compose.postgres.yml`, `README.md`, `docs/PRODUCTION_USER_GUIDE.md` | pass | No demo seed, generated secrets, real CORS origin, matching DB URL, pinned PostgreSQL image, runtime env propagation, secret-safe admin readiness, final go-live gate | `make prod-check` validates `.env` without starting containers; compose now pins PostgreSQL major version and passes CORS, refresh TTL, rate limits, DB password and notification settings to the app container. `/health/ready` checks DB reachability; `/ops/readiness` powers the Admin UI preflight panel without returning secret values. `make go-live-check APP_URL=...` adds restore-drill evidence, release gates and live smoke with active-admin proof. |
 | Production CI gates | `.github/workflows/production-gates.yml`, `Makefile`, `requirements.txt`, `requirements-dev.txt`, `Dockerfile` | needs external evidence | Python 3.12/3.14 tests, JS syntax, production dependency audit, Docker build | Local `make audit-prod` audits pinned runtime dependencies and `make release-check` runs the repeatable local gate. CI runs full resolver audit with `pip-audit -r requirements.txt`. After push, confirm GitHub Actions **Production Gates** passes on `master`. |
-| Premium QA gate | `Makefile`, `README.md`, `ROADMAP_IMPROVEMENTS.md`, `e2e/test_browser_smoke.py`, `scripts/smoke_live.py` | pass | Release-check, browser role smoke, live URL smoke, clear handoff evidence | `make qa-premium` chains release gates and browser role smoke. `make smoke-live APP_URL=...` checks `/health`, `/health/ready`, `/auth/setup-status` and `/public/overview` on a running stack. Latest local run passed release-check, 147 pytest cases, 8 browser checks and live `8001` smoke. |
+| Premium QA gate | `Makefile`, `README.md`, `ROADMAP_IMPROVEMENTS.md`, `e2e/test_browser_smoke.py`, `scripts/smoke_live.py` | pass | Release-check, browser role smoke, live URL smoke, clear handoff evidence | `make qa-premium` chains release gates and browser role smoke. `make smoke-live APP_URL=...` checks `/health`, `/health/ready`, `/auth/setup-status` and `/public/overview` on a running stack. Latest local browser run passed 10 checks including responsive density and destructive recovery. |
 | Structured access logs | `app.py`, `config.py`, `logging_config.py`, `docker-compose.postgres.yml`, `README.md` | pass | Production JSON logs, request correlation, no secret values | Request middleware emits access logs with request id, method, path, route, status and latency. `LOG_FORMAT=auto` keeps dev text logs and production JSON logs; `fleetflow.access` writes one stdout JSON line per request. |
 | Backup / restore drill | `Makefile`, `scripts/backup_postgres.sh`, `scripts/restore_postgres_drill.sh`, `scripts/go_live_check.py`, `docs/PRODUCTION_USER_GUIDE.md` | pass | Backup files outside git, custom PostgreSQL dump, restore test isolated from production volume, fresh evidence before cutover | `make prod-backup` writes a `pg_dump --format=custom` file under ignored `backups/`; `make prod-restore-drill BACKUP=...` restores into project `fleetflow_restore_drill`, checks `alembic_version`, removes the temporary volume by default and writes `.fleetflow/restore-drill-ok.json` for `make go-live-check`. |
 | User contact fields | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `schemas.py`, `routers/users.py`, `db.py`, `alembic/versions/20260420_0007_user_gsm_number.py` | pass | GSM is optional contact metadata, not auth; field has tel keyboard, max length guard and visible card text | Admin can enter optional GSM number when creating a user. API returns `gsm_number`, user cards show text-backed `GSM: ...`, and tests cover optional/too-long values. |
@@ -119,6 +119,10 @@ background and checks the high-risk cockpit combinations.
 - `pass`: cancel dialogs require a concrete reason before the destructive
   action and the backend stores the reason in `audit_log`; covered by
   `tests/test_ui_compliance.py` and `tests/test_app.py`.
+- `pass`: dynamic destructive dialogs now disable native constraint validation
+  with `novalidate`, so custom Bulgarian recovery messages, `aria-invalid`
+  marking and focus-to-field behavior always run. Covered by
+  `tests/test_ui_compliance.py` and `destructive-reject-recovery.png`.
 - `pass`: intent-driven summary actions expose one primary next step for
   employee/admin modes and keep 44 px button targets; covered by
   `tests/test_ui_compliance.py`.
@@ -214,14 +218,25 @@ background and checks the high-risk cockpit combinations.
 - `pass`: Playwright browser smoke is now split by role and starts a fresh app
   server/database for each flow. It verifies public pre-login orientation,
   employee one-tap booking, employee admin-deny redirect, approver Decision
-  Rail, admin control surface, employee mobile calendar, Reception Rail and
-  role-aware reception calendar.
+  Rail, admin control surface, employee mobile calendar, Reception Rail,
+  role-aware reception calendar, responsive density and destructive-action
+  keyboard recovery.
   Screenshots are written to `test-results/e2e/public-mobile.png`,
   `test-results/e2e/employee-desktop.png`,
   `test-results/e2e/approver-desktop.png`,
   `test-results/e2e/admin-desktop.png`,
   `test-results/e2e/employee-mobile.png` and
   `test-results/e2e/reception-desktop.png`.
+- `evidence`: responsive density screenshots now include
+  `density-public-390.png`, `density-public-768.png`,
+  `density-employee-390.png`, `density-approver-768.png`,
+  `density-reception-768.png`, `density-admin-1024.png` and
+  `density-admin-1440.png`. The browser guard checks horizontal overflow,
+  clipped controls and module overlap.
+- `evidence`: destructive recovery screenshots include
+  `destructive-reject-recovery.png` and
+  `destructive-return-confirmation.png`, covering keyboard activation,
+  required-reason recovery, focus targeting and Escape cancel.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
 - `pass`: browser-computed light/dark contrast now covers translucent
@@ -239,11 +254,12 @@ background and checks the high-risk cockpit combinations.
 - `pass`: premium QA is now a named local command. `make qa-premium` covers
   release-check plus browser role smoke, and `make smoke-live APP_URL=...`
   verifies a running stack's health/readiness/public overview.
-- `evidence`: latest local handoff check ran `make qa-premium` -> 147 pytest
-  cases and 8 Playwright browser checks, `pytest tests/test_prod_readiness.py
-  -q` -> 7 passed, `bash -n scripts/restore_postgres_drill.sh`, Python compile
-  for production scripts, and `make smoke-live APP_URL=http://127.0.0.1:8001`
-  -> health/ready/active-admin/public overview passed. Previous handoff check ran
+- `evidence`: latest local handoff check ran `make qa-premium` -> dependency
+  audit, Python compile, 147 pytest cases, JS syntax and 10 Playwright browser
+  checks, `pytest tests/test_prod_readiness.py -q` -> 7 passed,
+  `bash -n scripts/restore_postgres_drill.sh`, Python compile for production
+  scripts, and `make smoke-live APP_URL=http://127.0.0.1:8001` ->
+  health/ready/active-admin/public overview passed. Previous handoff check ran
   `pytest -q` -> 145 passed,
   `pytest tests/test_schema_contracts.py -q` -> 5 passed,
   `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
