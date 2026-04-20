@@ -863,7 +863,16 @@ h3 {
 .quick-book .btn,
 .smart-prefill .action-btn {
   justify-self: start;
+  max-width: 100%;
   min-height: 44px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+
+.quick-book .btn {
+  width: 100%;
 }
 
 .quick-book__hint {
@@ -2297,6 +2306,41 @@ select {
   margin: var(--sp-2) 0 0;
   color: var(--muted);
   font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.fleet-pulse__insights {
+  display: grid;
+  gap: var(--sp-3);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.fleet-pulse__insight {
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-muted));
+}
+
+.fleet-pulse__insight[data-severity="warning"] {
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface-muted));
+}
+
+.fleet-pulse__insight[data-severity="critical"] {
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-muted));
+}
+
+.fleet-pulse__insight strong {
+  display: block;
+  color: var(--ink-strong);
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.fleet-pulse__insight p {
+  margin: var(--sp-1) 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
   line-height: 1.45;
 }
 

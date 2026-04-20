@@ -127,6 +127,7 @@ def test_one_tap_booking_is_available_without_form_scanning() -> None:
     assert "toggleHidden(els.quickBookPanel, !authenticated || adminMode);" in app_js
     assert '"quickBook.createdTitle": "Бързата заявка е подадена"' in i18n_js
     assert ".quick-book .btn" in styles
+    assert "overflow-wrap: anywhere;" in styles
 
 
 def test_smart_prefill_keeps_manual_booking_predictive() -> None:
@@ -151,7 +152,18 @@ def test_status_bar_reports_free_cars_not_only_active_cars() -> None:
     for template in ("templates/index.html", "templates/admin.html"):
         html = _read(template)
         assert '<span class="stat-card__label">Свободни коли</span>' in html
-    assert "const availableCars = Math.max(activeCars - activeTrips, 0);" in app_js
+    assert "Math.max(activeCars - activeTrips, 0)" in app_js
+
+
+def test_public_overview_feeds_pre_login_status_bar() -> None:
+    app_js = _read("static/app.js")
+    assert "publicOverview: null" in app_js
+    assert "function loadPublicOverview()" in app_js
+    assert 'apiFetch("/public/overview")' in app_js
+    assert "const publicOverview = !state.token ? state.publicOverview : null;" in app_js
+    assert "publicOverview?.pending_requests" in app_js
+    assert "publicOverview?.active_trips" in app_js
+    assert "publicOverview?.available_cars" in app_js
     assert 'kpiAvailable.querySelector(".stat-card__value").textContent = availableCars;' in app_js
 
 
@@ -280,11 +292,14 @@ def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     assert 'id="fleetPulse" aria-labelledby="fleetPulseTitle" aria-live="polite"' in html
     assert html.index('id="fleetPulse"') < html.index('id="reservationsDeck"')
     assert "pulseReservations: []" in app_js
+    assert "intelligencePulse: null" in app_js
     assert "telemetry: []" in app_js
     assert "function loadFleetPulseReservations()" in app_js
+    assert "function loadFleetIntelligencePulse()" in app_js
     assert "function loadTelemetry()" in app_js
     assert "function loadPickupTelemetry()" in app_js
     assert 'apiFetch("/reservations?limit=500"' in app_js
+    assert 'apiFetch("/admin/intelligence/pulse"' in app_js
     assert 'apiFetch("/cars/telemetry/latest"' in app_js
     assert 'apiFetch(`/cars/${candidate.car_id}/telemetry/latest`' in app_js
     assert "function renderFleetPulse()" in app_js
@@ -295,12 +310,14 @@ def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     assert '"fleetPulse.title": "Оперативен пулс"' in i18n_js
     assert '"fleetPulse.busiestCar": "Най-натоварена кола"' in i18n_js
     assert '"fleetPulse.telemetry": "Коли с GPS позиция"' in i18n_js
+    assert '"fleetPulse.insightsLabel": "Оперативни insight-и"' in i18n_js
     assert "const activeFleetPlates = new Set(" in app_js
     assert "const fleetTelemetryCount = state.telemetry.filter" in app_js
     assert 'value: state.telemetryConfigured ? `${fleetTelemetryCount}/${fleetTelemetryTotal}` : "—"' in app_js
     assert '"pickup.title": "Къде да вземеш колата"' in i18n_js
     assert '"telemetry.coordinates": "{lat}, {lon}"' in i18n_js
     assert ".fleet-pulse__grid" in styles
+    assert ".fleet-pulse__insight" in styles
     assert ".car-card__telemetry" in styles
     assert ".pickup-location" in styles
     assert "grid-template-columns: repeat(5, minmax(0, 1fr));" in styles

@@ -197,6 +197,7 @@ const bg = {
   "fleetPulse.telemetryDetail": "{count} от {total} активни коли имат последна позиция от NetFleet.",
   "fleetPulse.telemetryEmpty": "NetFleet е включен, но за активните коли няма последна позиция.",
   "fleetPulse.telemetryNotConfigured": "NetFleet ключът още не е добавен.",
+  "fleetPulse.insightsLabel": "Оперативни insight-и",
   "netfleet.loading": "Проверявам NetFleet настройката...",
   "netfleet.notConfigured": "Не е конфигуриран. Въведи ключа еднократно, за да включиш live координатите.",
   "netfleet.configuredUi": "Конфигуриран през Admin UI. Последна промяна: {time}.",

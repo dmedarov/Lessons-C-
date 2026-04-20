@@ -134,6 +134,12 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Calm defaults started: employee reservations default to open/current work
   and hide returned/rejected/cancelled from the main flow; read notifications
   are removed from the visible inbox instead of accumulating.
+- Fleet Intelligence Seed is shipped: quick-book and explicit best-car
+  suggestions use explainable scoring, admin Fleet Pulse shows compact derived
+  insights, and `car_assignments` records why a car was chosen.
+- Pre-login status is now real: `/public/overview` exposes only aggregate
+  counts so the first screen shows actual free cars, active trips and pending
+  approvals without leaking detailed records.
 - NetFleet latest GPS events are wired through an admin-only server-side proxy;
   employees can read pickup location only for their own approved/active trip.
   The key can be supplied by `.env` or saved once/changed from Admin UI as a
@@ -151,6 +157,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   lifecycle scenarios and browser-computed contrast checks.
 - Production observability now has structured request logs; next hardening is
   external alert delivery and an operator-facing log retention/export decision.
+- Intelligence snapshots/materialized insights remain intentionally deferred
+  until production usage shows inline metrics are too slow or operators need
+  historical trend review.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
 - The monolithic `static/app.js` should be split before the frontend grows much
@@ -1619,6 +1628,35 @@ operations assistant for internal mobility**. Future agents should optimize for
 one primary action, less thinking, fewer visible controls and stronger
 confidence after every click.
 
+### Production UX readiness pass
+
+Before live use, every shipped change must preserve these flow-level checks:
+
+1. **Pre-login:** hero status bar shows real aggregate counts for pending
+   approvals, active trips and free cars without exposing detailed records.
+2. **Login/setup:** setup/login panels remain the only primary action before
+   authentication; no operational form is actionable before auth.
+3. **Employee free mode:** quick-book is visible before manual form scanning,
+   the button cannot overflow on mobile, and manual booking stays available.
+4. **Employee active/next trip:** Current Trip Hero answers "what is my next
+   move" before calendar/table browsing; pickup telemetry is scoped to the
+   user's own approved/active trip.
+5. **Employee history/noise:** returned/rejected/cancelled rows stay out of
+   the default operational flow; read notifications do not accumulate in the
+   visible inbox.
+6. **Admin decision mode:** pending requests and Decision Rail appear before
+   filters/table; approve/reject/start/return remain admin-owned lifecycle
+   actions.
+7. **Admin operations:** Fleet Pulse shows compact insight cards, not a BI
+   dashboard; production readiness and NetFleet setup never reveal secrets.
+8. **Calendar/fleet:** timeline/card views come before tables; calendar is for
+   planning context, not the only way to find the next action.
+9. **Errors/loading:** every destructive action has a reason ritual, every
+   slow surface has a skeleton/busy state, and every failed action keeps user
+   input intact.
+10. **Evidence:** run unit/static tests, targeted UI/API pack, Playwright
+    desktop/mobile screenshots and Docker smoke before production handoff.
+
 ### 9.1 Intent-driven home / next-action layer ✅ started 2026-04-20
 
 **Status:** Started. The summary deck now exposes contextual next-action
@@ -1699,21 +1737,31 @@ server-side and never echoed back.
 Reservation lists now render a timeline-first lifecycle flow before the table,
 with direct actions and admin pending selection; the table remains a secondary
 detail view.
+Fleet Intelligence Seed now scores available cars by conflict/blackout-safe
+availability, recent utilization and the user's recent car preference. Quick
+booking records the chosen mode, score and reason in `car_assignments`, while
+`/admin/intelligence/pulse` adds compact admin insights under Fleet Pulse.
+The quick-book button is now full-width and wrapping, so the Bulgarian label
+cannot overflow its container on narrow screens.
+The hero status bar now loads aggregate counts before login through
+`/public/overview`, keeping the first screen informative without exposing
+reservation rows, user names or plate-level details.
 
 - **Goal:** Predict useful defaults without "AI assistant" complexity.
-- **Initial rules:** nearest active car first, conflict/blackout-safe quick
-  booking, last used car first, common time range, typical duration, next free
-  slot action, pending-first admin dashboard.
+- **Initial rules:** conflict/blackout-safe quick booking, best-car scoring
+  across recent utilization and user preference, last used car/common time
+  prefill, next free slot action, pending-first admin dashboard.
 - **Files:** `templates/admin.html`, `static/app.js`, `static/i18n.js`,
-  `static/styles.css`, `app_settings.py`, `config.py`, `netfleet_service.py`, `routers/cars.py`,
-  `routers/reservations.py`, `.env.example`, `docker-compose.yml`,
-  `docker-compose.postgres.yml`
-- **Verification:** `pytest tests/test_netfleet_service.py tests/test_ui_compliance.py tests/test_app.py -q`
-  -> 74 passed, full `pytest -q` -> 110 passed, JS syntax checks and Python
-  compile check, plus a clean `fleetflow_test` Docker rebuild and `/health`
-  smoke on `8001`; still needs
-  browser screenshot evidence for quick-book and telemetry configured/
-  unconfigured states.
+  `static/styles.css`, `fleet_intelligence/`, `routers/intelligence.py`,
+  `app_settings.py`, `config.py`, `netfleet_service.py`, `routers/cars.py`,
+  `routers/reservations.py`, `db.py`,
+  `alembic/versions/20260420_0008_car_assignments.py`, `.env.example`,
+  `docker-compose.yml`, `docker-compose.postgres.yml`
+- **Verification:** `pytest -q` -> 129 passed, targeted
+  UI/API/production readiness pack -> 39 passed, `node --check static/app.js`,
+  `node --check static/i18n.js` and Python compile check pass. Still needs
+  fresh browser screenshot evidence for the quick-book button wrap and admin
+  intelligence pulse cards.
 
 ### 9.5 Applicability notes from premium wireframe
 
@@ -1877,15 +1925,23 @@ If time is limited, execute items 1-4 before any new feature work.
   inbox and employee reservations default to `Текущи`, hiding returned,
   rejected and cancelled records until the user explicitly chooses a history
   filter.
-- **Verification:** `pytest -q` passes with 125 tests, targeted
-  UI/API/production readiness pack passes with 34 tests, Playwright browser
+- **Fleet Intelligence Seed shipped:** `fleet_intelligence/` provides inline
+  metrics/rules/service scoring; `/reservations/suggest-best-car` exposes
+  explainable best-car suggestions; quick-book records `car_assignments`;
+  `/admin/intelligence/pulse` feeds compact admin insights; the quick-book
+  button now wraps inside its card instead of overflowing on narrow layouts.
+- **Pre-login overview shipped:** `/public/overview` returns only aggregate
+  counts for active cars, pending approvals, active trips and free cars; the
+  hero status bar uses those values before login.
+- **Verification:** `pytest -q` passes with 129 tests, targeted
+  UI/API/production readiness pack passes with 39 tests, Playwright browser
   smoke passes with 1 test and screenshots, JS syntax checks and Python compile
   check pass. `make prod-check` fails fast when `.env` is missing in a clean
   checkout. Old `fleetflow_test` containers were removed, Docker stack was
   rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on `8001`
   return ok/ready and the app container is healthy. Backup creation and
   isolated restore drill were executed successfully. PostgreSQL smoke is on
-  Alembic revision `20260420_0007`.
+  Alembic revision `20260420_0008`.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation
 

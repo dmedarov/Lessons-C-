@@ -31,10 +31,11 @@ def _reload_stack() -> tuple[object, object]:
     importlib.reload(bootstrap_tokens)
     importlib.reload(app_module)
 
-    from routers import auth, cars, notifications, reservations, users
+    from routers import auth, cars, intelligence, notifications, reservations, users
 
     importlib.reload(auth)
     importlib.reload(cars)
+    importlib.reload(intelligence)
     importlib.reload(notifications)
     importlib.reload(reservations)
     importlib.reload(users)

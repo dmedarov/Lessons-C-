@@ -30,6 +30,7 @@ COPY --from=builder --chown=10001:10001 /data /data
 COPY --chown=10001:10001 app.py app_settings.py bootstrap_tokens.py config.py container_entrypoint.py db.py logging_config.py netfleet_service.py notifications_service.py production_readiness.py rate_limit.py security.py schemas.py ./
 COPY --chown=10001:10001 alembic.ini ./
 COPY --chown=10001:10001 alembic ./alembic
+COPY --chown=10001:10001 fleet_intelligence ./fleet_intelligence
 COPY --chown=10001:10001 routers ./routers
 COPY --chown=10001:10001 static ./static
 COPY --chown=10001:10001 templates ./templates

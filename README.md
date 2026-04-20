@@ -29,14 +29,17 @@
 - Loading skeleton-и и submit busy states за основните форми и панели.
 - Ясни status тагове, филтри и действия в контекста на всеки запис.
 - Intent-driven summary: началният operational слой показва следващия най-важен ход според режима.
-- One-tap booking: employee може да подаде pending заявка за най-близката свободна активна кола без ръчно попълване.
+- Pre-login operational overview: още преди вход hero status bar-ът показва реални агрегирани броя за чакащи одобрение, активни курсове и свободни коли.
+- One-tap booking: employee може да подаде pending заявка за най-подходящата свободна активна кола без ръчно попълване.
+- Fleet Intelligence Seed: quick-booking използва explainable scoring върху наличност, скорошно натоварване и user preference, вместо просто първата свободна кола.
+- Assignment traceability: ръчните и quick-book резервациите записват `car_assignments` със score и причина за избора.
 - Smart prefill: employee формата предлага обичайната кола, час и продължителност от последните резервации.
 - Current Trip Hero: активната или следваща одобрена резервация излиза като основен hero блок; employee вижда статус/място за взимане, а admin управлява start/return lifecycle.
 - Employee UX priority: след login заявките/lifecycle са преди календара, формата за нова заявка е преди inbox-а, а обучителните карти се скриват, за да няма UI шум.
 - Calm default inbox/listing: employee default филтърът е **Текущи**, така че върнатите/отказаните/отменените не стоят в оперативния поток; прочетените нотификации се прибират от inbox-а.
 - Admin Decision Rail: `/admin` започва с най-спешните pending заявки, директни approve/reject действия и bulk approve, преди таблицата.
 - Timeline-first reservations: employee/admin виждат lifecycle cards преди таблицата, с директни действия и secondary table fallback.
-- Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола и `X/Y` GPS позиции само за активните коли във FleetFlow.
+- Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола, `X/Y` GPS позиции и compact Fleet Intelligence insight-и.
 - NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а.
 - Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string.
 - Pickup location: служителят вижда къде да вземе колата само за своя одобрена/активна резервация.
@@ -262,6 +265,7 @@ app.py              # FastAPI factory + lifespan
 app_settings.py     # DB-backed runtime settings for admin-managed secrets such as NetFleet
 config.py           # Настройки от env (SECRET_KEY, DB_PATH, DATABASE_URL, TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS, CORS/rate limits, NetFleet)
 db.py               # SQLite/PostgreSQL adapters, schema bootstrap, runtime compatibility upgrades
+fleet_intelligence/ # explainable scoring, derived metrics and compact admin insights
 logging_config.py   # request access log formatter for text/dev and JSON/prod
 netfleet_service.py # Server-side NetFleet GPS telemetry client; ключът не стига до browser-а
 production_readiness.py # shared prod checks for make prod-check and /ops/readiness
@@ -270,6 +274,7 @@ schemas.py          # Pydantic request/response модели
 routers/
   auth.py           # setup-status, bootstrap-admin, login, refresh, logout, auth/me
   cars.py           # /cars + deactivate/activate + blackout windows
+  intelligence.py   # /admin/intelligence/pulse
   notifications.py  # user notification inbox
   ops.py            # admin-only production readiness preflight
   reservations.py   # /reservations + suggest/quick-book/preferences + approve/reject/start/return/cancel
@@ -296,6 +301,7 @@ docker-compose.postgres.yml
 - `POST /auth/logout` → ревокира текущия refresh token и изчиства cookie-то.
 - `GET /auth/me` → връща текущия user context.
 - `GET /health/ready` → публичен readiness probe, който проверява DB връзката.
+- `GET /public/overview` → публични aggregate counts за hero status bar-а преди login; не връща имена, регистрационни номера, потребители или резервации.
 - `GET /ops/readiness` → само `fleet_admin`; връща production preflight статус без secret values.
 - Всеки защитен endpoint очаква `Authorization: Bearer <token>`.
 - Токените са **HMAC-SHA256 подписани** с `SECRET_KEY`, имат `exp` и се re-bind-ват към live user state при всяка заявка.
@@ -313,7 +319,9 @@ docker-compose.postgres.yml
 - `POST /users/me/password` — логнат потребител, със задължителна текуща парола.
 - `POST /cars/{id}/blackouts`, `GET /cars/{id}/blackouts`, `POST /cars/blackouts/{id}/deactivate` — blackout management за service/maintenance.
 - `POST /reservations` — всеки логнат потребител. Резервацията се записва на името на логнатия (не може да се прави „от името на колега").
-- `GET /reservations/suggest` и `POST /reservations/quick-book` — employee quick-booking за най-близката свободна активна кола през същите conflict/blackout guardrails.
+- `GET /reservations/suggest` и `POST /reservations/quick-book` — employee quick-booking за най-подходящата свободна активна кола през същите conflict/blackout guardrails и Fleet Intelligence scoring.
+- `GET /reservations/suggest-best-car?start=&end=` — explainable best-car suggestion за конкретен слот.
+- `GET /admin/intelligence/pulse` — само `fleet_admin`; compact derived metrics + insight-и за Fleet Pulse.
 - `GET /reservations/preferences` — employee smart prefill от последните 10 собствени резервации.
 - `POST /reservations/{id}/approve`/`reject` — само `fleet_admin`.
 - `POST /reservations/{id}/start` и `POST /reservations/{id}/return` — само `fleet_admin`.
@@ -349,6 +357,8 @@ docker-compose.postgres.yml
 24. **Backup before migration** — production backup и restore drill са Make targets, а backup файловете са извън git.
 25. **User contact data** — email и GSM номер се пазят в user профила за operational coordination, без да участват в login/auth.
 26. **Structured production logs** — access logs са JSON в production и съдържат request id, route, status и latency без secret values.
+27. **Explainable fleet intelligence first** — quick-book uses a thin rules/metrics layer and records `car_assignments`; snapshot tables/jobs stay future work until production usage proves the need.
+28. **Public counts, private details** — pre-login UI may show aggregate fleet counts for frictionless orientation, but detailed cars/reservations/users stay behind auth.
 
 ## Тестове
 
@@ -378,9 +388,9 @@ Admin Decision Rail, Fleet Pulse copy и mobile calendar, после запис�
 `test-results/` е игнориран от git.
 
 Последна локална проверка за request-first/admin-lifecycle/production-readiness пакета:
-`pytest -q` -> 125 passed, targeted UI/API/production readiness pack -> 34 passed,
+`pytest -q` -> 129 passed, targeted UI/API/production readiness pack -> 39 passed,
 `node --check static/app.js`, `node --check static/i18n.js`,
-`PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile production_readiness.py routers/ops.py scripts/prod_check.py app.py schemas.py`,
+`PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile app.py db.py routers/reservations.py routers/intelligence.py fleet_intelligence/*.py tests/test_app.py tests/test_ui_compliance.py`,
 и `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 1 passed. `make prod-check` fail-fast-ва без `.env`, както трябва за clean
 repo. Старият `fleetflow_test` stack беше премахнат, Docker image-ът беше
@@ -390,7 +400,7 @@ rebuild-нат, PostgreSQL compose мина с pin-нат `postgres:16`, `/healt
 drill доказателството мина: backup към `/tmp/fleetflow-backups/...dump` и
 restore в изолиран `fleetflow_restore_drill` project с проверен
 `alembic_version`. PostgreSQL smoke stack-ът е мигриран до
-`alembic_version=20260420_0007`.
+`alembic_version=20260420_0008`.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 
@@ -412,6 +422,7 @@ restore в изолиран `fleetflow_restore_drill` project с провере�
 - NetFleet service normalization/unconfigured states и frontend guardrail, че `NETFLEET_API_KEY` не изтича към browser-facing файлове
 - admin-managed NetFleet key flow: status, add/change, admin-only access и server-side usage without returning the secret
 - one-tap booking suggestion/create flow и smart prefill preferences за обичайна кола/час/продължителност
+- Fleet Intelligence Seed: best-car scoring, admin intelligence pulse и `car_assignments` traceability
 - timeline-first reservation cards before the secondary table, including lifecycle actions and admin pending selection
 
 ## Alembic migrations

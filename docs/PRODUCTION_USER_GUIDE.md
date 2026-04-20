@@ -202,3 +202,25 @@ stdout. Всеки access log
 browser/network tooling и търси същия `request_id` в логовете. Логовете не
 трябва да съдържат `SECRET_KEY`, `POSTGRES_PASSWORD`, NetFleet ключ или други
 секрети.
+
+## 10. Fleet Intelligence
+
+Fleet Intelligence Seed е включен без отделен background worker. Бързата
+резервация и `GET /reservations/suggest-best-car` използват explainable scoring
+върху текущите operational данни: наличност, blackout/conflict guardrails,
+скорошно натоварване и обичайна кола на потребителя.
+
+Изборът се записва в `car_assignments` със score и reason, за да може
+admin/support да разбере защо FleetFlow е предложил конкретна кола. Admin Fleet
+Pulse чете `/admin/intelligence/pulse` и показва compact insight-и без тежък BI
+dashboard. Snapshot таблици и scheduled recompute jobs са планирани след реална
+production употреба, ако inline метриките станат бавни или трябва исторически
+trend review.
+
+## 11. Първи екран преди login
+
+Преди вход FleetFlow зарежда `GET /public/overview`, за да покаже реални
+агрегирани стойности за чакащи одобрение, активни курсове и свободни коли.
+Това е умишлено public, но е ограничено само до броячи. Endpoint-ът не връща
+регистрационни номера, имена, потребители, цели на пътуване, GPS или детайли по
+резервации.

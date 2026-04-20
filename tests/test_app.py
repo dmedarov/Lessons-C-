@@ -37,10 +37,11 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     importlib.reload(bootstrap_tokens)
     importlib.reload(app_module)
 
-    from routers import auth, cars, notifications, reservations, users
+    from routers import auth, cars, intelligence, notifications, reservations, users
 
     importlib.reload(auth)
     importlib.reload(cars)
+    importlib.reload(intelligence)
     importlib.reload(notifications)
     importlib.reload(reservations)
     importlib.reload(users)
@@ -910,6 +911,106 @@ def test_quick_book_creates_pending_reservation(client: TestClient) -> None:
     assert data["status"] == "pending"
     assert data["purpose"] == "Бърза заявка от FleetFlow"
     assert data["quick_suggestion"]["plate_number"] == "CB3701AA"
+    assert data["quick_suggestion"]["reason_code"] == "available_balanced"
+
+    with db.get_conn() as conn:
+        assignment = conn.execute(
+            "SELECT * FROM car_assignments WHERE reservation_id=?",
+            (int(data["id"]),),
+        ).fetchone()
+    assert assignment["assignment_mode"] == "quick_book"
+    assert assignment["reason_code"] == "available_balanced"
+    assert float(assignment["score"]) >= 100
+
+
+def test_suggest_best_car_prefers_lower_recent_utilization(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "balanced", "Balanced User", "BalancedPass123")
+    employee = _login(client, "balanced", "BalancedPass123")
+    overused_car = _create_car(client, admin, plate="CB3710AA")
+    balanced_car = _create_car(client, admin, plate="CB3711AA")
+
+    _create_reservation(
+        client,
+        overused_car,
+        employee,
+        "2099-04-18T08:00:00+00:00",
+        "2099-04-18T18:00:00+00:00",
+        "Long planned usage",
+    )
+
+    res = client.get(
+        "/reservations/suggest-best-car",
+        params={
+            "start": "2099-05-18T10:00:00+00:00",
+            "end": "2099-05-18T12:00:00+00:00",
+        },
+        headers=_auth(employee),
+    )
+
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["car_id"] == balanced_car
+    assert data["reason_code"] == "low_recent_utilization"
+    assert data["score"] > 100
+
+
+def test_admin_intelligence_pulse_is_admin_only(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "pulse", "Pulse User", "PulsePass123")
+    employee = _login(client, "pulse", "PulsePass123")
+    car_id = _create_car(client, admin, plate="CB3712AA")
+    _create_reservation(client, car_id, employee)
+
+    forbidden = client.get("/admin/intelligence/pulse", headers=_auth(employee))
+    assert forbidden.status_code == 403
+
+    res = client.get("/admin/intelligence/pulse", headers=_auth(admin))
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["active_cars"] == 1
+    assert data["pending_requests"] == 1
+    assert data["available_now"] == 1
+    assert data["insights"][0]["kind"] == "pending_bottleneck"
+
+
+def test_public_overview_exposes_real_counts_without_auth(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "public", "Public User", "PublicPass123")
+    employee = _login(client, "public", "PublicPass123")
+    car_id = _create_car(client, admin, plate="CB3713AA")
+    reservation_id = _create_reservation(client, car_id, employee)
+
+    pending = client.get("/public/overview")
+    assert pending.status_code == 200, pending.text
+    assert pending.json() == {
+        "active_cars": 1,
+        "pending_requests": 1,
+        "active_trips": 0,
+        "available_cars": 1,
+    }
+
+    approve = client.post(
+        f"/reservations/{reservation_id}/approve",
+        json={"reason": "Operational approval"},
+        headers=_auth(admin),
+    )
+    assert approve.status_code == 200, approve.text
+    start = client.post(
+        f"/reservations/{reservation_id}/start",
+        json={"note": "Handed over"},
+        headers=_auth(admin),
+    )
+    assert start.status_code == 200, start.text
+
+    active = client.get("/public/overview")
+    assert active.status_code == 200, active.text
+    assert active.json() == {
+        "active_cars": 1,
+        "pending_requests": 0,
+        "active_trips": 1,
+        "available_cars": 0,
+    }
 
 
 def test_reservation_suggest_skips_conflicting_car(client: TestClient) -> None:

@@ -11,6 +11,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 from fastapi.responses import StreamingResponse
 
 from db import PostgresConnectionAdapter, SQLiteConnectionAdapter, get_conn, transaction
+from fleet_intelligence.service import suggest_best_car
+from fleet_intelligence.schemas import SuggestedAssignment
 from notifications_service import create_notification, create_notifications, dispatch_outbound_notifications
 from schemas import (
     BulkDecisionItem,
@@ -160,7 +162,23 @@ def _parse_datetime(value: Any) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def _find_suggested_slot(conn: DbConn, duration_minutes: int = 120) -> dict[str, Any]:
+def _assignment_to_suggestion(assignment: SuggestedAssignment, duration_minutes: int) -> dict[str, Any]:
+    return {
+        "car_id": assignment.car_id,
+        "plate_number": assignment.plate_number,
+        "model": assignment.model,
+        "start_time": assignment.start_time,
+        "end_time": assignment.end_time,
+        "duration_minutes": duration_minutes,
+        "purpose": "Бърза заявка от FleetFlow",
+        "score": assignment.score,
+        "reason_code": assignment.reason_code,
+        "reason_text": assignment.reason_text,
+        "scoring": assignment.scoring,
+    }
+
+
+def _find_suggested_slot(conn: DbConn, user_id: int, duration_minutes: int = 120) -> dict[str, Any]:
     cars = conn.execute(
         "SELECT id, plate_number, model FROM cars WHERE active=1 ORDER BY id"
     ).fetchall()
@@ -174,32 +192,52 @@ def _find_suggested_slot(conn: DbConn, duration_minutes: int = 120) -> dict[str,
     for step in range(search_steps):
         start = first_start + timedelta(minutes=step * 30)
         end = start + duration
-        start_iso = _to_utc_iso(start)
-        end_iso = _to_utc_iso(end)
-        for car in cars:
-            car_id = int(car["id"])
-            if _reservation_conflict_rows(conn, car_id, start_iso, end_iso):
-                continue
-            if _blackout_conflict_rows(conn, car_id, start_iso, end_iso):
-                continue
-            return {
-                "car_id": car_id,
-                "plate_number": str(car["plate_number"]),
-                "model": str(car["model"]),
-                "start_time": start_iso,
-                "end_time": end_iso,
-                "duration_minutes": duration_minutes,
-                "purpose": "Бърза заявка от FleetFlow",
-            }
+        assignment = suggest_best_car(conn, user_id=user_id, start=start, end=end)
+        if assignment:
+            return _assignment_to_suggestion(assignment, duration_minutes)
 
     raise HTTPException(status_code=409, detail="No free slot found in the next 7 days")
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-def create_reservation(
+def _record_car_assignment(
+    conn: DbConn,
+    *,
+    reservation_id: int,
+    car_id: int,
+    assignment_mode: str,
+    score: float,
+    reason_code: str,
+    reason_text: str,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO car_assignments(
+            reservation_id, car_id, assignment_mode, score, reason_code,
+            reason_text, created_at
+        )
+        VALUES(?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            reservation_id,
+            car_id,
+            assignment_mode,
+            score,
+            reason_code,
+            reason_text,
+            _utcnow_iso(),
+        ),
+    )
+
+
+def _create_reservation(
     payload: ReservationCreate,
     background_tasks: BackgroundTasks,
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext,
+    *,
+    assignment_mode: str = "manual",
+    assignment_score: float = 0,
+    assignment_reason_code: str = "manual_selection",
+    assignment_reason_text: str = "Колата е избрана ръчно от потребителя.",
 ) -> dict[str, Any]:
     if payload.start_time <= datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="start_time must be in the future")
@@ -249,6 +287,15 @@ def create_reservation(
             reservation_id = int(conn.execute(query, params).lastrowid)
 
         _log(conn, reservation_id, auth.user_id, "created", payload.purpose)
+        _record_car_assignment(
+            conn,
+            reservation_id=reservation_id,
+            car_id=payload.car_id,
+            assignment_mode=assignment_mode,
+            score=assignment_score,
+            reason_code=assignment_reason_code,
+            reason_text=assignment_reason_text,
+        )
 
         admin_ids = [admin_id for admin_id in _active_admin_ids(conn) if admin_id != auth.user_id]
         if admin_ids:
@@ -269,6 +316,15 @@ def create_reservation(
     if notification_ids:
         background_tasks.add_task(dispatch_outbound_notifications, notification_ids)
     return response
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+def create_reservation(
+    payload: ReservationCreate,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(get_auth_context),
+) -> dict[str, Any]:
+    return _create_reservation(payload, background_tasks, auth)
 
 
 @router.get("/conflicts")
@@ -324,10 +380,28 @@ def reservation_conflicts(
 @router.get("/suggest")
 def suggest_reservation(
     duration_minutes: int = Query(default=120, ge=15, le=480),
-    _: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
     with get_conn() as conn:
-        return _find_suggested_slot(conn, duration_minutes)
+        return _find_suggested_slot(conn, auth.user_id, duration_minutes)
+
+
+@router.get("/suggest-best-car")
+def suggest_best_car_for_slot(
+    start: datetime = Query(...),
+    end: datetime = Query(...),
+    auth: AuthContext = Depends(get_auth_context),
+) -> dict[str, Any]:
+    if end <= start:
+        raise HTTPException(status_code=400, detail="end must be after start")
+    if start <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="start must be in the future")
+
+    with get_conn() as conn:
+        assignment = suggest_best_car(conn, user_id=auth.user_id, start=start, end=end)
+    if not assignment:
+        raise HTTPException(status_code=409, detail="No active car is available for this slot")
+    return assignment.model_dump()
 
 
 @router.post("/quick-book", status_code=status.HTTP_201_CREATED)
@@ -337,14 +411,22 @@ def quick_book(
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, Any]:
     with get_conn() as conn:
-        suggestion = _find_suggested_slot(conn, duration_minutes)
+        suggestion = _find_suggested_slot(conn, auth.user_id, duration_minutes)
     payload = ReservationCreate(
         car_id=int(suggestion["car_id"]),
         start_time=datetime.fromisoformat(str(suggestion["start_time"])),
         end_time=datetime.fromisoformat(str(suggestion["end_time"])),
         purpose=str(suggestion["purpose"]),
     )
-    response = create_reservation(payload, background_tasks, auth)
+    response = _create_reservation(
+        payload,
+        background_tasks,
+        auth,
+        assignment_mode="quick_book",
+        assignment_score=float(suggestion.get("score", 0)),
+        assignment_reason_code=str(suggestion.get("reason_code", "quick_book")),
+        assignment_reason_text=str(suggestion.get("reason_text", "FleetFlow избра кола за бърза заявка.")),
+    )
     response["quick_suggestion"] = suggestion
     return response
 

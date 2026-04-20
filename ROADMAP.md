@@ -245,6 +245,14 @@ operations assistant for internal mobility**, което е:
   trips, cars releasing within 1 hour, pending decisions, busiest car and GPS
   telemetry availability for the active FleetFlow cars only (`X/Y`), not raw
   NetFleet device event counts.
+- Fleet Intelligence Seed: quick-book and `/reservations/suggest-best-car`
+  now use explainable scoring across availability, recent utilization and user
+  preference; `car_assignments` records the selected mode, score and reason.
+- Admin Intelligence Pulse: `/admin/intelligence/pulse` powers compact derived
+  insights under Fleet Pulse without adding background jobs or heavy BI.
+- Pre-login public overview: `/public/overview` feeds the hero status bar with
+  aggregate pending/active/available counts before login, while detailed
+  operational records remain authenticated.
 - NetFleet telemetry: server-side proxy reads latest GPS events by plate number
   from the admin-managed DB setting or `NETFLEET_API_KEY`; the key never
   reaches browser code and the UI never echoes the current secret. Admins see
@@ -266,8 +274,8 @@ operations assistant for internal mobility**, което е:
   request in production.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 125 passed,
-  targeted UI/API/production readiness pack -> 34 passed, Playwright browser
+- Latest local verification for this slice: `pytest -q` -> 129 passed,
+  targeted UI/API/production readiness pack -> 39 passed, Playwright browser
   smoke -> 1 passed with desktop/mobile screenshots, JS syntax checks and
   Python compile check. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
@@ -275,7 +283,7 @@ operations assistant for internal mobility**, което е:
   `8001` returned ok/ready and the app container is healthy. A real
   backup/restore drill succeeded from `/tmp/fleetflow-backups/...dump` into
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
-  Alembic revision `20260420_0007`.
+  Alembic revision `20260420_0008`.
 
 ## Next Recommended Slices
 
@@ -290,6 +298,9 @@ operations assistant for internal mobility**, което е:
 4. Add Playwright coverage for the new `/admin` production readiness panel and
    `/health/ready` probe state.
 5. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
+6. After real production usage, add materialized intelligence snapshots
+   (`car_status_snapshots`, `fleet_insights`) only if inline metrics become too
+   slow or operators need historical trend review.
 
 ## References
 

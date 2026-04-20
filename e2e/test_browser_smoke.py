@@ -151,6 +151,16 @@ def test_premium_employee_admin_and_mobile_surfaces(
     server: str,
     artifact_dir: Path,
 ) -> None:
+    prelogin = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
+    prelogin_page = prelogin.new_page()
+    prelogin_page.goto(f"{server}/", wait_until="domcontentloaded")
+    expect(prelogin_page.locator("#kpiPending .stat-card__value")).to_have_text("0", timeout=10_000)
+    expect(prelogin_page.locator("#kpiActive .stat-card__value")).to_have_text("0")
+    expect(prelogin_page.locator("#kpiAvailable .stat-card__value")).to_have_text("5")
+    prelogin_page.goto(f"{server}/admin", wait_until="domcontentloaded")
+    expect(prelogin_page.locator("#kpiAvailable .stat-card__value")).to_have_text("5", timeout=10_000)
+    prelogin.close()
+
     employee = browser.new_context(viewport={"width": 1440, "height": 1000})
     employee_page = employee.new_page()
     _login(employee_page, server, "/", "ivan", "IvanPass123")
@@ -183,6 +193,11 @@ def test_premium_employee_admin_and_mobile_surfaces(
     mobile = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
     mobile_page = mobile.new_page()
     _login(mobile_page, server, "/", "maria", "MariaPass123")
+    button_box = mobile_page.locator("#quickBookBtn").bounding_box()
+    panel_box = mobile_page.locator("#quickBookPanel").bounding_box()
+    assert button_box and panel_box
+    assert button_box["x"] >= panel_box["x"]
+    assert button_box["x"] + button_box["width"] <= panel_box["x"] + panel_box["width"] + 1
     expect(mobile_page.locator(".mobile-day-card")).to_be_visible(timeout=10_000)
     expect(mobile_page.locator(".mobile-rail")).to_be_visible()
     expect(mobile_page.locator("#reservationsTimeline")).to_be_visible()

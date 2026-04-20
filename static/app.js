@@ -33,9 +33,11 @@ const state = {
   cars: [],
   reservations: [],
   pulseReservations: [],
+  publicOverview: null,
   notifications: [],
   telemetry: [],
   telemetryConfigured: false,
+  intelligencePulse: null,
   netfleetConfig: null,
   productionReadiness: null,
   pickupTelemetry: null,
@@ -47,6 +49,8 @@ const state = {
     cars: false,
     reservations: false,
     pulseReservations: false,
+    publicOverview: false,
+    intelligencePulse: false,
     notifications: false,
     telemetry: false,
     netfleetConfig: false,
@@ -891,11 +895,12 @@ function renderShell() {
 }
 
 function updateOverview() {
-  const activeCars = state.cars.filter((car) => car.active).length;
   const overviewReservations = state.currentRole === "fleet_admin" ? state.pulseReservations : state.reservations;
-  const pending = overviewReservations.filter((item) => item.status === "pending").length;
-  const activeTrips = overviewReservations.filter((item) => item.status === "checked_out").length;
-  const availableCars = Math.max(activeCars - activeTrips, 0);
+  const publicOverview = !state.token ? state.publicOverview : null;
+  const activeCars = publicOverview?.active_cars ?? state.cars.filter((car) => car.active).length;
+  const pending = publicOverview?.pending_requests ?? overviewReservations.filter((item) => item.status === "pending").length;
+  const activeTrips = publicOverview?.active_trips ?? overviewReservations.filter((item) => item.status === "checked_out").length;
+  const availableCars = publicOverview?.available_cars ?? Math.max(activeCars - activeTrips, 0);
 
   const kpiPending = document.getElementById("kpiPending");
   const kpiActive = document.getElementById("kpiActive");
@@ -939,7 +944,7 @@ function renderFleetPulse() {
     return;
   }
 
-  if (state.loading.pulseReservations || state.loading.cars || state.loading.telemetry) {
+  if (state.loading.pulseReservations || state.loading.intelligencePulse || state.loading.cars || state.loading.telemetry) {
     els.fleetPulse.innerHTML = `
       <div class="fleet-pulse__header">
         <div>
@@ -963,6 +968,7 @@ function renderFleetPulse() {
   );
   const activeTrips = state.pulseReservations.filter((item) => item.status === "checked_out");
   const pending = state.pulseReservations.filter((item) => item.status === "pending").length;
+  const intelligence = state.intelligencePulse;
   const releasingSoon = activeTrips.filter((item) => {
     const end = new Date(item.end_time);
     return end > now && end <= oneHourFromNow;
@@ -976,7 +982,7 @@ function renderFleetPulse() {
   const items = [
     {
       label: t("fleetPulse.activeTrips"),
-      value: activeTrips.length,
+      value: intelligence?.active_trips ?? activeTrips.length,
       detail: t(activeTrips.length ? "fleetPulse.activeTripsDetail" : "fleetPulse.activeTripsClear"),
     },
     {
@@ -986,12 +992,12 @@ function renderFleetPulse() {
     },
     {
       label: t("fleetPulse.pending"),
-      value: pending,
+      value: intelligence?.pending_requests ?? pending,
       detail: t(pending ? "fleetPulse.pendingDetail" : "fleetPulse.pendingClear"),
     },
     {
       label: t("fleetPulse.busiestCar"),
-      value: busiestCar.label,
+      value: intelligence?.busiest_car || busiestCar.label,
       detail: busiestCar.count
         ? t("fleetPulse.busiestCarDetail", { count: busiestCar.count })
         : t("fleetPulse.busiestCarClear"),
@@ -1025,6 +1031,16 @@ function renderFleetPulse() {
         </article>
       `).join("")}
     </div>
+    ${intelligence?.insights?.length ? `
+      <div class="fleet-pulse__insights" aria-label="${escapeHtml(t("fleetPulse.insightsLabel"))}">
+        ${intelligence.insights.map((insight) => `
+          <article class="fleet-pulse__insight" data-severity="${escapeHtml(insight.severity || "info")}">
+            <strong>${escapeHtml(insight.title)}</strong>
+            <p>${escapeHtml(insight.body)}</p>
+          </article>
+        `).join("")}
+      </div>
+    ` : ""}
   `;
 }
 
@@ -2395,6 +2411,39 @@ async function loadFleetPulseReservations() {
   }
 }
 
+async function loadPublicOverview() {
+  setLoading("publicOverview", true);
+  try {
+    state.publicOverview = await apiFetch("/public/overview");
+  } catch (error) {
+    state.publicOverview = null;
+    console.warn("Public overview failed", error);
+  } finally {
+    setLoading("publicOverview", false);
+    updateOverview();
+  }
+}
+
+async function loadFleetIntelligencePulse() {
+  if (!state.token || state.currentRole !== "fleet_admin") {
+    state.intelligencePulse = null;
+    renderFleetPulse();
+    return;
+  }
+
+  setLoading("intelligencePulse", true);
+  renderFleetPulse();
+  try {
+    state.intelligencePulse = await apiFetch("/admin/intelligence/pulse", { headers: authHeaders() });
+  } catch (error) {
+    state.intelligencePulse = null;
+    console.warn("Fleet intelligence pulse failed", error);
+  } finally {
+    setLoading("intelligencePulse", false);
+    renderFleetPulse();
+  }
+}
+
 async function loadTelemetry() {
   if (!state.token || state.currentRole !== "fleet_admin") {
     state.telemetry = [];
@@ -2683,6 +2732,8 @@ async function refreshData() {
     await Promise.all([
       loadReservations(),
       loadFleetPulseReservations(),
+      loadPublicOverview(),
+      loadFleetIntelligencePulse(),
       loadNetfleetConfig(),
       loadProductionReadiness(),
       loadTelemetry(),
@@ -2890,8 +2941,10 @@ async function handleLogout() {
   state.notifications = [];
   state.reservations = [];
   state.pulseReservations = [];
+  await loadPublicOverview();
   state.telemetry = [];
   state.telemetryConfigured = false;
+  state.intelligencePulse = null;
   state.netfleetConfig = null;
   state.pickupTelemetry = null;
   state.reservationPreferences = null;
