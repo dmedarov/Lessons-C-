@@ -274,7 +274,9 @@ operations assistant for internal mobility**, което е:
   from the admin-managed DB setting or `NETFLEET_API_KEY`; the key never
   reaches browser code and the UI never echoes the current secret. Admins see
   fleet-wide telemetry, while employees see pickup location only for their own
-  approved/active trip.
+  approved/active trip. Employee notification polling now refreshes
+  reservations and pickup GPS after approval/start/return/cancel lifecycle
+  signals, with visible fallback copy when NetFleet is missing or unavailable.
 - Production readiness: `/health/ready` checks database reachability for
   orchestration, while admin-only `/ops/readiness` and the `/admin` panel show
   live blockers/warnings without exposing secret values. Operator instructions

@@ -411,6 +411,17 @@ Playwright smoke-а по роли:
 и `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile e2e/test_browser_smoke.py tests/test_schema_contracts.py`
 минаха чисто.
 
+Последна локална проверка за pickup GPS след approval:
+`pytest tests/test_ui_compliance.py -q` -> 31 passed,
+`pytest -q` -> 140 passed,
+`E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
+-> 6 passed, `node --check static/app.js`, `node --check static/i18n.js`.
+Employee notification polling вече презарежда резервации и pickup telemetry
+при ново approval/start/return/cancel известие, така че "Къде да вземеш
+колата" се появява без ръчно refresh-ване на страницата. Ако NetFleet не е
+конфигуриран или временно не отговори, Current Trip Hero показва ясен fallback,
+не празно място.
+
 Предишна локална проверка за request-first/role-separated-lifecycle/reception-calendar пакета:
 `make audit-prod` -> no known vulnerabilities for pinned runtime dependencies,
 direct `pip-audit -r requirements.txt` -> no known vulnerabilities when the resolver completes,
@@ -454,6 +465,7 @@ restore в изолиран `fleetflow_restore_drill` project с провере�
 - timeline-first reservation cards before the secondary table, including lifecycle actions and admin pending selection
 - route/schema contracts: duplicate route registry guard, SQLite bootstrap execution, SQLite/PostgreSQL schema parity and single Alembic head
 - role-specific Playwright browser evidence: public, employee, approver, admin, mobile employee и reception flows с отделни failure points и screenshots
+- pickup GPS refresh after approval: reservation lifecycle notifications trigger reservation + pickup telemetry reload, with visible fallback copy when NetFleet is missing/unavailable
 
 ## Alembic migrations
 

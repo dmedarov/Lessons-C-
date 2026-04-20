@@ -175,6 +175,8 @@ const bg = {
   "pickup.title": "Къде да вземеш колата",
   "pickup.loading": "Търся последната GPS позиция",
   "pickup.noSignal": "NetFleet е включен, но за тази кола няма последен GPS сигнал.",
+  "pickup.notConfigured": "GPS локацията още не е включена. Администратор може да добави NetFleet ключ.",
+  "pickup.unavailable": "GPS локацията временно не е налична. Провери по-късно или попитай рецепция.",
   "pickup.mapLink": "Отвори карта",
   "intent.action.reviewPending": "Прегледай чакащите",
   "intent.action.viewFleet": "Виж флота",

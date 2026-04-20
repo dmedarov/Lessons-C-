@@ -377,10 +377,14 @@ def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     assert '"fleetPulse.busiestCar": "Най-натоварена кола"' in i18n_js
     assert '"fleetPulse.telemetry": "Коли с GPS позиция"' in i18n_js
     assert '"fleetPulse.insightsLabel": "Оперативни insight-и"' in i18n_js
+    assert "function hasNewReservationSignal(previousIds)" in app_js
+    assert "await loadPickupTelemetry();" in app_js
     assert "const activeFleetPlates = new Set(" in app_js
     assert "const fleetTelemetryCount = state.telemetry.filter" in app_js
     assert 'value: state.telemetryConfigured ? `${fleetTelemetryCount}/${fleetTelemetryTotal}` : "—"' in app_js
     assert '"pickup.title": "Къде да вземеш колата"' in i18n_js
+    assert '"pickup.notConfigured": "GPS локацията още не е включена. Администратор може да добави NetFleet ключ."' in i18n_js
+    assert '"pickup.unavailable": "GPS локацията временно не е налична. Провери по-късно или попитай рецепция."' in i18n_js
     assert '"telemetry.coordinates": "{lat}, {lon}"' in i18n_js
     assert ".fleet-pulse__grid" in styles
     assert ".fleet-pulse__insight" in styles
@@ -405,6 +409,8 @@ def test_netfleet_secret_stays_out_of_browser_facing_ui() -> None:
     i18n_js = _read("static/i18n.js")
     assert 'apiFetch(`/cars/${candidate.car_id}/telemetry/latest`' in app_js
     assert '"pickup.title": "Къде да вземеш колата"' in i18n_js
+    assert '"pickup.notConfigured": "GPS локацията още не е включена. Администратор може да добави NetFleet ключ."' in i18n_js
+    assert '"pickup.unavailable": "GPS локацията временно не е налична. Провери по-късно или попитай рецепция."' in i18n_js
     assert '"fleetPulse.telemetryNotConfigured": "NetFleet ключът още не е добавен."' in i18n_js
 
 

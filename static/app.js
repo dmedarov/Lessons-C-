@@ -880,7 +880,13 @@ function startNotificationPolling() {
   state.notificationPollId = window.setInterval(async () => {
     if (!state.token) return;
     try {
+      const previousIds = new Set(state.notifications.map((item) => item.id));
       await loadNotifications();
+      if (hasNewReservationSignal(previousIds)) {
+        await loadReservations();
+        await loadPickupTelemetry();
+        updateSummary();
+      }
       updateOverview();
     } catch (error) {
       console.warn("Notification polling failed", error);
@@ -951,6 +957,18 @@ function renderShell() {
       els.heroCaption.textContent = "Employee режимът показва само собствените ти заявки, нотификации и следващото практично действие.";
     }
   }
+}
+
+function hasNewReservationSignal(previousIds) {
+  const lifecycleKinds = new Set([
+    "reservation_decision",
+    "reservation_cancelled",
+    "trip_started",
+    "trip_returned",
+  ]);
+  return state.notifications.some(
+    (item) => item.reservation_id && lifecycleKinds.has(item.kind) && !previousIds.has(item.id)
+  );
 }
 
 function updateOverview() {
@@ -1329,6 +1347,10 @@ function renderCurrentTripHero() {
       `
       : pickup?.configured
         ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.title"))}</strong><span>${escapeHtml(t("pickup.noSignal"))}</span></div>`
+        : pickup?.error
+          ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.title"))}</strong><span>${escapeHtml(t("pickup.unavailable"))}</span></div>`
+          : pickup
+            ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.title"))}</strong><span>${escapeHtml(t("pickup.notConfigured"))}</span></div>`
         : "";
 
   els.currentTripHero.innerHTML = `
@@ -2779,7 +2801,12 @@ async function loadPickupTelemetry() {
       item: data.item || null,
     };
   } catch (error) {
-    state.pickupTelemetry = null;
+    state.pickupTelemetry = {
+      carId: candidate.car_id,
+      configured: false,
+      item: null,
+      error: true,
+    };
     console.warn("Pickup telemetry failed", error);
   } finally {
     setLoading("pickupTelemetry", false);

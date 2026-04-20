@@ -2107,6 +2107,23 @@ If time is limited, execute items 1-4 before any new feature work.
 
 ## Done
 
+### 2026-04-20 - Pickup GPS refresh after approval
+
+- **Root cause:** employee notification polling refreshed the inbox and KPI
+  overview, but did not reload reservations or pickup telemetry when an
+  approver/admin approved a reservation in another session. The location block
+  could therefore remain missing until a manual refresh/full data reload.
+- **Fix:** new reservation lifecycle notifications (`reservation_decision`,
+  `reservation_cancelled`, `trip_started`, `trip_returned`) now trigger
+  `loadReservations()` and `loadPickupTelemetry()` during polling.
+- **UX fallback:** Current Trip Hero now shows explicit Bulgarian fallback
+  copy when NetFleet is not configured or pickup telemetry is temporarily
+  unavailable, instead of silently hiding the location block.
+- **Verification:** `pytest tests/test_ui_compliance.py -q` -> 31 passed;
+  `pytest -q` -> 140 passed;
+  `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
+  -> 6 passed; `node --check static/app.js`; `node --check static/i18n.js`.
+
 ### 2026-04-20 - Phase 10.2 role-specific Playwright browser evidence
 
 - **E2E split:** `e2e/test_browser_smoke.py` no longer has one broad smoke.

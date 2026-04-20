@@ -174,6 +174,12 @@ styles.
   status and latency while dev logs stay text; covered by `tests/test_app.py`.
 - `pass`: Fleet Pulse GPS count now uses matching active FleetFlow plates and
   reports `X/Y` instead of raw NetFleet event totals.
+- `pass`: employee pickup GPS refreshes after approval/start/return/cancel
+  notifications. Polling now reloads reservations and pickup telemetry for new
+  reservation lifecycle signals, so "Къде да вземеш колата" appears without a
+  manual page refresh. Current Trip Hero also shows explicit fallback copy when
+  NetFleet is not configured or temporarily unavailable; covered by
+  `tests/test_ui_compliance.py`.
 - `pass`: Playwright browser smoke is now split by role and starts a fresh app
   server/database for each flow. It verifies public pre-login orientation,
   employee one-tap booking, approver Decision Rail, admin control surface,
