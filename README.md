@@ -393,15 +393,23 @@ make test-e2e
 E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 ```
 
-`make test-e2e` стартира fresh FastAPI server с временна SQLite база, логва
-employee/admin/reception demo flows, проверява one-tap booking, timeline-first cards,
-Admin Decision Rail, Reception Rail, role-aware reception calendar, Fleet Pulse copy и mobile calendar, после записва:
-`employee-desktop.png`, `admin-desktop.png`, `employee-mobile.png` и `reception-desktop.png`.
+`make test-e2e` стартира fresh FastAPI server с временна SQLite база за всеки
+role flow, за да няма скрита зависимост между сценариите. Покрива public
+pre-login orientation, employee quick-booking, approver Decision Rail,
+admin control surface, employee mobile calendar и reception handoff/calendar.
+При `E2E_ARTIFACT_DIR` записва:
+`public-mobile.png`, `employee-desktop.png`, `approver-desktop.png`,
+`admin-desktop.png`, `employee-mobile.png` и `reception-desktop.png`.
 `test-results/` е игнориран от git.
 
 Последна локална проверка за route/schema guardrails пакета:
 `pytest tests/test_schema_contracts.py -q` -> 5 passed,
-`pytest -q` -> 140 passed.
+`pytest -q` -> 140 passed. Следващата browser-evidence вълна раздели
+Playwright smoke-а по роли:
+`E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
+-> 6 passed, `node --check static/app.js`, `node --check static/i18n.js`,
+и `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile e2e/test_browser_smoke.py tests/test_schema_contracts.py`
+минаха чисто.
 
 Предишна локална проверка за request-first/role-separated-lifecycle/reception-calendar пакета:
 `make audit-prod` -> no known vulnerabilities for pinned runtime dependencies,
@@ -445,6 +453,7 @@ restore в изолиран `fleetflow_restore_drill` project с провере�
 - Fleet Intelligence Seed: best-car scoring, admin intelligence pulse и `car_assignments` traceability
 - timeline-first reservation cards before the secondary table, including lifecycle actions and admin pending selection
 - route/schema contracts: duplicate route registry guard, SQLite bootstrap execution, SQLite/PostgreSQL schema parity and single Alembic head
+- role-specific Playwright browser evidence: public, employee, approver, admin, mobile employee и reception flows с отделни failure points и screenshots
 
 ## Alembic migrations
 
@@ -464,7 +473,7 @@ alembic revision -m "describe change"
 
 - Няма UI за управление на активни sessions по устройства; logout ревокира текущия refresh token, а replay защита чисти активната refresh верига за user-а.
 - Rate limiting-ът е in-memory и е подходящ за single-container deployment; за multi-instance production го изнеси към Redis, API gateway или WAF.
-- Следващата production/UI стъпка е външно closure доказателство и browser evidence: потвърди GitHub Actions Production Gates + Dependabot alert, раздели Playwright smoke по роли, добави browser-computed contrast checks и продължи с модулното разделяне на `static/app.js`.
+- Следващата production/UI стъпка е външно closure доказателство и визуална проверимост: потвърди GitHub Actions Production Gates + Dependabot alert, добави browser-computed contrast checks и продължи с модулното разделяне на `static/app.js`.
 
 ## План за развитие
 

@@ -166,8 +166,10 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Apple / NASA / USWDS UI compliance is defined below, but the codebase still
   needs a formal audit report, automated contrast checks and browser-level
   accessibility regression tests before claiming "compliant" in release notes.
-- Browser-level end-to-end coverage has started, but still needs broader
-  lifecycle scenarios and browser-computed contrast checks.
+- Browser-level end-to-end coverage is now role-specific for public, employee,
+  approver, admin, mobile employee and reception flows. It still needs
+  browser-computed contrast checks and more destructive-action recovery
+  screenshots.
 - Production observability now has structured request logs; next hardening is
   external alert delivery and an operator-facing log retention/export decision.
 - Intelligence snapshots/materialized insights remain intentionally deferred
@@ -202,7 +204,7 @@ Use it before choosing the next implementation task.
 | Frontend | Intent-driven cockpit, rails, timeline and NetFleet context are already premium. | `static/app.js` is too large for safe autonomous edits. | Create module boundaries before the next large UI addition. |
 | CSS/design system | Responsive cockpit styling and compliance principles exist. | 3140-line stylesheet makes overlap/contrast regressions easy. | Add browser-computed contrast checks, then split component CSS if churn continues. |
 | Database | Alembic production path and PostgreSQL smoke exist. | Runtime bootstrap/upgrades in `db.py` can drift from migrations. | Add schema parity tests for SQLite bootstrap, PostgreSQL bootstrap and Alembic head. |
-| E2E evidence | Playwright smoke proves broad desktop/mobile viability. | One broad smoke is harder to diagnose when it fails. | Split by role: public, employee, approver, reception, admin. |
+| E2E evidence | Playwright smoke now runs separate public, employee, approver, admin, mobile and reception flows. | More contrast and destructive-action evidence is still needed. | Add browser-computed contrast checks and targeted recovery screenshots. |
 | NetFleet | Server-side key handling and scoped employee pickup context are correct. | Raw GPS can confuse users if freshness/location text is unclear. | Add freshness labels and human pickup wording before adding maps/complex telemetry. |
 | Production | Makefile, prod checks, Docker health, backups and restore drill are in place. | GitHub alert state still needs direct external confirmation. | Inspect GitHub Security/Dependabot after push and record exact closure evidence. |
 | Intelligence | Best-car scoring and compact Fleet Pulse are explainable and light. | Premature analytics tables would add complexity before real usage data. | Defer snapshots until production data volume or operator needs prove the need. |
@@ -1044,11 +1046,12 @@ Order is by estimated value; pick based on user demand.
 
 ### 5.5 Playwright end-to-end tests
 
-- **Status:** Started on 2026-04-20. `e2e/test_browser_smoke.py` runs a fresh
-  FastAPI server with temporary SQLite data, logs in employee/admin users,
-  checks one-tap booking, timeline-first cards, Admin Decision Rail, Fleet
-  Pulse copy and mobile calendar, and writes screenshots when
-  `E2E_ARTIFACT_DIR` is set.
+- **Status:** Started on 2026-04-20 and expanded in Phase 10.2.
+  `e2e/test_browser_smoke.py` now runs a fresh FastAPI server with temporary
+  SQLite data per role flow and covers public orientation, employee
+  quick-booking, approver decisions, admin control, employee mobile calendar
+  and reception handoff/calendar. It writes screenshots when `E2E_ARTIFACT_DIR`
+  is set.
 - **Files:** `e2e/`, `requirements-dev.txt`, `Makefile`, CI workflow later
 - **Approach:**
   1. Keep `pytest` fast by default through `pyproject.toml` `testpaths = ["tests"]`.
@@ -1649,9 +1652,9 @@ with return/deactivate/role/handoff/blackout recovery checks.
   - Screenshots are deterministic enough for review artifacts.
   - CI failure tells agents which surface and viewport regressed.
 - **Verification:** `pytest` + Playwright command documented in README and
-  audit doc; latest local browser run -> 1 passed with
-  `employee-desktop.png`, `admin-desktop.png`, `employee-mobile.png`,
-  `reception-desktop.png`.
+  audit doc; latest local browser run -> 6 passed with `public-mobile.png`,
+  `employee-desktop.png`, `approver-desktop.png`, `admin-desktop.png`,
+  `employee-mobile.png`, `reception-desktop.png`.
 - **Depends on:** 8.2, 8.3, 8.4
 - **Effort:** L
 
@@ -1822,11 +1825,11 @@ orientation, but requester, purpose, GPS, reservation ids and actions are not.
   `alembic/versions/20260420_0008_car_assignments.py`,
   `alembic/versions/20260420_0009_split_operational_roles.py`, `.env.example`,
   `docker-compose.yml`, `docker-compose.postgres.yml`
-- **Verification:** `pytest -q` -> 135 passed,
+- **Verification:** `pytest -q` -> 140 passed,
   `pytest tests/test_ui_compliance.py -q` -> 31 passed,
   `node --check static/app.js`, `node --check static/i18n.js`, Python compile
-  check and Playwright browser smoke pass with refreshed employee/admin/reception
-  desktop and employee mobile screenshots.
+  check and Playwright browser smoke pass with public/employee/approver/admin/
+  reception desktop plus employee mobile screenshots.
 
 ### 9.5 Applicability notes from premium wireframe
 
@@ -1890,13 +1893,17 @@ to keep Alembic config parsing warning-free.
 
 ### 10.2 Role-specific Playwright production flows
 
-- **Goal:** Replace the single broad smoke with smaller tests that map to real
-  pool-process roles.
+**Status:** Shipped on 2026-04-20. `e2e/test_browser_smoke.py` now starts a
+fresh SQLite-backed app server per test and splits browser evidence into
+public orientation, employee quick-booking, approver decision, admin control,
+employee mobile calendar and reception handoff/calendar flows.
+
+- **Goal:** Keep smaller browser tests that map to real pool-process roles.
 - **Files:** `e2e/test_browser_smoke.py`, optional new `e2e/test_public.py`,
   `e2e/test_employee.py`, `e2e/test_approver.py`, `e2e/test_reception.py`,
   `e2e/test_admin.py`, `README.md`, `docs/UI_UX_COMPLIANCE_AUDIT.md`
 - **Approach:**
-  1. Keep the existing broad smoke until the split is stable.
+  1. Keep each role flow isolated with a fresh temporary SQLite database.
   2. Add public flow: pre-login overview shows real aggregate counts; public
      calendar shows active/approved occupancy with plate/model but no requester
      or actions.
@@ -2064,33 +2071,34 @@ to keep Alembic config parsing warning-free.
 
 1. **7.1/7.2 external production signal closure** - confirm GitHub Actions
    Production Gates and inspect the GitHub Dependabot alert directly.
-2. **10.2 split Playwright by role** - public, employee, approver, reception
-   and admin flows with separate screenshots and failure points.
-3. **8.2 browser-computed contrast** - close translucent surfaces, focus rings
+   Note: local `gh` is not installed and unauthenticated `curl` to the private
+   Dependabot API returns 401, so use GitHub web UI or an authenticated API
+   token to inspect the exact alert.
+2. **8.2 browser-computed contrast** - close translucent surfaces, focus rings
    and alert/status pair evidence.
-4. **8.3 responsive density pass** - use the new screenshots to hunt overlap,
+3. **8.3 responsive density pass** - use the new screenshots to hunt overlap,
    clipped text and weak hierarchy at 390/768/1024/1440.
-5. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
+4. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
    handoff and blackout deactivate.
-6. **5.4/5.9 production proof** - PostgreSQL migration smoke, backup/restore
+5. **5.4/5.9 production proof** - PostgreSQL migration smoke, backup/restore
    playbook and structured logs.
-7. **7.3 PostgreSQL migration smoke + backups** - required before serious
+6. **7.3 PostgreSQL migration smoke + backups** - required before serious
    production rollout.
-8. **10.3 Split `static/app.js` into modules** - do this before large frontend
+7. **10.3 Split `static/app.js` into modules** - do this before large frontend
    additions; the file is already 4048 lines.
-9. **10.4 reservation service extraction** - keep endpoints stable while
+8. **10.4 reservation service extraction** - keep endpoints stable while
     moving lifecycle/domain logic out of the router.
-10. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
+9. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
     after the core flows stabilize.
-11. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
+10. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
    the frontend is modular enough.
-12. **10.5 Session-management UI** - list active refresh sessions per user,
+11. **10.5 Session-management UI** - list active refresh sessions per user,
    revoke current/all sessions and expose security audit history.
-13. **10.6 NetFleet pickup clarity** - freshness labels and human pickup
+12. **10.6 NetFleet pickup clarity** - freshness labels and human pickup
     wording before maps or telemetry-heavy features.
-14. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
+13. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
     for real fleet accountability.
-15. **10.7 materialized intelligence snapshots** - only after live usage proves
+14. **10.7 materialized intelligence snapshots** - only after live usage proves
     inline metrics are too slow or historical trend review is needed.
 
 If time is limited, execute items 1-4 before any new feature work.
@@ -2098,6 +2106,26 @@ If time is limited, execute items 1-4 before any new feature work.
 ---
 
 ## Done
+
+### 2026-04-20 - Phase 10.2 role-specific Playwright browser evidence
+
+- **E2E split:** `e2e/test_browser_smoke.py` no longer has one broad smoke.
+  It now has separate tests for public pre-login orientation, employee
+  quick-booking, approver decision surface, admin control surface, employee
+  mobile calendar and reception handoff/calendar.
+- **Fresh DB per flow:** the server fixture now uses a fresh temporary SQLite
+  database per test, so one role flow cannot accidentally depend on another.
+- **New evidence artifacts:** `E2E_ARTIFACT_DIR=test-results/e2e` now writes
+  `public-mobile.png`, `employee-desktop.png`, `approver-desktop.png`,
+  `admin-desktop.png`, `employee-mobile.png` and `reception-desktop.png`.
+- **Dependabot inspection note:** GitHub connector can read repo metadata, but
+  this environment has no `gh` binary and unauthenticated GitHub API calls to
+  private Dependabot alerts return 401. Inspect the alert in GitHub web UI or
+  with an authenticated token before changing dependencies.
+- **Verification:** `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
+  -> 6 passed; `pytest -q` -> 140 passed; `node --check static/app.js`;
+  `node --check static/i18n.js`; `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache
+  .venv/bin/python -m py_compile e2e/test_browser_smoke.py tests/test_schema_contracts.py`.
 
 ### 2026-04-20 - Phase 10.1 route/schema guardrails
 

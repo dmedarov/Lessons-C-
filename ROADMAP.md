@@ -208,10 +208,9 @@ operations assistant for internal mobility**, което е:
   exact-field `aria-invalid` recovery instead of silent generic fallback reasons
 - Cancel dialogs now require a human reason and send it to the reservation
   audit trail while keeping backward-compatible no-body API calls.
-- Browser-level evidence started: optional Playwright smoke logs into the
-  employee/admin surfaces, verifies one-tap booking, timeline-first cards,
-  Admin Decision Rail, Fleet Pulse copy and mobile calendar, and writes
-  handoff screenshots under `test-results/e2e`.
+- Browser-level evidence started: optional Playwright smoke now runs
+  role-specific public, employee, approver, admin, mobile and reception flows
+  with separate screenshots under `test-results/e2e`.
 - UX hierarchy review: employee requests/lifecycle now appear before the
   calendar, the new-request panel appears before inbox, and auth-only guidance
   cards are hidden after login to keep the cockpit calm.
@@ -292,9 +291,9 @@ operations assistant for internal mobility**, което е:
   request in production.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 135 passed,
+- Latest local verification for this slice: `pytest -q` -> 140 passed,
   `pytest tests/test_ui_compliance.py -q` -> 31 passed, Playwright browser
-  smoke -> 1 passed with employee/admin/reception desktop and employee mobile
+  smoke -> 6 passed with public/employee/approver/admin/mobile/reception
   screenshots, JS syntax checks and Python compile check. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
   was rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on
@@ -340,10 +339,10 @@ visible modules.
   Alembic. The first automated guardrail now checks SQLite bootstrap execution,
   SQLite/PostgreSQL schema contracts, route uniqueness and the single Alembic
   head. Keep extending this when schema complexity grows.
-- **Browser evidence gap:** current Playwright coverage is a valuable broad
-  smoke, but production readiness needs smaller role-specific tests that fail
-  near the broken flow: public overview/calendar, employee booking/current
-  trip, approver decisions, reception handoff/return and admin settings.
+- **Browser evidence gap:** Playwright coverage is now split into role-specific
+  tests for public overview/calendar, employee booking/current trip, approver
+  decisions, reception handoff/return and admin settings. Next evidence gap is
+  browser-computed contrast and more destructive-action recovery screenshots.
 - **External signal closure:** local audits and Docker Scout were clean, but
   GitHub Security/Dependabot must still be inspected directly after push
   before claiming the banner is closed.
@@ -356,21 +355,18 @@ visible modules.
 1. Confirm GitHub Actions **Production Gates** and inspect the open GitHub
    Dependabot alert directly; local `pip-audit` and Docker Scout evidence is
    clean, so do not chase phantom upgrades without the alert details.
-2. Split Playwright smoke into role-specific production flows: pre-login public
-   overview/calendar, employee quick-book/current-trip, approver decision rail,
-   reception handoff/return calendar and admin NetFleet/readiness.
-3. Browser-computed contrast checks for translucent surfaces, focus rings,
+2. Browser-computed contrast checks for translucent surfaces, focus rings,
    theme-aware message alerts and Fleet Pulse/status chips.
-4. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
+3. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
    change, handoff and blackout deactivate.
-5. Split `static/app.js` into small vanilla JS modules before the next large UI
+4. Split `static/app.js` into small vanilla JS modules before the next large UI
    package. Suggested boundaries: API/session, shell/overview, reservations
    lifecycle, calendar, admin users/fleet/settings, notifications/dialogs.
-6. Split reservation domain logic out of `routers/reservations.py` into service
+5. Split reservation domain logic out of `routers/reservations.py` into service
    modules without changing endpoint contracts.
-7. Add session-management UI and refresh-token cleanup job after the role flows
+6. Add session-management UI and refresh-token cleanup job after the role flows
    are stable.
-8. After real production usage, add materialized intelligence snapshots
+7. After real production usage, add materialized intelligence snapshots
    (`car_status_snapshots`, `fleet_insights`, `fleet_demand_snapshots`) only if
    inline metrics become too slow or operators need historical trend review.
 

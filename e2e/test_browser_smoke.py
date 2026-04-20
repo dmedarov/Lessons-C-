@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import json
 import os
 import socket
 import subprocess
 import sys
 import time
 import urllib.request
-import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterator
@@ -47,15 +47,15 @@ def _wait_for_health(base_url: str, process: subprocess.Popen[str]) -> None:
     pytest.fail(f"e2e server did not become healthy: {last_error}\n{output}")
 
 
-@pytest.fixture(scope="session")
-def server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
+@pytest.fixture()
+def server(tmp_path: Path) -> Iterator[str]:
     port = _free_port()
     base_url = f"http://127.0.0.1:{port}"
     env = os.environ.copy()
     env.update(
         {
             "APP_ENV": "dev",
-            "DB_PATH": str(tmp_path_factory.mktemp("fleetflow-e2e") / "fleet.db"),
+            "DB_PATH": str(tmp_path / "fleet.db"),
             "DEV_SEED_DEMO_DATA": "true",
             "SECRET_KEY": "fleetflow-e2e-secret-key",
             "TOKEN_TTL_SECONDS": "3600",
@@ -165,64 +165,146 @@ def _element_is_before(page: Page, first_selector: str, second_selector: str) ->
     )
 
 
-def test_premium_employee_admin_and_mobile_surfaces(
-    browser: Browser,
+def _create_reservation_via_api(
     server: str,
-    artifact_dir: Path,
-) -> None:
-    prelogin = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
-    prelogin_page = prelogin.new_page()
-    prelogin_page.goto(f"{server}/", wait_until="domcontentloaded")
-    expect(prelogin_page.locator("#kpiPending .stat-card__value")).to_have_text("0", timeout=10_000)
-    expect(prelogin_page.locator("#kpiActive .stat-card__value")).to_have_text("0")
-    expect(prelogin_page.locator("#kpiAvailable .stat-card__value")).to_have_text("5")
-    prelogin_page.goto(f"{server}/admin", wait_until="domcontentloaded")
-    expect(prelogin_page.locator("#kpiAvailable .stat-card__value")).to_have_text("5", timeout=10_000)
-    prelogin.close()
+    token: str,
+    car_id: int,
+    start: datetime,
+    purpose: str,
+    duration_hours: int = 1,
+) -> dict:
+    data = _api_json(
+        server,
+        "/reservations",
+        "POST",
+        token,
+        {
+            "car_id": car_id,
+            "start_time": start.isoformat(),
+            "end_time": (start + timedelta(hours=duration_hours)).isoformat(),
+            "purpose": purpose,
+        },
+    )
+    assert isinstance(data, dict)
+    return data
 
-    employee = browser.new_context(viewport={"width": 1440, "height": 1000})
-    employee_page = employee.new_page()
-    _login(employee_page, server, "/", "ivan", "IvanPass123")
-    expect(employee_page.locator("#quickBookBtn")).to_be_visible()
-    expect(employee_page.locator('[data-status="open"]')).to_have_attribute("aria-pressed", "true")
-    employee_page.locator("#quickBookBtn").click()
-    expect(employee_page.locator("#messageTitle")).to_contain_text("Бързата заявка", timeout=10_000)
-    expect(employee_page.locator("#reservationsTimeline .reservation-flow-card")).to_have_count(1)
-    expect(employee_page.locator("#guidanceCard")).to_be_hidden()
-    assert _timeline_is_before_table(employee_page)
-    assert _element_is_before(employee_page, "#reservationsDeck", "#calendarStudio")
-    assert _element_is_before(employee_page, "#reservationPanel", "#notificationDeck")
-    employee_page.screenshot(path=artifact_dir / "employee-desktop.png", full_page=True)
-    employee.close()
 
-    admin = browser.new_context(viewport={"width": 1440, "height": 1000})
-    admin_page = admin.new_page()
-    _login(admin_page, server, "/admin", "admin", "AdminPass123")
-    expect(admin_page.locator("#fleetPulse")).to_contain_text("Коли с GPS позиция", timeout=10_000)
-    expect(admin_page.locator("#fleetPulse")).not_to_contain_text("GPS сигнали")
-    expect(admin_page.locator("#netfleetPanel")).to_be_visible()
-    expect(admin_page.locator("#netfleetApiKey")).to_have_attribute("type", "password")
-    expect(admin_page.locator("#decisionRail")).to_be_visible()
-    expect(admin_page.locator("#reservationsTimeline .reservation-flow-card")).to_have_count(1)
-    expect(admin_page.locator("#guidanceCard")).to_be_hidden()
-    assert _timeline_is_before_table(admin_page)
-    admin_page.screenshot(path=artifact_dir / "admin-desktop.png", full_page=True)
-    admin.close()
+def _seed_pending_reservation(server: str, car_index: int = 3) -> dict:
+    admin_token = _api_login(server, "admin", "AdminPass123")
+    employee_token = _api_login(server, "ivan", "IvanPass123")
+    cars_response = _api_json(server, "/cars", token=admin_token)
+    assert isinstance(cars_response, dict)
+    start = (datetime.now().astimezone() + timedelta(days=1)).replace(
+        hour=10 + car_index,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    return _create_reservation_via_api(
+        server,
+        employee_token,
+        cars_response["items"][car_index]["id"],
+        start,
+        f"E2E pending role smoke {car_index}",
+    )
 
-    mobile = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
-    mobile_page = mobile.new_page()
-    _login(mobile_page, server, "/", "maria", "MariaPass123")
-    button_box = mobile_page.locator("#quickBookBtn").bounding_box()
-    panel_box = mobile_page.locator("#quickBookPanel").bounding_box()
+
+def test_public_orientation_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
+    context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
+    page = context.new_page()
+    page.goto(f"{server}/", wait_until="domcontentloaded")
+    expect(page.locator("#kpiPending .stat-card__value")).to_have_text("0", timeout=10_000)
+    expect(page.locator("#kpiActive .stat-card__value")).to_have_text("0")
+    expect(page.locator("#kpiAvailable .stat-card__value")).to_have_text("5")
+    expect(page.locator("#calendarStudio")).to_be_visible()
+    page.screenshot(path=artifact_dir / "public-mobile.png", full_page=True)
+
+    page.goto(f"{server}/admin", wait_until="domcontentloaded")
+    expect(page.locator("#kpiAvailable .stat-card__value")).to_have_text("5", timeout=10_000)
+    expect(page.locator("#sessionPanel")).to_be_hidden()
+    context.close()
+
+
+def test_employee_quick_booking_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
+    context = browser.new_context(viewport={"width": 1440, "height": 1000})
+    page = context.new_page()
+    _login(page, server, "/", "ivan", "IvanPass123")
+    expect(page.locator("#quickBookBtn")).to_be_visible()
+    expect(page.locator('[data-status="open"]')).to_have_attribute("aria-pressed", "true")
+    page.locator("#quickBookBtn").click()
+    expect(page.locator("#messageTitle")).to_contain_text("Бързата заявка", timeout=10_000)
+    expect(page.locator("#reservationsTimeline .reservation-flow-card")).to_have_count(1)
+    expect(page.locator("#guidanceCard")).to_be_hidden()
+    assert _timeline_is_before_table(page)
+    assert _element_is_before(page, "#reservationsDeck", "#calendarStudio")
+    assert _element_is_before(page, "#reservationPanel", "#notificationDeck")
+    page.screenshot(path=artifact_dir / "employee-desktop.png", full_page=True)
+    context.close()
+
+
+def test_approver_decision_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
+    admin_token = _api_login(server, "admin", "AdminPass123")
+    _api_json(
+        server,
+        "/users",
+        "POST",
+        admin_token,
+        {
+            "username": "approver",
+            "display_name": "Approver Desk",
+            "password": "ApproverPass123",
+            "role": "fleet_approver",
+        },
+    )
+    _seed_pending_reservation(server)
+
+    context = browser.new_context(viewport={"width": 1440, "height": 1000})
+    page = context.new_page()
+    _login(page, server, "/admin", "approver", "ApproverPass123")
+    expect(page.locator("#decisionRail")).to_be_visible(timeout=10_000)
+    expect(page.locator("#decisionRail")).to_contain_text("Одобри")
+    expect(page.locator("#usersDeck")).to_be_hidden()
+    expect(page.locator("#netfleetPanel")).to_be_hidden()
+    expect(page.locator("#receptionRail")).to_be_hidden()
+    page.screenshot(path=artifact_dir / "approver-desktop.png", full_page=True)
+    context.close()
+
+
+def test_admin_control_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
+    _seed_pending_reservation(server)
+
+    context = browser.new_context(viewport={"width": 1440, "height": 1000})
+    page = context.new_page()
+    _login(page, server, "/admin", "admin", "AdminPass123")
+    expect(page.locator("#fleetPulse")).to_contain_text("Коли с GPS позиция", timeout=10_000)
+    expect(page.locator("#fleetPulse")).not_to_contain_text("GPS сигнали")
+    expect(page.locator("#netfleetPanel")).to_be_visible()
+    expect(page.locator("#netfleetApiKey")).to_have_attribute("type", "password")
+    expect(page.locator("#decisionRail")).to_be_visible()
+    expect(page.locator("#reservationsTimeline .reservation-flow-card")).to_have_count(1)
+    expect(page.locator("#guidanceCard")).to_be_hidden()
+    assert _timeline_is_before_table(page)
+    page.screenshot(path=artifact_dir / "admin-desktop.png", full_page=True)
+    context.close()
+
+
+def test_employee_mobile_calendar_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
+    context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
+    page = context.new_page()
+    _login(page, server, "/", "maria", "MariaPass123")
+    button_box = page.locator("#quickBookBtn").bounding_box()
+    panel_box = page.locator("#quickBookPanel").bounding_box()
     assert button_box and panel_box
     assert button_box["x"] >= panel_box["x"]
     assert button_box["x"] + button_box["width"] <= panel_box["x"] + panel_box["width"] + 1
-    expect(mobile_page.locator(".mobile-day-card")).to_be_visible(timeout=10_000)
-    expect(mobile_page.locator(".mobile-rail")).to_be_visible()
-    expect(mobile_page.locator("#reservationsTimeline")).to_be_visible()
-    mobile_page.screenshot(path=artifact_dir / "employee-mobile.png", full_page=True)
-    mobile.close()
+    expect(page.locator(".mobile-day-card")).to_be_visible(timeout=10_000)
+    expect(page.locator(".mobile-rail")).to_be_visible()
+    expect(page.locator("#reservationsTimeline")).to_be_visible()
+    page.screenshot(path=artifact_dir / "employee-mobile.png", full_page=True)
+    context.close()
 
+
+def test_reception_handoff_calendar_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
     admin_token = _api_login(server, "admin", "AdminPass123")
     ivan_token = _api_login(server, "ivan", "IvanPass123")
     maria_token = _api_login(server, "maria", "MariaPass123")
