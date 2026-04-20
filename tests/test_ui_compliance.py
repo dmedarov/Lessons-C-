@@ -297,9 +297,15 @@ def test_reception_rail_promotes_key_handoff_before_table() -> None:
     assert 'id="receptionRail" aria-labelledby="receptionRailTitle" aria-live="polite"' in html
     assert html.index('id="decisionRail"') < html.index('id="receptionRail"') < html.index('id="reservationsTimeline"')
     assert "receptionRail: document.getElementById(\"receptionRail\")" in app_js
+    assert "handoffTelemetry: {}" in app_js
+    assert "handoffTelemetry: false" in app_js
     assert "function renderReceptionRail()" in app_js
     assert "const showRail = canManageTripHandoff() && surface === \"admin\" && state.token;" in app_js
     assert "function receptionRailItems()" in app_js
+    assert "function loadHandoffTelemetry()" in app_js
+    assert 'apiFetch(`/cars/${carId}/telemetry/latest`' in app_js
+    assert "state.handoffTelemetry[item.car_id]" in app_js
+    assert "telemetryLocationBlock(handoffTelemetry)" in app_js
     assert "state.pulseReservations" in app_js
     assert "if (!handoffItems.length && isFullAdmin())" in app_js
     assert 'data-reception-card="${item.id}"' in app_js
@@ -353,7 +359,8 @@ def test_employee_is_redirected_away_from_admin_surface() -> None:
     assert 'window.location.replace("/");' in app_js
     assert "const allowed = await loadMe();" in app_js
     assert "if (!allowed) return;" in app_js
-    assert "await restoreSessionFromCookie();" in app_js
+    assert "const canContinue = await restoreSessionFromCookie();" in app_js
+    assert "if (!canContinue) return;" in app_js
     assert "els.operationalLinks.forEach((link) => toggleHidden(link, employeeAdminDenied || !authenticated || !operationalMode));" in app_js
 
 

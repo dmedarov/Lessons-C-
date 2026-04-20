@@ -370,7 +370,13 @@ def test_employee_cannot_stay_on_admin_surface(browser: Browser, server: str) ->
     expect(page).to_have_url(f"{server}/", timeout=10_000)
     expect(page.locator("body[data-surface='employee']")).to_be_attached()
     expect(page.locator("#sessionModePill")).to_contain_text("Служител", timeout=10_000)
+    expect(page.locator("#reservationPanel")).to_be_visible()
     expect(page.locator("[data-operational-link]")).to_be_hidden()
+    page.goto(f"{server}/admin", wait_until="domcontentloaded")
+    expect(page).to_have_url(f"{server}/", timeout=10_000)
+    expect(page.locator("body[data-surface='employee']")).to_be_attached()
+    expect(page.locator("#sessionModePill")).to_contain_text("Служител", timeout=10_000)
+    expect(page.locator("#reservationPanel")).to_be_visible()
     context.close()
 
 
@@ -496,6 +502,8 @@ def test_reception_handoff_calendar_surface(browser: Browser, server: str, artif
     expect(reception_page.locator("#receptionRail")).to_be_visible(timeout=10_000)
     expect(reception_page.locator("#receptionRail")).to_contain_text("Започни курс")
     expect(reception_page.locator("#receptionRail")).to_contain_text("Върни автомобил")
+    expect(reception_page.locator("#receptionRail")).to_contain_text("Къде да вземеш колата", timeout=10_000)
+    expect(reception_page.locator("#receptionRail")).to_contain_text("GPS локацията още не е включена")
     expect(reception_page.locator("#dayTimeline")).to_contain_text("Одобрена", timeout=10_000)
     expect(reception_page.locator("#dayTimeline")).to_contain_text("Активен курс")
     expect(reception_page.locator("#usersDeck")).to_be_hidden()

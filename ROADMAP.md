@@ -282,7 +282,8 @@ operations assistant for internal mobility**, което е:
 - NetFleet telemetry: server-side proxy reads latest GPS events by plate number
   from the admin-managed DB setting or `NETFLEET_API_KEY`; the key never
   reaches browser code and the UI never echoes the current secret. Admins see
-  fleet-wide telemetry, while employees see pickup location only for their own
+  fleet-wide telemetry, reception sees scoped location for approved/checked-out
+  handoff cars, and employees see pickup location only for their own
   approved/active trip. Employee notification polling now refreshes
   reservations and pickup GPS after approval/start/return/cancel lifecycle
   signals, with visible fallback copy when NetFleet is missing or unavailable.
@@ -304,7 +305,7 @@ operations assistant for internal mobility**, което е:
   request in production.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 143 passed,
+- Latest local verification for this slice: `pytest -q` -> 145 passed,
   `pytest tests/test_ui_compliance.py -q` -> 32 passed, Playwright browser
   smoke -> 8 passed with public/browser-computed-contrast/employee/
   employee-admin-deny/approver/admin/mobile/reception coverage, JS syntax
@@ -343,7 +344,7 @@ visible modules.
 
 ### Current risks to address before broad production use
 
-- **Frontend size:** `static/app.js` is 4194 lines and `static/styles.css` is
+- **Frontend size:** `static/app.js` is 4254 lines and `static/styles.css` is
   3177 lines. New UX work should stop growing the monolith and start extracting
   stable vanilla modules.
 - **Reservation router size:** `routers/reservations.py` is 960 lines and owns

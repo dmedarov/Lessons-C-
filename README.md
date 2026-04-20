@@ -45,7 +45,7 @@
 - Timeline-first reservations: employee/approver/reception/admin виждат lifecycle cards преди таблицата, с действия само според ролята и secondary table fallback.
 - Role-aware calendar: operational календарът за `fleet_reception` показва approved handoffs и active returns от глобалния snapshot, независимо от филтъра на таблицата.
 - Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола, `X/Y` свежи GPS позиции и compact Fleet Intelligence insight-и.
-- NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а. UI показва last-seen/freshness label, за да е ясно дали локацията е надеждна за вземане на автомобила.
+- NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а. UI показва last-seen/freshness label, за да е ясно дали локацията е надеждна за вземане на автомобила; reception вижда локация за approved/active handoff коли.
 - Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string.
 - Pickup location: служителят вижда къде да вземе колата само за своя одобрена/активна резервация.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
@@ -323,7 +323,7 @@ docker-compose.postgres.yml
 - `POST /cars`, `POST /cars/{id}/deactivate`, `POST /cars/{id}/activate` — само `fleet_admin`.
 - `GET /cars/telemetry/config` и `PUT /cars/telemetry/config` — само `fleet_admin`; записва/сменя NetFleet ключ без да връща текущата стойност.
 - `GET /cars/telemetry/latest` — само `fleet_admin`; връща последните NetFleet GPS събития, ако ключът е конфигуриран.
-- `GET /cars/{id}/telemetry/latest` — admin или employee със собствена одобрена/активна резервация за тази кола.
+- `GET /cars/{id}/telemetry/latest` — `fleet_admin`, `fleet_reception` за approved/active handoff коли или employee със собствена одобрена/активна резервация за тази кола.
 - `GET /users`, `POST /users`, `POST /users/{id}/activate`, `POST /users/{id}/deactivate` — само `fleet_admin`.
 - `POST /users` приема optional `email` и `gsm_number`; GSM номерът е contact поле, не auth фактор.
 - `POST /users/{id}/handoff-admin` — guarded admin handoff към друг активен user.
@@ -447,7 +447,7 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Последна premium QA проверка:
-`make qa-premium` -> passed (dependency audit, Python compile, 143 pytest
+`make qa-premium` -> passed (dependency audit, Python compile, 145 pytest
 cases, JS syntax, 8 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Активният Docker stack `fleetflow_prod_smoke` е
@@ -457,6 +457,12 @@ healthy на `8001`.
 `pytest tests/test_ui_compliance.py -q` -> 34 passed, `make qa-premium` ->
 passed. GPS блоковете вече показват `Последно видяна` + freshness label, а
 Fleet Pulse брои само свежи координати за активните коли от последните 60 мин.
+
+Последна локална проверка за reception GPS + employee admin guard:
+targeted API/UI tests -> 5 passed; targeted Playwright
+employee-admin/reception flow -> 2 passed. Reception Rail вече показва GPS
+context за approved/active handoff коли, а employee винаги се връща към
+служителския изглед при опит да отвори `/admin`.
 
 Последна локална проверка за browser-computed contrast:
 `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e/test_browser_smoke.py::test_browser_computed_contrast_guard -q`
@@ -509,6 +515,7 @@ restore в изолиран `fleetflow_restore_drill` project с провере�
 - role-specific Playwright browser evidence: public, browser-computed contrast, employee, approver, admin, mobile employee и reception flows с отделни failure points и screenshots
 - pickup GPS refresh after approval: reservation lifecycle notifications trigger reservation + pickup telemetry reload, with visible fallback copy when NetFleet is missing/unavailable
 - NetFleet pickup clarity: employee/admin GPS blocks now show `Последно видяна`, freshness state and "потвърди с рецепция" copy for stale/unknown signals; Fleet Pulse counts only active cars with fresh coordinates from the last 60 minutes
+- Reception GPS handoff: `fleet_reception` can see scoped location for approved/checked-out cars in Reception Rail; employees cannot remain on `/admin` with either fresh login or restored session
 
 ## Alembic migrations
 

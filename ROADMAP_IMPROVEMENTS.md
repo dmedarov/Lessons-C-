@@ -66,7 +66,7 @@ templates/
   index.html                 employee surface
   admin.html                 admin surface
 static/
-  app.js                     4194-line SPA logic; split before next large UI package
+  app.js                     4254-line SPA logic; split before next large UI package
   i18n.js                    Bulgarian UI copy dictionary + interpolation
   styles.css                 3177-line design system stylesheet with responsive cockpit UI
 alembic/                     migration scripts
@@ -154,7 +154,8 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   occupancy with status, registration number and model, while requester,
   purpose, GSM, GPS, reservation ids and actions remain authenticated.
 - NetFleet latest GPS events are wired through an admin-only server-side proxy;
-  employees can read pickup location only for their own approved/active trip.
+  employees can read pickup location only for their own approved/active trip,
+  and reception can read handoff location only for approved/checked-out cars.
   The key can be supplied by `.env` or saved once/changed from Admin UI as a
   DB-backed setting; it must never be committed or echoed back to the browser.
   GPS cards now show last-seen/freshness wording and Fleet Pulse counts only
@@ -195,7 +196,7 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
 - The monolithic `static/app.js` should be split before the frontend grows much
-  further; it is now 4194 lines and `static/styles.css` is 3177 lines.
+  further; it is now 4254 lines and `static/styles.css` is 3177 lines.
 - `routers/reservations.py` is now 960 lines and carries too many concerns:
   creation, conflict checks, lifecycle transitions, suggestions, bulk decisions,
   listing and export. Keep endpoints stable, but extract service modules before
@@ -222,7 +223,7 @@ Use it before choosing the next implementation task.
 | CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies the riskiest token pairs. | 3177-line stylesheet still makes overlap regressions easy. | Run responsive density evidence, then split component CSS if churn continues. |
 | Database | Alembic production path and PostgreSQL smoke exist. | Runtime bootstrap/upgrades in `db.py` can drift from migrations. | Add schema parity tests for SQLite bootstrap, PostgreSQL bootstrap and Alembic head. |
 | E2E evidence | Playwright smoke now runs separate public, contrast, employee, approver, admin, mobile and reception checks. | More destructive-action evidence is still needed. | Add targeted recovery screenshots and keyboard-only paths. |
-| NetFleet | Server-side key handling, scoped employee pickup context and freshness wording are correct. | Real operators may still want an address/geocoding layer later. | Keep GPS read-only; consider address enrichment only after live use proves it helps. |
+| NetFleet | Server-side key handling, scoped employee/reception pickup context and freshness wording are correct. | Real operators may still want an address/geocoding layer later. | Keep GPS read-only; consider address enrichment only after live use proves it helps. |
 | Production | Makefile, prod checks, Docker health, backups and restore drill are in place. | GitHub alert state still needs direct external confirmation. | Inspect GitHub Security/Dependabot after push and record exact closure evidence. |
 | Intelligence | Best-car scoring and compact Fleet Pulse are explainable and light. | Premature analytics tables would add complexity before real usage data. | Defer snapshots until production data volume or operator needs prove the need. |
 | Documentation | README, ROADMAP and this handoff are active. | Chat-only decisions disappear between agents. | Update `.md` files after tests and before every commit/push. |
@@ -2110,7 +2111,7 @@ from the last 60 minutes instead of raw NetFleet events.
 5. **7.3 PostgreSQL migration smoke + backups** - required before serious
    production rollout.
 6. **10.3 Split `static/app.js` into modules** - do this before large frontend
-   additions; the file is already 4194 lines.
+   additions; the file is already 4254 lines.
 7. **10.4 reservation service extraction** - keep endpoints stable while
     moving lifecycle/domain logic out of the router.
 8. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
@@ -2138,14 +2139,33 @@ If time is limited, execute items 1-4 before any new feature work.
   `Последно видяна` and a text-backed freshness chip. Fresh signals say how
   many minutes ago they were seen; older/unknown signals explicitly tell the
   user to confirm with reception.
+- **Reception fix:** Reception Rail now loads the same scoped GPS block for the
+  approved/checked-out cars that reception is responsible for handing over or
+  receiving back.
 - **Fleet Pulse:** GPS availability now means active FleetFlow cars with
   coordinates from the last 60 minutes, not any raw NetFleet event.
 - **Privacy:** Full fleet telemetry remains `fleet_admin` only. Employee pickup
-  telemetry remains scoped to the employee's own approved/active trip.
+  telemetry remains scoped to the employee's own approved/active trip, and
+  reception telemetry remains scoped to cars currently in the reception queue.
 - **Verification:** `node --check static/app.js`,
   `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile e2e/test_browser_smoke.py tests/test_ui_compliance.py`,
   `pytest tests/test_ui_compliance.py -q` -> 34 passed, `make qa-premium` ->
-  143 pytest cases and 8 browser checks passed.
+  145 pytest cases and 8 browser checks passed.
+
+### 2026-04-20 - Reception GPS and employee admin-surface guard
+
+- **Bug fixed:** `fleet_reception` could start/return approved cars but could
+  not see their NetFleet pickup location. `/cars/{id}/telemetry/latest` now
+  allows reception only when that car has an approved or checked-out, not
+  returned, handoff reservation.
+- **UI fixed:** Reception Rail now loads per-car scoped telemetry and displays
+  the same `Къде да вземеш колата` block as the employee Current Trip Hero.
+- **Employee guard hardened:** Playwright now verifies both paths: employee
+  login from `/admin` redirects to `/`, and an already authenticated employee
+  opening `/admin` is returned to the employee surface.
+- **Verification:** targeted API/UI tests -> 5 passed; targeted Playwright
+  employee-admin/reception flow -> 2 passed. Full `make qa-premium` passed
+  with 145 pytest cases and 8 browser checks.
 
 ### 2026-04-20 - Browser-computed contrast guard
 

@@ -1728,6 +1728,40 @@ def test_employee_can_read_pickup_telemetry_for_approved_trip(client: TestClient
     assert res.status_code == 200
     assert res.json()["configured"] is True
     assert res.json()["item"]["plate_number"] == "CB9024AA"
+    start = client.post(f"/reservations/{reservation_id}/start", json={"note": "active pickup"}, headers=_auth(admin))
+    assert start.status_code == 200
+    active_res = client.get(f"/cars/{car_id}/telemetry/latest", headers=_auth(employee))
+    assert active_res.status_code == 200
+    assert active_res.json()["item"]["plate_number"] == "CB9024AA"
+
+
+def test_reception_can_read_pickup_telemetry_for_approved_handoff(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from routers import cars
+
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "handoff-owner", "Handoff Owner", "PickupPass123")
+    _create_user(client, admin, "gps-reception", "GPS Reception", "ReceptionPass123", role="fleet_reception")
+    employee = _login(client, "handoff-owner", "PickupPass123")
+    reception = _login(client, "gps-reception", "ReceptionPass123")
+    car_id = _create_car(client, admin, plate="CB9026AA")
+    reservation_id = _create_reservation(client, car_id, employee)
+    approve = client.post(f"/reservations/{reservation_id}/approve", json={"reason": "ok"}, headers=_auth(admin))
+    assert approve.status_code == 200
+    monkeypatch.setattr(
+        cars,
+        "fetch_latest_gps_events",
+        lambda api_key=None: SimpleNamespace(
+            configured=True,
+            items=[{"plate_number": "CB9026AA", "latitude": 42.71, "longitude": 23.31, "speed": 0}],
+        ),
+    )
+
+    res = client.get(f"/cars/{car_id}/telemetry/latest", headers=_auth(reception))
+    assert res.status_code == 200
+    assert res.json()["configured"] is True
+    assert res.json()["item"]["plate_number"] == "CB9026AA"
 
 
 def test_employee_cannot_read_pickup_telemetry_without_approved_trip(client: TestClient) -> None:
@@ -1737,6 +1771,16 @@ def test_employee_cannot_read_pickup_telemetry_without_approved_trip(client: Tes
     car_id = _create_car(client, admin, plate="CB9025AA")
 
     res = client.get(f"/cars/{car_id}/telemetry/latest", headers=_auth(employee))
+    assert res.status_code == 403
+
+
+def test_reception_cannot_read_pickup_telemetry_without_handoff(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "nogps-reception", "No GPS Reception", "ReceptionPass123", role="fleet_reception")
+    reception = _login(client, "nogps-reception", "ReceptionPass123")
+    car_id = _create_car(client, admin, plate="CB9027AA")
+
+    res = client.get(f"/cars/{car_id}/telemetry/latest", headers=_auth(reception))
     assert res.status_code == 403
 
 

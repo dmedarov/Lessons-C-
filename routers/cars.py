@@ -111,11 +111,22 @@ def latest_car_telemetry_for_car(car_id: int, auth: AuthContext = Depends(get_au
         car = conn.execute("SELECT id, plate_number FROM cars WHERE id=?", (car_id,)).fetchone()
         if not car:
             raise HTTPException(status_code=404, detail="Car not found")
-        if auth.role != "fleet_admin":
+        if auth.role == "fleet_reception":
             reservation = conn.execute(
                 """
                 SELECT id FROM reservations
-                WHERE car_id=? AND created_by_id=? AND status='approved' AND returned_at IS NULL
+                WHERE car_id=? AND status IN ('approved', 'checked_out') AND returned_at IS NULL
+                LIMIT 1
+                """,
+                (car_id,),
+            ).fetchone()
+            if not reservation:
+                raise HTTPException(status_code=403, detail="No reception handoff for this car")
+        elif auth.role != "fleet_admin":
+            reservation = conn.execute(
+                """
+                SELECT id FROM reservations
+                WHERE car_id=? AND created_by_id=? AND status IN ('approved', 'checked_out') AND returned_at IS NULL
                 LIMIT 1
                 """,
                 (car_id, auth.user_id),

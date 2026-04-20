@@ -39,6 +39,7 @@ const state = {
   notifications: [],
   telemetry: [],
   telemetryConfigured: false,
+  handoffTelemetry: {},
   intelligencePulse: null,
   netfleetConfig: null,
   productionReadiness: null,
@@ -56,6 +57,7 @@ const state = {
     intelligencePulse: false,
     notifications: false,
     telemetry: false,
+    handoffTelemetry: false,
     netfleetConfig: false,
     productionReadiness: false,
     pickupTelemetry: false,
@@ -698,6 +700,34 @@ function isFreshTelemetry(item, maxAgeMinutes = 60) {
 function telemetryFreshnessMarkup(item) {
   const freshness = telemetryFreshness(item?.utc_time);
   return `<span class="telemetry-freshness telemetry-freshness--${freshness.state}">${escapeHtml(freshness.text)}</span>`;
+}
+
+function telemetryLocationBlock(telemetry, titleKey = "pickup.title") {
+  if (telemetry?.item) {
+    const item = telemetry.item;
+    return `
+      <div class="pickup-location">
+        <strong>${escapeHtml(t(titleKey))}</strong>
+        <span>${escapeHtml(t("telemetry.coordinates", {
+          lat: formatCoordinate(item.latitude),
+          lon: formatCoordinate(item.longitude),
+        }))}</span>
+        <span>${escapeHtml(t("telemetry.updated", { time: formatTelemetryTime(item.utc_time) }))}</span>
+        ${telemetryFreshnessMarkup(item)}
+        ${hasTelemetryCoordinates(item) ? `<a class="ghost-link ghost-link--compact" href="https://www.google.com/maps?q=${encodeURIComponent(`${item.latitude},${item.longitude}`)}" target="_blank" rel="noreferrer">${escapeHtml(t("pickup.mapLink"))}</a>` : ""}
+      </div>
+    `;
+  }
+  if (telemetry?.configured) {
+    return `<div class="pickup-location"><strong>${escapeHtml(t(titleKey))}</strong><span>${escapeHtml(t("pickup.noSignal"))}</span></div>`;
+  }
+  if (telemetry?.error) {
+    return `<div class="pickup-location"><strong>${escapeHtml(t(titleKey))}</strong><span>${escapeHtml(t("pickup.unavailable"))}</span></div>`;
+  }
+  if (telemetry) {
+    return `<div class="pickup-location"><strong>${escapeHtml(t(titleKey))}</strong><span>${escapeHtml(t("pickup.notConfigured"))}</span></div>`;
+  }
+  return "";
 }
 
 function formatMonthLabel(value) {
@@ -1418,26 +1448,7 @@ function renderCurrentTripHero() {
   const pickup = state.pickupTelemetry && state.pickupTelemetry.carId === item.car_id ? state.pickupTelemetry : null;
   const pickupMarkup = state.loading.pickupTelemetry
     ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.loading"))}</strong></div>`
-    : pickup?.item
-      ? `
-        <div class="pickup-location">
-          <strong>${escapeHtml(t("pickup.title"))}</strong>
-          <span>${escapeHtml(t("telemetry.coordinates", {
-            lat: formatCoordinate(pickup.item.latitude),
-            lon: formatCoordinate(pickup.item.longitude),
-          }))}</span>
-          <span>${escapeHtml(t("telemetry.updated", { time: formatTelemetryTime(pickup.item.utc_time) }))}</span>
-          ${telemetryFreshnessMarkup(pickup.item)}
-          ${hasTelemetryCoordinates(pickup.item) ? `<a class="ghost-link ghost-link--compact" href="https://www.google.com/maps?q=${encodeURIComponent(`${pickup.item.latitude},${pickup.item.longitude}`)}" target="_blank" rel="noreferrer">${escapeHtml(t("pickup.mapLink"))}</a>` : ""}
-        </div>
-      `
-      : pickup?.configured
-        ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.title"))}</strong><span>${escapeHtml(t("pickup.noSignal"))}</span></div>`
-        : pickup?.error
-          ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.title"))}</strong><span>${escapeHtml(t("pickup.unavailable"))}</span></div>`
-          : pickup
-            ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.title"))}</strong><span>${escapeHtml(t("pickup.notConfigured"))}</span></div>`
-        : "";
+    : telemetryLocationBlock(pickup);
 
   els.currentTripHero.innerHTML = `
     <div class="current-trip-hero__content">
@@ -2315,6 +2326,10 @@ function renderReceptionRail() {
         const label = isActive ? t("action.returnCar") : t("action.startTrip");
         const timeKey = isActive ? "receptionRail.returnBy" : "receptionRail.startAt";
         const timeValue = isActive ? item.end_time : item.start_time;
+        const handoffTelemetry = state.handoffTelemetry[item.car_id];
+        const locationMarkup = state.loading.handoffTelemetry && !handoffTelemetry
+          ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.loading"))}</strong></div>`
+          : telemetryLocationBlock(handoffTelemetry);
         return `
           <article class="decision-card reception-card" data-reception-card="${item.id}">
             <div>
@@ -2323,6 +2338,7 @@ function renderReceptionRail() {
               ${requesterGsmLine(item)}
               <span class="status-pill ${isActive ? "status-pill--warning" : "status-pill--success"}">${escapeHtml(t(`status.${item.status}`))}</span>
               ${item.purpose ? `<p class="decision-card__purpose">${escapeHtml(item.purpose)}</p>` : ""}
+              ${locationMarkup}
             </div>
             <div class="decision-card__actions">
               <button class="action-btn action-btn--toggle" type="button" data-reservation-action="${action}" data-id="${item.id}" aria-label="${label} за резервация #${item.id}">${escapeHtml(label)}</button>
@@ -2930,6 +2946,48 @@ async function loadPickupTelemetry() {
   }
 }
 
+async function loadHandoffTelemetry() {
+  if (!state.token || !canManageTripHandoff() || surface !== "admin") {
+    state.handoffTelemetry = {};
+    setLoading("handoffTelemetry", false);
+    renderReceptionRail();
+    return;
+  }
+
+  const carIds = [...new Set(receptionRailItems().slice(0, 4).map((item) => item.car_id))];
+  if (!carIds.length) {
+    state.handoffTelemetry = {};
+    setLoading("handoffTelemetry", false);
+    renderReceptionRail();
+    return;
+  }
+
+  setLoading("handoffTelemetry", true);
+  renderReceptionRail();
+  const nextTelemetry = {};
+  await Promise.all(carIds.map(async (carId) => {
+    try {
+      const data = await apiFetch(`/cars/${carId}/telemetry/latest`, { headers: authHeaders() });
+      nextTelemetry[carId] = {
+        carId,
+        configured: Boolean(data.configured),
+        item: data.item || null,
+      };
+    } catch (error) {
+      nextTelemetry[carId] = {
+        carId,
+        configured: false,
+        item: null,
+        error: true,
+      };
+      console.warn("Handoff telemetry failed", error);
+    }
+  }));
+  state.handoffTelemetry = nextTelemetry;
+  setLoading("handoffTelemetry", false);
+  renderReceptionRail();
+}
+
 async function downloadCsv(url, filename) {
   const response = await fetch(url, { headers: authHeaders() });
   if (!response.ok) {
@@ -3117,6 +3175,7 @@ async function refreshData() {
       loadUsers(),
     ]);
     await loadPickupTelemetry();
+    await loadHandoffTelemetry();
     updateOverview();
     updateSummary();
     renderCurrentTripHero();
@@ -3322,6 +3381,7 @@ async function handleLogout() {
   await loadPublicCalendar();
   state.telemetry = [];
   state.telemetryConfigured = false;
+  state.handoffTelemetry = {};
   state.intelligencePulse = null;
   state.netfleetConfig = null;
   state.pickupTelemetry = null;
