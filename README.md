@@ -422,6 +422,14 @@ Employee notification polling вече презарежда резервации
 конфигуриран или временно не отговори, Current Trip Hero показва ясен fallback,
 не празно място.
 
+Последна локална проверка за формат на дата/час:
+`pytest tests/test_ui_compliance.py -q` -> 32 passed,
+`pytest -q` -> 141 passed,
+`E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
+-> 6 passed, `node --check static/app.js`, `node --check static/i18n.js`.
+UI helper-ът вече форматира дата/час като `dd.mm.yyyy, HH:MM`, без AM/PM и
+без locale-dependent `dateStyle/timeStyle`.
+
 Предишна локална проверка за request-first/role-separated-lifecycle/reception-calendar пакета:
 `make audit-prod` -> no known vulnerabilities for pinned runtime dependencies,
 direct `pip-audit -r requirements.txt` -> no known vulnerabilities when the resolver completes,

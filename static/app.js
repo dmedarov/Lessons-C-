@@ -629,7 +629,15 @@ function hideMessage() {
 
 function formatDateTime(value) {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("bg-BG", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const pad = (part) => String(part).padStart(2, "0");
+  const day = pad(date.getDate());
+  const month = pad(date.getMonth() + 1);
+  const year = date.getFullYear();
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${day}.${month}.${year}, ${hours}:${minutes}`;
 }
 
 function formatTelemetryTime(value) {
@@ -650,12 +658,9 @@ function formatMonthLabel(value) {
 }
 
 function formatDayLabel(key) {
-  return new Intl.DateTimeFormat("bg-BG", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(localDateFromKey(key));
+  const date = localDateFromKey(key);
+  const weekday = new Intl.DateTimeFormat("bg-BG", { weekday: "long" }).format(date);
+  return `${weekday}, ${formatDateTime(date).split(",")[0]}`;
 }
 
 function nextLocalSlot(minutesFromNow = 30) {

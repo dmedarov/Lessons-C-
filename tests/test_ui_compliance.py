@@ -61,6 +61,15 @@ def test_message_alerts_use_theme_classes_not_inline_colors() -> None:
     assert ".alert-strip--error" in styles
 
 
+def test_ui_dates_use_day_month_year_and_24h_time() -> None:
+    app_js = _read("static/app.js")
+    assert "dateStyle" not in app_js
+    assert "timeStyle" not in app_js
+    assert "hour12" not in app_js
+    assert 'return `${day}.${month}.${year}, ${hours}:${minutes}`;' in app_js
+    assert 'return `${weekday}, ${formatDateTime(date).split(",")[0]}`;' in app_js
+
+
 def test_reject_dialogs_require_reason_and_mark_invalid_field() -> None:
     app_js = _read("static/app.js")
     i18n_js = _read("static/i18n.js")

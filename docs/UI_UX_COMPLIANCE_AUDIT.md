@@ -180,6 +180,10 @@ styles.
   manual page refresh. Current Trip Hero also shows explicit fallback copy when
   NetFleet is not configured or temporarily unavailable; covered by
   `tests/test_ui_compliance.py`.
+- `pass`: UI date/time formatting is deterministic: `formatDateTime()` renders
+  `dd.mm.yyyy, HH:MM` with 24-hour time and no AM/PM, while mobile day labels
+  use weekday + `dd.mm.yyyy`. Guarded by `tests/test_ui_compliance.py` so
+  browser-dependent `dateStyle` / `timeStyle` does not come back.
 - `pass`: Playwright browser smoke is now split by role and starts a fresh app
   server/database for each flow. It verifies public pre-login orientation,
   employee one-tap booking, approver Decision Rail, admin control surface,
@@ -199,7 +203,7 @@ styles.
   0 vulnerable packages for the current app image.
 - `pass`: `make release-check` runs the local production gate successfully:
   pinned runtime audit, Python compile, `pytest -q`, and browser JS syntax.
-- `evidence`: latest local handoff check ran `pytest -q` -> 140 passed,
+- `evidence`: latest local handoff check ran `pytest -q` -> 141 passed,
   `pytest tests/test_schema_contracts.py -q` -> 5 passed,
   `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
   -> 6 passed, `node --check static/app.js`,

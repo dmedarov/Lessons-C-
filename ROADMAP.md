@@ -293,10 +293,11 @@ operations assistant for internal mobility**, което е:
   request in production.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 140 passed,
-  `pytest tests/test_ui_compliance.py -q` -> 31 passed, Playwright browser
+- Latest local verification for this slice: `pytest -q` -> 141 passed,
+  `pytest tests/test_ui_compliance.py -q` -> 32 passed, Playwright browser
   smoke -> 6 passed with public/employee/approver/admin/mobile/reception
-  screenshots, JS syntax checks and Python compile check. `make prod-check` fails fast when `.env` is missing in
+  screenshots, JS syntax checks and Python compile check. UI date/time now
+  renders as `dd.mm.yyyy, HH:MM` with 24-hour time. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
   was rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on
   `8001` returned ok/ready and the app container is healthy. A real

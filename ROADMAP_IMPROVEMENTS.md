@@ -2107,6 +2107,21 @@ If time is limited, execute items 1-4 before any new feature work.
 
 ## Done
 
+### 2026-04-20 - Deterministic Bulgarian date/time format
+
+- **UX rule:** UI date/time now renders as `dd.mm.yyyy, HH:MM` everywhere that
+  uses `formatDateTime()`. Hours are zero-padded 24-hour values, with no AM/PM
+  and no browser-dependent locale suffix such as `г.`.
+- **Mobile calendar:** `formatDayLabel()` now shows weekday plus `dd.mm.yyyy`
+  instead of a long locale date.
+- **Guardrail:** `tests/test_ui_compliance.py` now rejects `dateStyle`,
+  `timeStyle` and `hour12` in `static/app.js` and asserts the deterministic
+  formatting template.
+- **Verification:** `pytest tests/test_ui_compliance.py -q` -> 32 passed;
+  `pytest -q` -> 141 passed;
+  `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
+  -> 6 passed; `node --check static/app.js`; `node --check static/i18n.js`.
+
 ### 2026-04-20 - Pickup GPS refresh after approval
 
 - **Root cause:** employee notification polling refreshed the inbox and KPI
