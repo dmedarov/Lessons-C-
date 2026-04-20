@@ -57,7 +57,7 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Toast/message system | `static/app.js`, `static/styles.css` | needs evidence | Polite live region, non-color-only severity, visible long enough | `#message` uses `role=alert`, receives focus and now uses theme-aware alert classes instead of inline light-theme colors. Verify with screen reader and dark-mode screenshots. |
 | Mobile bottom nav | `templates/index.html`, `templates/admin.html`, `static/styles.css` | needs evidence | 44 px targets, safe-area padding, no content occlusion | CSS sets `min-height: 44px` and accounts for `safe-area-inset-bottom`; screenshot 390 px bottom area and keyboard focus order still required. |
 | Theme/dark mode | `static/theme.js`, `static/styles.css` | needs evidence | NASA/WCAG contrast matrix, focus ring visibility, reduced motion | Solid text/status token pairs now covered by `tests/test_design_tokens.py`; translucent surfaces still need browser-computed contrast evidence. |
-| Production cutover | `Makefile`, `scripts/prod_check.py`, `docker-compose.postgres.yml`, `README.md` | pass | No demo seed, generated secrets, real CORS origin, matching DB URL, runtime env propagation | `make prod-check` validates `.env` without starting containers; compose now passes CORS, refresh TTL, rate limits and notification settings to the app container. |
+| Production cutover | `Makefile`, `scripts/prod_check.py`, `production_readiness.py`, `routers/ops.py`, `docker-compose.postgres.yml`, `README.md`, `docs/PRODUCTION_USER_GUIDE.md` | pass | No demo seed, generated secrets, real CORS origin, matching DB URL, pinned PostgreSQL image, runtime env propagation, secret-safe admin readiness | `make prod-check` validates `.env` without starting containers; compose now pins PostgreSQL major version and passes CORS, refresh TTL, rate limits, DB password and notification settings to the app container. `/health/ready` checks DB reachability; `/ops/readiness` powers the Admin UI preflight panel without returning secret values. |
 
 ## Contrast Matrix To Automate
 
@@ -152,6 +152,10 @@ styles.
 - `pass`: `make prod-check` validates live `.env` readiness and production
   compose forwards operational env vars to the app container; covered by
   `tests/test_prod_readiness.py`.
+- `pass`: admin-only production readiness panel exposes live blockers/warnings
+  without secret values, and `/health/ready` provides a DB-backed readiness
+  probe for production operations; covered by `tests/test_app.py` and
+  `tests/test_ui_compliance.py`.
 - `pass`: Fleet Pulse GPS count now uses matching active FleetFlow plates and
   reports `X/Y` instead of raw NetFleet event totals.
 - `pass`: initial Playwright browser smoke verifies employee one-tap booking,
@@ -162,16 +166,16 @@ styles.
   `test-results/e2e/employee-mobile.png`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
-- `evidence`: latest local handoff check ran `pytest -q` -> 117 passed,
-  targeted UI/API/production readiness pack -> 28 passed,
+- `evidence`: latest local handoff check ran `pytest -q` -> 119 passed,
+  targeted UI/API/production readiness pack -> 30 passed,
   `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
   -> 1 passed, `node --check static/app.js`,
   `node --check static/i18n.js` and Python compile check for
-  `scripts/prod_check.py e2e/test_browser_smoke.py routers/reservations.py`.
+  `production_readiness.py routers/ops.py scripts/prod_check.py app.py schemas.py`.
   `make prod-check` fails fast when `.env` is missing in a clean checkout. Old
-  `fleetflow_test` containers were removed, Docker was rebuilt, Alembic started
-  in PostgreSQL compose, `/health` on `8001` returned ok and the app container
-  is healthy.
+  `fleetflow_test` containers were removed, Docker was rebuilt with pinned
+  `postgres:16`, `/health` and `/health/ready` on `8001` returned ok/ready and
+  the app container is healthy.
 
 ## PR/Handoff Checklist
 

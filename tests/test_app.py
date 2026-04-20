@@ -966,6 +966,7 @@ def test_protected_routes_require_auth(client: TestClient) -> None:
 
 def test_health_and_ui(client: TestClient) -> None:
     assert client.get("/health").json() == {"status": "ok"}
+    assert client.get("/health/ready").json() == {"status": "ready", "database": "sqlite"}
     res = client.get("/")
     admin_res = client.get("/admin")
     assert res.status_code == 200
@@ -991,8 +992,31 @@ def test_health_and_ui(client: TestClient) -> None:
     assert 'id="bulkActionBar"' not in res.text
     assert 'id="bulkActionBar"' in admin_res.text
     assert 'id="bulkSelectAll"' in admin_res.text
+    assert 'id="productionReadinessPanel"' in admin_res.text
     assert 'class="glass-card hidden" id="userCreatePanel"' in admin_res.text
     assert 'class="glass-card hidden" id="usersDeck"' in admin_res.text
+
+
+def test_ops_readiness_is_admin_only_and_does_not_leak_secrets(client: TestClient) -> None:
+    assert client.get("/ops/readiness").status_code == 401
+
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "ivan", "Ivan Petrov", "UserPass123")
+    employee = _login(client, "ivan", "UserPass123")
+
+    assert client.get("/ops/readiness", headers=_auth(employee)).status_code == 403
+
+    res = client.get("/ops/readiness", headers=_auth(admin))
+    assert res.status_code == 200
+    data = res.json()
+    ids = {item["id"] for item in data["items"]}
+
+    assert data["ready"] is False
+    assert data["app_env"] == "dev"
+    assert data["database_backend"] == "sqlite"
+    assert {"app_env", "database_connection", "active_admin", "netfleet", "notifications"} <= ids
+    assert not any("test-secret-key" in str(item) for item in data["items"])
+    assert not any("DATABASE_URL" in item["detail"] and "://" in item["detail"] for item in data["items"])
 
 
 def test_admin_responsive_css_prevents_module_overlap() -> None:

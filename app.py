@@ -14,6 +14,7 @@ from db import get_conn, init_db
 from routers import auth as auth_router
 from routers import cars as cars_router
 from routers import notifications as notifications_router
+from routers import ops as ops_router
 from routers import reservations as reservations_router
 from routers import users as users_router
 
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router.router)
     app.include_router(cars_router.router)
     app.include_router(notifications_router.router)
+    app.include_router(ops_router.router)
     app.include_router(reservations_router.router)
     app.include_router(users_router.router)
 
@@ -82,6 +84,12 @@ def create_app() -> FastAPI:
     @app.get("/health", tags=["meta"])
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/health/ready", tags=["meta"])
+    def readiness_probe() -> dict[str, str]:
+        with get_conn() as conn:
+            conn.execute("SELECT 1").fetchone()
+        return {"status": "ready", "database": settings.db_backend}
 
     return app
 

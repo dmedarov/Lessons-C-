@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 Role = Literal["employee", "fleet_admin"]
 ReservationStatus = Literal["pending", "approved", "checked_out", "returned", "rejected", "cancelled"]
 BlackoutKind = Literal["service", "maintenance", "inspection", "blocked"]
+ReadinessStatus = Literal["pass", "warn", "fail"]
 
 
 class LoginPayload(BaseModel):
@@ -105,6 +106,22 @@ class NetFleetConfigResponse(BaseModel):
     source: Literal["database", "environment", "none"]
     updated_at: Optional[str] = None
     updated_by_id: Optional[int] = None
+
+
+class ProductionReadinessItem(BaseModel):
+    id: str
+    label: str
+    status: ReadinessStatus
+    detail: str
+    required: bool
+
+
+class ProductionReadinessResponse(BaseModel):
+    ready: bool
+    checked_at: str
+    app_env: str
+    database_backend: str
+    items: list[ProductionReadinessItem]
 
 
 class CarBlackoutCreate(BaseModel):

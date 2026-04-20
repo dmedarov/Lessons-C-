@@ -200,7 +200,8 @@ operations assistant for internal mobility**, което е:
 - Alembic baseline и versioned migrations за всяка schema промяна
 - Production setup: `make setup` генерира secrets, `make prod` вдига PostgreSQL + app
 - Production cutover: `make prod-check` валидира `.env` за generated secrets,
-  real CORS origin, matching DB password и disabled demo seed преди live.
+  pinned PostgreSQL image, real CORS origin, matching DB password и disabled
+  demo seed преди live.
 - Apple/NASA/USWDS compliance roadmap за следващите UI подобрения
 - UI error prevention: reject dialogs now require a human reason and expose
   exact-field `aria-invalid` recovery instead of silent generic fallback reasons
@@ -246,15 +247,22 @@ operations assistant for internal mobility**, което е:
   reaches browser code and the UI never echoes the current secret. Admins see
   fleet-wide telemetry, while employees see pickup location only for their own
   approved/active trip.
+- Production readiness: `/health/ready` checks database reachability for
+  orchestration, while admin-only `/ops/readiness` and the `/admin` panel show
+  live blockers/warnings without exposing secret values. Operator instructions
+  now live in `docs/PRODUCTION_USER_GUIDE.md`.
+- PostgreSQL image is pinned to major version 16 by default; do not use
+  `latest` against a persistent production volume without a planned dump/restore
+  major upgrade.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 117 passed,
-  targeted UI/API/production readiness pack -> 28 passed, Playwright browser
+- Latest local verification for this slice: `pytest -q` -> 119 passed,
+  targeted UI/API/production readiness pack -> 30 passed, Playwright browser
   smoke -> 1 passed with desktop/mobile screenshots, JS syntax checks and
   Python compile check. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
-  was rebuilt, Alembic ran in PostgreSQL compose, `/health` on `8001` returned
-  ok and the app container is healthy.
+  was rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on
+  `8001` returned ok/ready and the app container is healthy.
 
 ## Next Recommended Slices
 
@@ -266,8 +274,10 @@ operations assistant for internal mobility**, което е:
    start/return.
 3. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
    change, handoff and blackout deactivate.
-4. PostgreSQL migration smoke + backup/restore playbook за production оператори.
-5. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
+4. Backup/restore playbook за production оператори, плюс dry-run restore доказателство.
+5. Add Playwright coverage for the new `/admin` production readiness panel and
+   `/health/ready` probe state.
+6. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
 
 ## References
 

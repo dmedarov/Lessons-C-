@@ -29,6 +29,7 @@ def test_prod_check_accepts_generated_live_ready_env(tmp_path: Path) -> None:
                 "APP_ENV=prod",
                 f"SECRET_KEY={secret}",
                 f"POSTGRES_PASSWORD={password}",
+                "POSTGRES_IMAGE=postgres:16",
                 f"DATABASE_URL=postgresql://fleetflow:{password}@postgres:5432/fleetflow",
                 "CORS_ALLOW_ORIGINS=https://fleetflow.company.bg",
                 "DEV_SEED_DEMO_DATA=false",
@@ -52,6 +53,7 @@ def test_prod_check_rejects_placeholders_and_example_origin(tmp_path: Path) -> N
                 "APP_ENV=dev",
                 "SECRET_KEY=replace-with-a-long-random-secret",
                 "POSTGRES_PASSWORD=fleetflow-dev-password",
+                "POSTGRES_IMAGE=cgr.dev/chainguard/postgres:latest",
                 "DATABASE_URL=postgresql://fleetflow:fleetflow-dev-password@postgres:5432/fleetflow",
                 "CORS_ALLOW_ORIGINS=https://fleetflow.example.com",
                 "DEV_SEED_DEMO_DATA=true",
@@ -65,6 +67,7 @@ def test_prod_check_rejects_placeholders_and_example_origin(tmp_path: Path) -> N
     assert "APP_ENV must be prod" in result.stdout
     assert "SECRET_KEY must be generated" in result.stdout
     assert "POSTGRES_PASSWORD must be generated" in result.stdout
+    assert "POSTGRES_IMAGE must be pinned" in result.stdout
     assert "CORS_ALLOW_ORIGINS must be the real production origin" in result.stdout
     assert "DEV_SEED_DEMO_DATA must be false" in result.stdout
 
@@ -74,6 +77,7 @@ def test_production_compose_passes_runtime_settings_to_app_container() -> None:
 
     for key in (
         "CORS_ALLOW_ORIGINS",
+        "POSTGRES_PASSWORD",
         "REFRESH_TOKEN_TTL_SECONDS",
         "DEV_SEED_DEMO_DATA",
         "LOGIN_RATE_LIMIT_ATTEMPTS",
@@ -84,3 +88,4 @@ def test_production_compose_passes_runtime_settings_to_app_container() -> None:
         "TEAMS_WEBHOOK_URL",
     ):
         assert f"{key}:" in compose
+    assert "POSTGRES_IMAGE:-postgres:16" in compose

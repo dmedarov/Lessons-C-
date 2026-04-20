@@ -2300,6 +2300,89 @@ select {
   line-height: 1.45;
 }
 
+.readiness-summary {
+  display: grid;
+  gap: 4px;
+  margin-bottom: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+}
+
+.readiness-summary strong {
+  color: var(--ink-strong);
+  font-size: 0.94rem;
+}
+
+.readiness-summary span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.readiness-summary--pass {
+  border-color: var(--success-border);
+  background: var(--success-soft);
+}
+
+.readiness-summary--warn {
+  border-color: var(--warning-border);
+  background: var(--warning-soft);
+}
+
+.readiness-summary--fail {
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+}
+
+.readiness-list {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.readiness-item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.readiness-item strong {
+  color: var(--ink-strong);
+  font-size: 0.86rem;
+}
+
+.readiness-item p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.readiness-item span {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.readiness-item--pass span {
+  color: var(--success);
+}
+
+.readiness-item--warn span {
+  color: var(--warning);
+}
+
+.readiness-item--fail span {
+  color: var(--danger);
+}
+
 .current-trip-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

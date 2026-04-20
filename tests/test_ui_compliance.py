@@ -341,3 +341,21 @@ def test_admin_netfleet_key_can_be_configured_without_displaying_current_secret(
     assert 'els.netfleetForm.reset();' in app_js
     assert '"netfleet.configuredUi": "Конфигуриран през Admin UI. Последна промяна: {time}."' in i18n_js
     assert '"netfleet.notConfigured": "Не е конфигуриран.' in i18n_js
+
+
+def test_admin_production_readiness_panel_is_present_and_secret_safe() -> None:
+    html = _read("templates/admin.html")
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+
+    assert 'id="productionReadinessPanel"' in html
+    assert 'id="productionReadinessSummary"' in html
+    assert 'id="productionReadinessList"' in html
+    assert "function loadProductionReadiness()" in app_js
+    assert "function renderProductionReadiness()" in app_js
+    assert 'apiFetch("/ops/readiness"' in app_js
+    assert '"readiness.notReady": "Има блокери преди live"' in i18n_js
+    assert ".readiness-item--fail span" in styles
+    assert "SECRET_KEY" not in html
+    assert "POSTGRES_PASSWORD" not in html

@@ -16,6 +16,7 @@
 - User management: създаване, activate/deactivate, password change и guarded admin handoff.
 - Пагинация при списъка с резервации.
 - `health` endpoint за Docker healthcheck.
+- `health/ready` endpoint за production readiness probe към базата.
 - Responsive dashboard UI без външни CDN зависимости.
 - Отделна admin страница за approvals, users, blackout windows и continuity actions.
 - Batch approve/reject UX за pending заявки: checkbox selection, action bar и partial-failure summary.
@@ -35,6 +36,7 @@
 - Timeline-first reservations: employee/admin виждат lifecycle cards преди таблицата, с директни действия и secondary table fallback.
 - Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола и `X/Y` GPS позиции само за активните коли във FleetFlow.
 - NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а.
+- Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string.
 - Pickup location: служителят вижда къде да вземе колата само за своя одобрена/активна резервация.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
 - Реален месечен календарен изглед за планиране и натоварване по дни.
@@ -117,6 +119,9 @@ make prod
 
 - build-ва production image-а;
 - стартира PostgreSQL + FleetFlow app през `docker-compose.postgres.yml`;
+- използва pin-нат PostgreSQL major image
+  (`POSTGRES_IMAGE`, default `postgres:16`), защото
+  `latest` може да направи несъвместим major upgrade на съществуващ volume;
 - изпълнява Alembic миграциите преди старта на приложението;
 - оставя UI-то на `http://localhost:${APP_PORT:-8000}`.
 
@@ -152,8 +157,14 @@ make prod-check
 Тази проверка не стартира контейнери. Тя валидира, че `.env` е в production
 режим, secret-ите са генерирани, `DATABASE_URL` използва същата PostgreSQL
 парола, `DEV_SEED_DEMO_DATA=false`, а `CORS_ALLOW_ORIGINS` вече е реалният
-домейн вместо wildcard/example стойност. Празен NetFleet ключ е само warning,
-защото може да се добави по-късно от Admin UI.
+домейн вместо wildcard/example стойност. Проверява и PostgreSQL image-ът да не
+е `latest`. Празен NetFleet ключ е само warning, защото може да се добави
+по-късно от Admin UI.
+
+Потребителската production инструкция е в
+[`docs/PRODUCTION_USER_GUIDE.md`](docs/PRODUCTION_USER_GUIDE.md). Тя описва
+първо пускане, bootstrap token, NetFleet настройка, admin-owned pool процеса и
+минималната live проверка преди реална употреба.
 
 Полезни production команди:
 
@@ -209,6 +220,7 @@ make logs
 Препоръчаният път е `make setup && make prod`. Ако все пак искаш ръчен flow:
 
 1. Попълни `.env` с реални стойности за `SECRET_KEY`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` и `DATABASE_URL`.
+   Остави `POSTGRES_IMAGE` pin-нат към major версия, например `postgres:16`.
 2. Ако искаш външни нотификации, попълни и `SMTP_*`, `SLACK_WEBHOOK_URL`, `TEAMS_WEBHOOK_URL`.
    Ако искаш live координати, добави ключа през `/admin` или попълни `NETFLEET_API_KEY` в `.env`; `NETFLEET_BASE_URL`
    по подразбиране е `https://api.netfleet.bg:8080`.
@@ -236,12 +248,14 @@ app_settings.py     # DB-backed runtime settings for admin-managed secrets such 
 config.py           # Настройки от env (SECRET_KEY, DB_PATH, DATABASE_URL, TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS, CORS/rate limits, NetFleet)
 db.py               # SQLite/PostgreSQL adapters, schema bootstrap, runtime compatibility upgrades
 netfleet_service.py # Server-side NetFleet GPS telemetry client; ключът не стига до browser-а
+production_readiness.py # shared prod checks for make prod-check and /ops/readiness
 security.py         # HMAC-подписани токени, PBKDF2 пароли, auth deps
 schemas.py          # Pydantic request/response модели
 routers/
   auth.py           # setup-status, bootstrap-admin, login, refresh, logout, auth/me
   cars.py           # /cars + deactivate/activate + blackout windows
   notifications.py  # user notification inbox
+  ops.py            # admin-only production readiness preflight
   reservations.py   # /reservations + suggest/quick-book/preferences + approve/reject/start/return/cancel
   users.py          # user management + password change + admin handoff
 notifications_service.py  # in-app + outbound notification delivery
@@ -263,6 +277,8 @@ docker-compose.postgres.yml
 - `POST /auth/refresh` → върти refresh token-а от cookie-то и връща нов short-lived access token.
 - `POST /auth/logout` → ревокира текущия refresh token и изчиства cookie-то.
 - `GET /auth/me` → връща текущия user context.
+- `GET /health/ready` → публичен readiness probe, който проверява DB връзката.
+- `GET /ops/readiness` → само `fleet_admin`; връща production preflight статус без secret values.
 - Всеки защитен endpoint очаква `Authorization: Bearer <token>`.
 - Токените са **HMAC-SHA256 подписани** с `SECRET_KEY`, имат `exp` и се re-bind-ват към live user state при всяка заявка.
 - Access token-ът по подразбиране живее 1 час (`TOKEN_TTL_SECONDS=3600`), а refresh cookie-то 14 дни (`REFRESH_TOKEN_TTL_SECONDS=1209600`). Refresh token-ите се пазят само като SHA-256 hash в DB, въртят се при всяко `/auth/refresh` извикване и replay на стар refresh token ревокира активната refresh верига за user-а.
@@ -309,7 +325,8 @@ docker-compose.postgres.yml
 19. **Refresh-token rotation** — short-lived access tokens + HttpOnly refresh cookie, replay protection и explicit logout invalidation.
 20. **UI error prevention** — destructive reject/cancel flows пазят задължителна причина, показват inline грешка и маркират конкретното поле с `aria-invalid`.
 21. **Admin-owned lifecycle** — служителите заявяват и отменят свои заявки; само admin отбелязва активен курс и върната кола.
-22. **Production cutover check** — `make prod-check` валидира `.env` за real origin, generated secrets, matching `DATABASE_URL`, disabled demo seed и production mode.
+22. **Production cutover check** — `make prod-check` валидира `.env` за real origin, generated secrets, matching `DATABASE_URL`, pinned PostgreSQL image, disabled demo seed и production mode.
+23. **Secret-safe readiness UI** — admin вижда blockers/warnings за live без да получава сурови secret-и, пароли или connection string.
 
 ## Тестове
 
@@ -338,16 +355,16 @@ Admin Decision Rail, Fleet Pulse copy и mobile calendar, после запис�
 `employee-desktop.png`, `admin-desktop.png` и `employee-mobile.png`.
 `test-results/` е игнориран от git.
 
-Последна локална проверка за request-first/admin-lifecycle/calm-inbox пакета:
-`pytest -q` -> 117 passed, targeted UI/API/production readiness pack -> 28 passed,
+Последна локална проверка за request-first/admin-lifecycle/production-readiness пакета:
+`pytest -q` -> 119 passed, targeted UI/API/production readiness pack -> 30 passed,
 `node --check static/app.js`, `node --check static/i18n.js`,
-`PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile scripts/prod_check.py e2e/test_browser_smoke.py routers/reservations.py`,
+`PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile production_readiness.py routers/ops.py scripts/prod_check.py app.py schemas.py`,
 и `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 1 passed. `make prod-check` fail-fast-ва без `.env`, както трябва за clean
-repo. Старият `fleetflow_test` stack беше премахнат с `down --remove-orphans`,
-Docker image-ът беше rebuild-нат, Alembic тръгна в PostgreSQL compose,
-`/health` на `8001` върна `{"status":"ok"}` и `fleetflow_test-car-pool-1` е
-healthy.
+repo. Старият `fleetflow_test` stack беше премахнат, Docker image-ът беше
+rebuild-нат, PostgreSQL compose мина с pin-нат `postgres:16`, `/health` върна
+`{"status":"ok"}`, `/health/ready` върна `{"status":"ready","database":"postgres"}`
+и актуалният `fleetflow_prod_smoke-car-pool-1` е healthy на `8001`.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 

@@ -37,6 +37,7 @@ const state = {
   telemetry: [],
   telemetryConfigured: false,
   netfleetConfig: null,
+  productionReadiness: null,
   pickupTelemetry: null,
   reservationPreferences: null,
   users: [],
@@ -49,6 +50,7 @@ const state = {
     notifications: false,
     telemetry: false,
     netfleetConfig: false,
+    productionReadiness: false,
     pickupTelemetry: false,
     preferences: false,
     users: false,
@@ -100,6 +102,9 @@ const els = {
   netfleetForm: document.getElementById("netfleetForm"),
   netfleetApiKey: document.getElementById("netfleetApiKey"),
   netfleetConfigStatus: document.getElementById("netfleetConfigStatus"),
+  productionReadinessPanel: document.getElementById("productionReadinessPanel"),
+  productionReadinessSummary: document.getElementById("productionReadinessSummary"),
+  productionReadinessList: document.getElementById("productionReadinessList"),
   reservationPanel: document.getElementById("reservationPanel"),
   passwordPanel: document.getElementById("passwordPanel"),
   userCreatePanel: document.getElementById("userCreatePanel"),
@@ -849,6 +854,7 @@ function renderShell() {
   toggleHidden(els.userCreatePanel, !authenticated || !adminMode || !adminSurface);
   toggleHidden(els.carPanel, !authenticated || !adminMode || !adminSurface);
   toggleHidden(els.netfleetForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
+  toggleHidden(els.productionReadinessPanel, !authenticated || !adminMode || !adminSurface);
   toggleHidden(els.usersDeck, !authenticated || !adminMode || !adminSurface);
   toggleHidden(els.handoffForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
   toggleHidden(els.blackoutForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
@@ -1038,6 +1044,48 @@ function renderNetfleetConfig() {
     return;
   }
   els.netfleetConfigStatus.textContent = t("netfleet.configuredRuntime");
+}
+
+function readinessStatusClass(status) {
+  if (status === "pass") return "readiness-item--pass";
+  if (status === "warn") return "readiness-item--warn";
+  return "readiness-item--fail";
+}
+
+function renderProductionReadiness() {
+  if (!els.productionReadinessSummary || !els.productionReadinessList) return;
+  if (state.loading.productionReadiness) {
+    els.productionReadinessSummary.innerHTML = `<span class="status-pill status-pill--muted">${escapeHtml(t("readiness.loading"))}</span>`;
+    els.productionReadinessList.innerHTML = skeletonCards(2);
+    return;
+  }
+
+  const data = state.productionReadiness;
+  if (!data) {
+    els.productionReadinessSummary.innerHTML = `<span class="status-pill status-pill--muted">${escapeHtml(t("readiness.unavailable"))}</span>`;
+    els.productionReadinessList.innerHTML = "";
+    return;
+  }
+
+  const failed = data.items.filter((item) => item.status === "fail").length;
+  const warnings = data.items.filter((item) => item.status === "warn").length;
+  const summaryKey = data.ready ? (warnings ? "readiness.readyWithWarnings" : "readiness.ready") : "readiness.notReady";
+  const summaryClass = data.ready ? (warnings ? "readiness-summary--warn" : "readiness-summary--pass") : "readiness-summary--fail";
+
+  els.productionReadinessSummary.className = `readiness-summary ${summaryClass}`;
+  els.productionReadinessSummary.innerHTML = `
+    <strong>${escapeHtml(t(summaryKey))}</strong>
+    <span>${escapeHtml(t("readiness.counts", { failed, warnings }))}</span>
+  `;
+  els.productionReadinessList.innerHTML = data.items.map((item) => `
+    <article class="readiness-item ${readinessStatusClass(item.status)}">
+      <div>
+        <strong>${escapeHtml(item.label)}</strong>
+        <p>${escapeHtml(item.detail)}</p>
+      </div>
+      <span>${escapeHtml(t(`readiness.status.${item.status}`))}</span>
+    </article>
+  `).join("");
 }
 
 function updateNotificationBadge() {
@@ -2384,6 +2432,26 @@ async function loadNetfleetConfig() {
   }
 }
 
+async function loadProductionReadiness() {
+  if (!state.token || state.currentRole !== "fleet_admin") {
+    state.productionReadiness = null;
+    renderProductionReadiness();
+    return;
+  }
+
+  setLoading("productionReadiness", true);
+  renderProductionReadiness();
+  try {
+    state.productionReadiness = await apiFetch("/ops/readiness", { headers: authHeaders() });
+  } catch (error) {
+    state.productionReadiness = null;
+    console.warn("Production readiness failed", error);
+  } finally {
+    setLoading("productionReadiness", false);
+    renderProductionReadiness();
+  }
+}
+
 async function loadReservationPreferences() {
   if (!state.token || state.currentRole === "fleet_admin") {
     state.reservationPreferences = null;
@@ -2607,6 +2675,7 @@ async function refreshData() {
       loadReservations(),
       loadFleetPulseReservations(),
       loadNetfleetConfig(),
+      loadProductionReadiness(),
       loadTelemetry(),
       loadReservationPreferences(),
       loadNotifications(),
@@ -3489,6 +3558,7 @@ function initDefaults() {
   renderConflictPreview();
   renderSmartPrefill();
   renderNetfleetConfig();
+  renderProductionReadiness();
   updateOverview();
   updateSummary();
 }
