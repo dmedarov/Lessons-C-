@@ -91,6 +91,14 @@ pilot-ready към 99/100, трябва всички точки по-долу д
    - след първата седмица се актуализират README, ROADMAP, ROADMAP_IMPROVEMENTS
      и този документ с реалните наблюдения.
 
+10. **No silent / no noisy regressions**
+   - automated gates пазят duplicate routes, schema parity, missing i18n,
+     readiness score drift, stale static assets и browser-facing secret leaks;
+   - browser evidence пази overlap, density, destructive recovery, role
+     visibility и calendar/reception next signals;
+   - всяка UI/role/lifecycle/production промяна има targeted test, обновени
+     `.md` handoff документи и зелен `make qa-premium`.
+
 ## Green areas
 
 - Auth, refresh-token rotation, logout и live role rebinding са production
@@ -155,11 +163,12 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 
 - `node --check static/app.js` -> passed.
 - `node --check static/i18n.js` -> passed.
+- `pytest tests/test_documentation_contracts.py -q` -> 5 passed.
 - `pytest tests/test_ui_compliance.py -q` -> 38 passed.
 - Targeted Playwright admin destructive recovery -> 1 passed.
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
 - Full Playwright smoke -> 12 passed.
-- `make qa-premium` -> dependency audit, Python compile, 151 pytest cases,
+- `make qa-premium` -> dependency audit, Python compile, 156 pytest cases,
   JS syntax and 12 Playwright browser checks passed.
 - PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
   containers are healthy.

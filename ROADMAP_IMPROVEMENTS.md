@@ -39,6 +39,10 @@ items are mostly independent and can be parallelised.
   schema/data changes are involved - PostgreSQL via `docker-compose.postgres.yml`.
 - If the item touches user-visible copy, strings are in Bulgarian and go
   through the i18n layer (see item 1.2).
+- If the item touches UI, roles, lifecycle, NetFleet, production readiness,
+  docs or security, prove it does not create silent regressions
+  (route/schema/i18n/secret/readiness drift) or noisy regressions (overlap,
+  duplicate primary actions, stale workflow noise, unclear next move).
 - No new dependencies added without justification in the PR description.
 
 ---
@@ -277,6 +281,20 @@ to 99/100 premium robust production. Do not mark it done from local tests alone.
 
 Only after all ten are true should future agents change
 `docs/PRODUCTION_READINESS_ASSESSMENT.md` above 91/100.
+
+### No silent / no noisy regressions before go-live
+
+- **Silent regressions** are defects that can hide until production pressure:
+  duplicate routes, schema drift, missing i18n, stale assets, wrong role
+  visibility, leaked secrets, stale readiness score, misleading NetFleet
+  configured/unavailable state or docs that no longer match the code.
+- **Noisy regressions** are defects users feel immediately: overlap, clipped
+  controls, too many primary actions, old notifications or returned courses in
+  the current stream, tables before operational rails, status by icon/color
+  only, or a missing next move.
+- **Required response:** add or update the narrowest automated guard first,
+  keep browser evidence current for UI flows, update every affected `.md`, then
+  run the targeted tests plus `make qa-premium` for UI/role/production changes.
 - The last visible GitHub security banner pointed at the Docker base image;
   FleetFlow now builds on a Chainguard Python runtime with local Docker Scout
   `0C/0H/0M/0L`, but GitHub Security must be rechecked after push to confirm
@@ -2205,6 +2223,22 @@ If time is limited, execute items 1-4 before any new feature work.
 
 ## Done
 
+### 2026-04-21 - Executive documentation contract guard
+
+- **Goal:** Keep executive production score, route/migration stats and the
+  99/100 gate synchronized with the codebase instead of relying on memory.
+- **Tests:** added `tests/test_documentation_contracts.py`, covering consistent
+  `91/100` score across handoff docs, external-evidence gating for 99/100,
+  executive QA evidence, all-doc no-silent/no-noisy regression discipline, and
+  route/migration stats against source files.
+- **Docs:** updated Executive Code Summary, ROADMAP and this handoff with the
+  new code/test/project line counts after the guardrail test.
+- **Verification:** `pytest tests/test_documentation_contracts.py -q` -> 5
+  passed; `make qa-premium` -> dependency audit, Python compile, 156 pytest
+  cases, JS syntax and 12 Playwright browser checks; `make smoke-live
+  APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
+  passed.
+
 ### 2026-04-21 - NetFleet unavailable state and production score calibration
 
 - **Goal:** Remove ambiguity from live GPS readiness and document the honest
@@ -2219,11 +2253,11 @@ If time is limited, execute items 1-4 before any new feature work.
   domain, at least two active admins, observed NetFleet connectivity and one
   monitored live week without high-severity flow defects.
 - **Code size snapshot:** 14,296 production app/script/template/style lines;
-  19,293 code lines with automated tests/e2e; 24,808 tracked project lines
+  19,382 code lines with automated tests/e2e; 25,094 tracked project lines
   including docs/config/workflows.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
-  `make qa-premium` -> dependency audit, Python compile, 151 pytest cases,
+  `make qa-premium` -> dependency audit, Python compile, 156 pytest cases,
   JS syntax and 12 Playwright browser checks passed. The local PostgreSQL smoke
   stack was rebuilt on `APP_PORT=8001`, both containers are healthy, and
   `make smoke-live APP_URL=http://127.0.0.1:8001` passed after rebuild.
@@ -2261,7 +2295,7 @@ If time is limited, execute items 1-4 before any new feature work.
   now all describe the same calm handoff flow and production status.
 - **Verification:** `tests/test_ui_compliance.py` -> 38 passed; targeted
   Playwright reception/calendar + overdue signal -> 2 passed; `make
-  qa-premium` -> dependency audit, Python compile, 151 pytest cases, JS syntax
+  qa-premium` -> dependency audit, Python compile, 156 pytest cases, JS syntax
   and 12 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed. Follow-up mid-width calendar fix was rechecked with `node --check`,

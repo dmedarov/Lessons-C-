@@ -484,6 +484,23 @@ FleetFlow трябва да се усеща като тих operational cockpit.
 Подробният role-by-role документ е
 [`docs/ROLE_USER_FLOWS.md`](docs/ROLE_USER_FLOWS.md).
 
+## Go-live regression discipline
+
+До първата реална production седмица FleetFlow трябва да се променя като
+premium operational system, не като експериментален dashboard. Всеки commit
+преди go-live трябва да пази две неща:
+
+- **No silent regressions:** route collisions, schema drift, missing i18n keys,
+  stale static assets, wrong-role actions, secret leakage и подвеждащ NetFleet
+  status трябва да падат в automated tests или explicit production gate.
+- **No noisy regressions:** нов UI не трябва да добавя втори primary action,
+  overlap, натрупани стари нотификации, върнати курсове в основния поток,
+  symbol-only статуси или неясен next move.
+
+Минималният premium gate за промяна е targeted тест за засегнатия flow плюс
+`make qa-premium` преди merge/push, когато промяната засяга UI, роли,
+production readiness, NetFleet, календар, lifecycle или security.
+
 Последна локална проверка за route/schema guardrails пакета:
 `pytest tests/test_schema_contracts.py -q` -> 5 passed,
 `pytest -q` -> 140 passed. Следващата browser-evidence вълна раздели
@@ -520,7 +537,7 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Последна premium QA проверка:
-`make qa-premium` -> passed (dependency audit, Python compile, 151 pytest
+`make qa-premium` -> passed (dependency audit, Python compile, 156 pytest
 cases, JS syntax, 12 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от

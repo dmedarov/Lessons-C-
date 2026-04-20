@@ -322,7 +322,7 @@ operations assistant for internal mobility**, което е:
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
   Alembic revision `20260420_0009`.
 - Latest go-live gate verification: `pytest tests/test_prod_readiness.py -q`
-  -> 7 passed, `make qa-premium` -> 151 pytest cases + 12 browser checks,
+  -> 7 passed, `make qa-premium` -> 156 pytest cases + 12 browser checks,
   and `make smoke-live APP_URL=http://127.0.0.1:8001` returned
   health/ready/active-admin/public overview from the running PostgreSQL stack.
 - Latest calm-flow verification: Playwright captures responsive density
@@ -351,7 +351,7 @@ operations assistant for internal mobility**, което е:
   from configured-but-unavailable live GPS, and shows text-backed
   `Няма връзка` instead of a symbol-only warning.
 - Current tracked size: 14,296 production app/script/template/style lines,
-  19,293 code lines including automated tests/e2e, and 24,808 tracked project
+  19,382 code lines including automated tests/e2e, and 25,094 tracked project
   lines including docs/config/workflows.
 
 ## Go-Live Plan
@@ -371,6 +371,23 @@ operations assistant for internal mobility**, което е:
    domain, at least two active admins and observed NetFleet connectivity.
 6. After go-live, collect operator friction for one week before adding heavier
    Fleet Intelligence snapshots or new modules.
+
+## No-Regression Doctrine
+
+The next wave is not feature accumulation. It is keeping the existing pool
+process precise under real use. Future agents should block both classes of
+regression:
+
+- **Silent regression:** schema drift, duplicate routes, stale docs, missing
+  i18n, security header loss, role leakage, secret exposure, wrong readiness
+  score, or NetFleet state that says "not configured" when the provider is down.
+- **Noisy regression:** overlapping modules, too many visible actions, tables
+  before decision rails, stale notifications dominating the screen, returned
+  trips in current work, or status conveyed only by icon/color.
+
+Preferred implementation order: add/adjust the narrow guardrail test first,
+then change the code/UI, then update every affected `.md`, then run the
+targeted test plus `make qa-premium` for UI/role/production changes.
 
 ## Codebase Analysis: 2026-04-20
 

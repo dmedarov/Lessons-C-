@@ -128,16 +128,28 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 
 Latest verification:
 
-- `make qa-premium` -> passed: dependency audit, Python compile, 151 pytest
+- `make qa-premium` -> passed: dependency audit, Python compile, 156 pytest
   cases, JS syntax and 12 Playwright browser checks.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> passed:
   `/health`, `/health/ready`, `/auth/setup-status` and `/public/overview`.
 
 ## Do Not Regress
 
+Преди go-live пазим едновременно от **тихи регресии** (грешни permissions,
+липсващ GPS/GSM контекст, schema/i18n drift) и **шумни регресии** (overlap,
+твърде много действия, стари записи в текущия поток).
+
 - Не добавяй повече от един primary action на surface.
 - Не показвай таблица като първи избор, ако rail/card/timeline върши работата.
 - Не показвай role controls на роля, която няма право да ги използва.
+- Не връщай read notifications, returned, rejected или cancelled записи в
+  основния оперативен поток.
+- Не скривай requester GSM/GPS/public privacy правила зад икона, hover или
+  implicit permission.
+- Не допускай NetFleet UI да бърка "липсва ключ" с "има ключ, но live
+  доставчикът не отговаря".
+- Не ship-вай role или lifecycle промяна без targeted test и без да обновиш
+  README, ROADMAP, ROADMAP_IMPROVEMENTS и засегнатия user/production документ.
 - Не разчитай на native browser validation за destructive dialogs; custom
   recovery copy + `aria-invalid` + focus target са product standard.
 - Не допускай хоризонтален overflow на 390, 768, 1024 или 1440 px.

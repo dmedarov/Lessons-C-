@@ -109,6 +109,21 @@ make logs
 - **No-go:** wildcard/example CORS, dev/default database password, липсващ
   restore drill, липсващ active admin, или employee достъп до `/admin`.
 
+## 3.1 No-regression правило преди live
+
+Преди реална употреба не приемай промяна само защото "работи на екрана".
+Приеми я само ако не създава:
+
+- **тиха регресия:** role leakage, грешен readiness verdict, schema drift,
+  липсващ превод, стар cached JS/CSS, липсващ audit trail или подвеждащ
+  NetFleet статус;
+- **шумна регресия:** overlap, втори primary action, натрупани read
+  notifications, върнати/отказани курсове в основния поток, неясен next move
+  или статус само с икона/цвят.
+
+Операторският минимум преди cutover остава `make go-live-check`; инженерният
+минимум за UI/role/security промяна е targeted тест плюс `make qa-premium`.
+
 ### Как да разчетеш най-честите блокери
 
 | Блокер | Какво означава | Как се оправя |
