@@ -205,23 +205,25 @@ operations assistant for internal mobility**, което е:
 - Intent-driven summary layer: employee/admin surfaces now expose contextual
   next-action buttons for free mode, active/approved trips, pending admin work,
   active trips and calm fleet state.
+- Current Trip Hero: employee active or next approved trip is promoted above
+  the calendar/table with one primary action (`Старт` or `Върни`).
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 86 passed, JS
+- Latest local verification for this slice: `pytest -q` -> 87 passed, JS
   syntax checks, `git diff --check`, Docker rebuild and `/health` on `8001`.
 
 ## Next Recommended Slices
 
-1. Current trip hero: активната/следващата резервация да стане hero element, не само ред в таблица.
-2. Admin decision rail: най-спешните pending заявки + batch action над таблицата.
-3. Fleet Pulse strip: 3-4 executive insights, not a heavy BI dashboard.
-4. One-tap booking: "резервирай най-подходящата свободна кола" върху вече наличните conflict/slot правила.
-5. Smart prefill: последна кола, често време и типична продължителност.
-6. Timeline-first reservation view; таблицата остава вторичен режим.
-7. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
-8. Browser-level Playwright screenshots/e2e за employee booking, admin approve/reject, bulk reject reason validation, intent actions, refresh/logout и mobile calendar.
-9. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
-10. PostgreSQL migration smoke + backup/restore playbook за production оператори.
+1. Admin decision rail: най-спешните pending заявки + batch action над таблицата.
+2. Fleet Pulse strip: 3-4 executive insights, not a heavy BI dashboard.
+3. One-tap booking: "резервирай най-подходящата свободна кола" върху вече наличните conflict/slot правила.
+4. Smart prefill: последна кола, често време и типична продължителност.
+5. Timeline-first reservation view; таблицата остава вторичен режим.
+6. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
+7. Browser-level Playwright screenshots/e2e за employee booking, admin approve/reject, bulk reject reason validation, intent actions, current trip hero, refresh/logout и mobile calendar.
+8. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
+9. PostgreSQL migration smoke + backup/restore playbook за production оператори.
+10. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
 
 ## References
 

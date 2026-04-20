@@ -119,3 +119,19 @@ def test_status_bar_reports_free_cars_not_only_active_cars() -> None:
         assert '<span class="stat-card__label">Свободни коли</span>' in html
     assert "const availableCars = Math.max(activeCars - activeTrips, 0);" in app_js
     assert 'kpiAvailable.querySelector(".stat-card__value").textContent = availableCars;' in app_js
+
+
+def test_current_trip_hero_promotes_active_or_next_trip() -> None:
+    html = _read("templates/index.html")
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+    assert 'id="currentTripHero" aria-labelledby="currentTripTitle"' in html
+    assert "function currentTripCandidate()" in app_js
+    assert "function renderCurrentTripHero()" in app_js
+    assert 'data-primary-trip-action="true"' in app_js
+    assert 'primaryAction = active ? "return" : "start"' in app_js
+    assert 'renderCurrentTripHero();' in app_js
+    assert '"trip.hero.activeEyebrow": "Твоята кола"' in i18n_js
+    assert ".current-trip-hero" in styles
+    assert ".current-trip-hero__actions .btn" in styles

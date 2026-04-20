@@ -2079,6 +2079,50 @@ select {
   min-height: 44px;
 }
 
+.current-trip-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sp-5);
+  align-items: center;
+  padding: var(--sp-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, var(--surface-strong) 0%, var(--surface-muted) 100%);
+  box-shadow: var(--shadow-md);
+}
+
+.current-trip-hero__content,
+.current-trip-hero__aside {
+  min-width: 0;
+}
+
+.current-trip-hero__content h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 1rem + 1vw, 2rem);
+}
+
+.current-trip-hero__time {
+  margin: var(--sp-2) 0;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.current-trip-hero__purpose {
+  margin: var(--sp-3) 0 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.current-trip-hero__aside {
+  display: grid;
+  justify-items: end;
+  gap: var(--sp-4);
+}
+
+.current-trip-hero__actions .btn {
+  min-height: 44px;
+}
+
 .session-summary,
 .notifications-list,
 .users-grid {
@@ -2276,8 +2320,13 @@ select {
   }
 
   .topbar,
-  .control-rail {
+  .control-rail,
+  .current-trip-hero {
     grid-template-columns: 1fr;
+  }
+
+  .current-trip-hero__aside {
+    justify-items: start;
   }
 
   .hero__secondary {
@@ -2533,6 +2582,8 @@ select {
   .mission-filter__actions,
   .mission-filter__actions .btn,
   .button-row .btn,
+  .current-trip-hero__actions,
+  .current-trip-hero__actions .btn,
   .bulk-action-bar,
   .bulk-action-bar__actions,
   .bulk-action-bar__actions .btn {

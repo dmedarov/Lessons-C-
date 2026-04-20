@@ -26,6 +26,7 @@
 - Loading skeleton-и и submit busy states за основните форми и панели.
 - Ясни status тагове, филтри и действия в контекста на всеки запис.
 - Intent-driven summary: началният operational слой показва следващия най-важен ход според режима.
+- Current Trip Hero: активната или следваща одобрена резервация излиза като основен hero блок с един primary action.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
 - Реален месечен календарен изглед за планиране и натоварване по дни.
 - Mobile day calendar mode под 768px, с предишен/следващ ден и бързо резервиране.
@@ -270,7 +271,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-Последна локална проверка за UI/intent пакета: `pytest -q` -> 86 passed, `node --check static/app.js`, `node --check static/i18n.js`, `git diff --check`, Docker rebuild + `/health` на `8001`.
+Последна локална проверка за UI/current-trip пакета: `pytest -q` -> 87 passed, `node --check static/app.js`, `node --check static/i18n.js`, `git diff --check`, Docker rebuild + `/health` на `8001`.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 
@@ -287,7 +288,7 @@ pytest -q
 - dev seed reset на тестовите акаунти
 - login rate limiting
 - refresh-token rotation, replay protection и logout invalidation
-- UI compliance guardrails: live regions, dialog focus return, exact invalid-field targeting, intent-driven next actions, theme-aware alerts, safe-area mobile nav и задължителни reject/cancel reasons
+- UI compliance guardrails: live regions, dialog focus return, exact invalid-field targeting, intent-driven next actions, current trip hero, theme-aware alerts, safe-area mobile nav и задължителни reject/cancel reasons
 
 ## Alembic migrations
 

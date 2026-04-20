@@ -1605,12 +1605,19 @@ wireframe's "available now" meaning.
 
 ### 9.2 Current trip hero
 
+**Status:** Started on 2026-04-20. Employee desk now renders
+`#currentTripHero` above the calendar when there is an active trip or next
+approved reservation, with one primary action (`Старт` or `Върни`) wired to
+the existing lifecycle handlers.
+
 - **Goal:** Make an active or next approved trip the hero object for employee
   mode.
 - **Files:** `templates/index.html`, `static/app.js`, `static/styles.css`,
   `static/i18n.js`
 - **Acceptance criteria:** active trip shows car, time window, status and one
   primary button (`Старт` or `Върни`) without requiring table scanning.
+- **Verification:** `pytest tests/test_ui_compliance.py`, full `pytest -q`,
+  manual browser check at desktop and 390 px.
 
 ### 9.3 Admin decision rail
 
@@ -1723,7 +1730,10 @@ If time is limited, execute items 1-4 before any new feature work.
   layer with one primary action per mode: book now, start/return current trip,
   review pending admin work, view active trips or inspect fleet state. Status
   bar now reports free cars instead of merely active cars.
-- **Verification:** `pytest -q` passes with 86 tests, JS syntax checks,
+- **Phase 9.2 started:** Employee desk now promotes the active or next
+  approved reservation into a Current Trip Hero with one primary action,
+  moving the most important trip out of the table.
+- **Verification:** `pytest -q` passes with 87 tests, JS syntax checks,
   `git diff --check`, Docker compose rebuild and `/health` smoke on `8001`.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation

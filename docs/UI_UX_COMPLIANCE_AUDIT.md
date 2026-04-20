@@ -37,6 +37,7 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | --- | --- | --- | --- | --- |
 | Login/setup | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Apple buttons, WCAG labels/errors, bootstrap token copy, keyboard submit | Verify labels, focus order, error recovery and 390 px layout. Field errors are now wired with `aria-invalid` + `aria-describedby`. |
 | Intent summary / next action | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | One primary action, clear next step, keyboard focus, 44 px targets | Summary deck now renders contextual next-action buttons for employee/admin modes. Capture desktop/mobile screenshots and verify no surface exposes competing primary actions. |
+| Current trip hero | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | One primary action, status text, keyboard focus, mobile fit | Active/next approved employee trip is promoted above calendar/table with `Старт` or `Върни`. Capture desktop/mobile screenshots and verify focus after action. |
 | Status bar / fleet KPIs | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Live system status, text labels, no color-only meaning, 390 px fit | KPI strip now reports pending, active trips and free cars. Verify mobile wrapping and screen-reader order. |
 | Employee booking form | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Apple layout, NN/g error prevention, WCAG form semantics, conflict preview status | Test invalid date range, conflict warning, preserved input after failure. `conflictPreview` already has `role=status` + `aria-live=polite`. |
 | Calendar studio | `templates/index.html`, `static/app.js`, `static/styles.css` | needs evidence | Responsive 390/768/1440, keyboard reachability, color+text statuses, no overlap | Capture mobile day mode and desktop month screenshots; verify day controls. Month prev/next controls now have accessible labels on both surfaces. |
@@ -105,9 +106,12 @@ styles.
 - `pass`: status bar reports free cars as active cars minus active trips,
   aligning the KPI with the cockpit wireframe; covered by
   `tests/test_ui_compliance.py`.
+- `pass`: current trip hero promotes an active or next approved employee trip
+  above table scanning and exposes one primary lifecycle action; covered by
+  `tests/test_ui_compliance.py`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
-- `evidence`: latest local handoff check ran `pytest -q` -> 86 passed,
+- `evidence`: latest local handoff check ran `pytest -q` -> 87 passed,
   `node --check static/app.js`, `node --check static/i18n.js`,
   `git diff --check`, Docker rebuild and `/health` on `8001`.
 

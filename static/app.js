@@ -115,6 +115,7 @@ const els = {
   carsGrid: document.getElementById("carsGrid"),
   reservationsTableBody: document.getElementById("reservationsTableBody"),
   overviewStats: document.getElementById("overviewStats"),
+  currentTripHero: document.getElementById("currentTripHero"),
   message: document.getElementById("message"),
   messageTitle: document.getElementById("messageTitle"),
   messageText: document.getElementById("messageText"),
@@ -970,6 +971,55 @@ function updateSummary() {
     { name: "book-now", labelKey: "intent.action.bookNow", primary: true },
     { name: "view-my-trips", labelKey: "intent.action.viewMyTrips" },
   ]);
+}
+
+function currentTripCandidate() {
+  if (state.currentRole === "fleet_admin") return null;
+  const activeTrip = state.reservations.find((item) => item.status === "checked_out");
+  if (activeTrip) return activeTrip;
+  return [...state.reservations]
+    .filter((item) => item.status === "approved")
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0] || null;
+}
+
+function renderCurrentTripHero() {
+  if (!els.currentTripHero) return;
+  const item = state.currentUser ? currentTripCandidate() : null;
+  toggleHidden(els.currentTripHero, !item);
+  if (!item) {
+    els.currentTripHero.innerHTML = "";
+    return;
+  }
+
+  const car = carMap().get(item.car_id);
+  const carLabel = car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id });
+  const active = item.status === "checked_out";
+  const primaryAction = active ? "return" : "start";
+  const primaryLabel = active ? "action.returnCar" : "action.startTrip";
+  const purpose = item.purpose
+    ? `<p class="current-trip-hero__purpose">${escapeHtml(t("trip.hero.reason", { purpose: item.purpose }))}</p>`
+    : "";
+
+  els.currentTripHero.innerHTML = `
+    <div class="current-trip-hero__content">
+      <p class="panel__eyebrow">${escapeHtml(t(active ? "trip.hero.activeEyebrow" : "trip.hero.approvedEyebrow"))}</p>
+      <h2 id="currentTripTitle">${escapeHtml(t(active ? "trip.hero.activeTitle" : "trip.hero.approvedTitle", { car: carLabel }))}</h2>
+      <p class="current-trip-hero__time">${escapeHtml(t("trip.hero.window", {
+        start: formatDateTime(item.start_time),
+        end: formatDateTime(item.end_time),
+      }))}</p>
+      <p class="section-copy">${escapeHtml(t(active ? "trip.hero.activeCopy" : "trip.hero.approvedCopy"))}</p>
+      ${purpose}
+    </div>
+    <div class="current-trip-hero__aside">
+      <span class="status-tag status-tag--${item.status}">${escapeHtml(t("trip.hero.status", { status: lifecycleLabel(item.status) }))}</span>
+      <div class="current-trip-hero__actions">
+        <button class="btn btn--primary" type="button" data-reservation-action="${primaryAction}" data-id="${item.id}" data-primary-trip-action="true">
+          ${escapeHtml(t(primaryLabel))}
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 function renderNotifications() {
@@ -2001,6 +2051,7 @@ async function refreshData() {
     await Promise.all([loadReservations(), loadNotifications(), loadUsers()]);
     updateOverview();
     updateSummary();
+    renderCurrentTripHero();
   } catch (error) {
     showMessage("Неуспешно зареждане", error.message);
   }
@@ -2201,6 +2252,7 @@ async function handleLogout() {
   renderNotifications();
   updateNotificationBadge();
   renderReservations();
+  renderCurrentTripHero();
   renderUsers();
   renderBlackouts();
   renderHandoffCandidates();
@@ -2744,6 +2796,7 @@ function wireToolbar(buttons, key, callback) {
       await callback();
       updateSummary();
       updateOverview();
+      renderCurrentTripHero();
     });
   });
 }
@@ -2769,6 +2822,7 @@ function initDefaults() {
   renderCars();
   renderCarSelect();
   renderReservations();
+  renderCurrentTripHero();
   renderCalendar();
   renderDayTimeline();
   renderConflictPreview();
