@@ -684,3 +684,105 @@ def test_destructive_action_keyboard_recovery(browser: Browser, server: str, art
     expect(return_dialog).to_be_hidden()
     expect(return_button).to_be_focused()
     reception_context.close()
+
+
+def test_admin_destructive_configuration_keyboard_recovery(
+    browser: Browser, server: str, artifact_dir: Path
+) -> None:
+    admin_token = _api_login(server, "admin", "AdminPass123")
+    candidate = _api_json(
+        server,
+        "/users",
+        "POST",
+        admin_token,
+        {
+            "username": "destructiveconfig",
+            "display_name": "Destructive Config",
+            "password": "DestructiveConfig123",
+            "role": "employee",
+        },
+    )
+    assert isinstance(candidate, dict)
+    cars_response = _api_json(server, "/cars", token=admin_token)
+    assert isinstance(cars_response, dict)
+    cars = cars_response["items"]
+    blackout_start = (datetime.now().astimezone() + timedelta(days=3)).replace(
+        hour=9, minute=0, second=0, microsecond=0
+    )
+    _api_json(
+        server,
+        f"/cars/{cars[0]['id']}/blackouts",
+        "POST",
+        admin_token,
+        {
+            "kind": "maintenance",
+            "start_time": blackout_start.isoformat(),
+            "end_time": (blackout_start + timedelta(hours=2)).isoformat(),
+            "reason": "Keyboard recovery evidence",
+        },
+    )
+
+    context = browser.new_context(viewport={"width": 1280, "height": 1000})
+    page = context.new_page()
+    _login(page, server, "/admin", "admin", "AdminPass123")
+
+    deactivate_button = page.locator(
+        f'[data-user-action="deactivate"][data-user-id="{candidate["id"]}"]'
+    )
+    expect(deactivate_button).to_be_visible(timeout=10_000)
+    deactivate_button.focus()
+    page.keyboard.press("Enter")
+    deactivate_dialog = page.locator("dialog[open]")
+    expect(deactivate_dialog).to_be_visible()
+    expect(deactivate_dialog.locator("button.btn--primary")).to_be_focused()
+    page.screenshot(path=artifact_dir / "destructive-user-deactivate-confirmation.png", full_page=True)
+    page.keyboard.press("Escape")
+    expect(deactivate_dialog).to_be_hidden()
+    expect(deactivate_button).to_be_focused()
+
+    role_button = page.locator(f'[data-user-role="{candidate["id"]}"]')
+    role_button.focus()
+    page.keyboard.press("Enter")
+    role_dialog = page.locator("dialog[open]")
+    expect(role_dialog).to_be_visible()
+    expect(role_dialog.locator("select[name='role']")).to_be_focused()
+    role_dialog.locator("select[name='role']").select_option("fleet_reception")
+    role_dialog.locator("button.btn--primary").press("Enter")
+    expect(role_dialog.locator("[data-dialog-error]")).to_contain_text("Добави причина", timeout=10_000)
+    expect(role_dialog.locator("textarea[name='reason']")).to_have_attribute("aria-invalid", "true")
+    expect(role_dialog.locator("textarea[name='reason']")).to_be_focused()
+    page.screenshot(path=artifact_dir / "destructive-role-change-recovery.png", full_page=True)
+    role_dialog.locator("textarea[name='reason']").fill("Роля рецепция за тест на ключове.")
+    role_dialog.locator("button.btn--primary").press("Enter")
+    expect(page.locator("#messageTitle")).to_contain_text("Ролята е обновена", timeout=10_000)
+
+    page.locator("#handoffUserId").select_option(str(candidate["id"]))
+    handoff_submit = page.locator('#handoffForm button[type="submit"]')
+    handoff_submit.focus()
+    page.keyboard.press("Enter")
+    expect(page.locator("#handoffReason")).to_have_attribute("aria-invalid", "true")
+    expect(page.locator("#handoffReason")).to_be_focused()
+    page.screenshot(path=artifact_dir / "destructive-handoff-recovery.png", full_page=True)
+    page.locator("#handoffReason").fill("Проверка на admin continuity без реално прехвърляне.")
+    handoff_submit.focus()
+    page.keyboard.press("Enter")
+    handoff_dialog = page.locator("dialog[open]")
+    expect(handoff_dialog).to_be_visible()
+    expect(handoff_dialog.locator("button.btn--primary")).to_be_focused()
+    page.screenshot(path=artifact_dir / "destructive-handoff-confirmation.png", full_page=True)
+    page.keyboard.press("Escape")
+    expect(handoff_dialog).to_be_hidden()
+    expect(handoff_submit).to_be_focused()
+
+    blackout_button = page.locator("[data-blackout-disable]").first
+    expect(blackout_button).to_be_visible(timeout=10_000)
+    blackout_button.focus()
+    page.keyboard.press("Enter")
+    blackout_dialog = page.locator("dialog[open]")
+    expect(blackout_dialog).to_be_visible()
+    expect(blackout_dialog.locator("button.btn--primary")).to_be_focused()
+    page.screenshot(path=artifact_dir / "destructive-blackout-deactivate-confirmation.png", full_page=True)
+    page.keyboard.press("Escape")
+    expect(blackout_dialog).to_be_hidden()
+    expect(blackout_button).to_be_focused()
+    context.close()

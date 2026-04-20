@@ -185,6 +185,12 @@ make prod-check
 `employee`, `fleet_approver`, `fleet_reception` и `fleet_admin`, кои действия
 са забранени за всяка роля и кои calm/reliable flows не трябва да регресират.
 
+Текущата go-live оценка е в
+[`docs/PRODUCTION_READINESS_ASSESSMENT.md`](docs/PRODUCTION_READINESS_ASSESSMENT.md).
+Краткият извод: готово за контролиран вътрешен pilot след real `.env`,
+fresh backup/restore drill, `make go-live-check APP_URL=<production-url>` и
+директна проверка на GitHub Dependabot alert-а.
+
 Полезни production команди:
 
 ```bash
@@ -427,7 +433,11 @@ responsive density evidence и destructive-action keyboard recovery.
 `density-public-768.png`, `density-employee-390.png`,
 `density-approver-768.png`, `density-reception-768.png`,
 `density-admin-1024.png`, `density-admin-1440.png`,
-`destructive-reject-recovery.png` и `destructive-return-confirmation.png`.
+`destructive-reject-recovery.png`, `destructive-return-confirmation.png`,
+`destructive-user-deactivate-confirmation.png`,
+`destructive-role-change-recovery.png`, `destructive-handoff-recovery.png`,
+`destructive-handoff-confirmation.png` и
+`destructive-blackout-deactivate-confirmation.png`.
 `test-results/` е игнориран от git.
 
 ## Спокойни и надеждни flows
@@ -441,7 +451,8 @@ FleetFlow трябва да се усеща като тих operational cockpit.
 - **Reception:** започва от Reception Rail; approved handoff и active return
   са пред таблицата, а return има confirmation ritual и Escape cancel.
 - **Admin:** вижда Fleet Pulse, readiness, NetFleet и configuration само когато
-  ролята има право; employee не остава на `/admin`.
+  ролята има право; employee не остава на `/admin`; role change и admin
+  handoff изискват причина и exact-field recovery.
 - **Public pre-login:** показва реални aggregate counts и календарна заетост
   без заявител, GSM, GPS, reservation id или lifecycle действия.
 
@@ -484,13 +495,18 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Последна premium QA проверка:
-`make qa-premium` -> passed (dependency audit, Python compile, 147 pytest
-cases, JS syntax, 10 Playwright browser checks). `make smoke-live
+`make qa-premium` -> passed (dependency audit, Python compile, 148 pytest
+cases, JS syntax, 11 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
 `pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,
 missing и stale restore-drill marker сценарии. Активният Docker stack
 `fleetflow_prod_smoke` е healthy на `8001`.
+
+Текущ source checkout няма `.env`, затова `make prod-check` отказва с
+`Run 'make setup' first to create .env`; това е очакван operator guard, не
+регресия. За реален cutover първо пусни `make setup` или осигури production
+`.env`, после `make go-live-check APP_URL=<production-url>`.
 
 Последна локална проверка за NetFleet pickup clarity:
 `pytest tests/test_ui_compliance.py -q` -> 34 passed, `make qa-premium` ->
@@ -576,7 +592,10 @@ alembic revision -m "describe change"
 
 - Няма UI за управление на активни sessions по устройства; logout ревокира текущия refresh token, а replay защита чисти активната refresh верига за user-а.
 - Rate limiting-ът е in-memory и е подходящ за single-container deployment; за multi-instance production го изнеси към Redis, API gateway или WAF.
-- Следващата production/UI стъпка е външно closure доказателство и визуална проверимост: потвърди GitHub Actions Production Gates + Dependabot alert, разшири destructive-action browser evidence и продължи с модулното разделяне на `static/app.js`.
+- Следващата production/UI стъпка е реален cutover rehearsal: final `.env`,
+  backup/restore drill, `make go-live-check APP_URL=<production-url>`, директна
+  проверка на GitHub Actions/Dependabot и след това модулно разделяне на
+  `static/app.js`.
 
 ## План за развитие
 

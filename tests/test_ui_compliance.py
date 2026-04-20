@@ -76,7 +76,7 @@ def test_reject_dialogs_require_reason_and_mark_invalid_field() -> None:
     styles = _read("static/styles.css")
     assert "form.noValidate = true;" in app_js
     assert app_js.count('textarea name="reason" rows="3" required') == 3
-    assert app_js.count('fieldName: "reason"') == 3
+    assert app_js.count('fieldName: "reason"') >= 3
     assert 'targetField.setAttribute("aria-invalid", "true");' in app_js
     assert 'targetField.setAttribute("aria-describedby", errorId);' in app_js
     assert 'targetField.focus();' in app_js
@@ -90,6 +90,23 @@ def test_dialog_validation_can_target_the_specific_invalid_field() -> None:
     assert 'fieldName: "newPassword"' in app_js
     assert 'fieldName: "startTime"' in app_js
     assert app_js.count('fieldName: "endTime"') == 2
+
+
+def test_admin_handoff_and_role_change_require_reasons() -> None:
+    html = _read("templates/admin.html")
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    assert 'id="handoffUserIdError"' in html
+    assert 'id="handoffReasonError"' in html
+    assert "function validateHandoffForm()" in app_js
+    assert "function focusFirstFieldError(ids = fieldErrorIds)" in app_js
+    assert 'setFieldError("handoffUserId", t("admin.handoffUserRequired"))' in app_js
+    assert 'setFieldError("handoffReason", t("admin.handoffReasonRequired"))' in app_js
+    assert 'showMessage("Има проблем", "Поправи данните за admin handoff.")' in app_js
+    assert 'focusFirstFieldError(["handoffUserId", "handoffReason"])' in app_js
+    assert 't("admin.roleChangeReasonRequired")' in app_js
+    assert '"admin.roleChangeReasonRequired": "Добави причина за смяната на роля."' in i18n_js
+    assert '"admin.handoffReasonRequired": "Добави причина за admin handoff."' in i18n_js
 
 
 def test_cancel_dialog_requires_reason_before_destructive_action() -> None:

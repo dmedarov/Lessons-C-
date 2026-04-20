@@ -77,14 +77,17 @@
 2. Вижда Decision Rail и Reception Rail, когато има operational работа.
 3. Управлява потребители, роли, автомобили, blackout-и, NetFleet ключ и
    production settings.
-4. Използва `make go-live-check` и Admin readiness panel преди live.
+4. За role change и admin handoff добавя причина, за да има audit trail.
+5. Използва `make go-live-check` и Admin readiness panel преди live.
 
 **Надеждност:**
 
 - поне двама active `fleet_admin` са препоръчителни преди production;
 - admin handoff е guarded flow;
 - destructive/configuration действия трябва да имат причина, confirmation или
-  точен recovery path.
+  точен recovery path;
+- production readiness verdict-ът се поддържа в
+  `docs/PRODUCTION_READINESS_ASSESSMENT.md`.
 
 ## Responsive density evidence
 
@@ -112,11 +115,16 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 - `density-admin-1440.png`
 - `destructive-reject-recovery.png`
 - `destructive-return-confirmation.png`
+- `destructive-user-deactivate-confirmation.png`
+- `destructive-role-change-recovery.png`
+- `destructive-handoff-recovery.png`
+- `destructive-handoff-confirmation.png`
+- `destructive-blackout-deactivate-confirmation.png`
 
 Latest verification:
 
-- `make qa-premium` -> passed: dependency audit, Python compile, 147 pytest
-  cases, JS syntax and 10 Playwright browser checks.
+- `make qa-premium` -> passed: dependency audit, Python compile, 148 pytest
+  cases, JS syntax and 11 Playwright browser checks.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> passed:
   `/health`, `/health/ready`, `/auth/setup-status` and `/public/overview`.
 

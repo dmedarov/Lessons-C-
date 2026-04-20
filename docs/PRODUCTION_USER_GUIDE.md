@@ -58,6 +58,9 @@ make go-live-check APP_URL=http://127.0.0.1:8000
 доказателство, локалните release тестове и live health/readiness/active-admin/
 public overview smoke срещу подадения `APP_URL`.
 
+Текущата readiness оценка и go/no-go правилата са в
+[`docs/PRODUCTION_READINESS_ASSESSMENT.md`](PRODUCTION_READINESS_ASSESSMENT.md).
+
 ## 2. Bootstrap token и първи admin
 
 При първо production стартиране, ако още няма admin, приложението генерира

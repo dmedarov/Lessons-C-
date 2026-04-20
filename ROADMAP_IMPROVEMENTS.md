@@ -79,6 +79,7 @@ scripts/backup_postgres.sh   PostgreSQL custom-format backup helper
 scripts/restore_postgres_drill.sh Isolated restore drill helper
 docs/PRODUCTION_USER_GUIDE.md Production user/operator guide
 docs/ROLE_USER_FLOWS.md       Role-by-role user flow and visibility contract
+docs/PRODUCTION_READINESS_ASSESSMENT.md Go-live readiness verdict and blockers
 ```
 
 > ⚠️ The prior UI audit referenced `static/index.html`. The correct path is
@@ -192,9 +193,10 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   accessibility regression tests before claiming "compliant" in release notes.
 - Browser-level end-to-end coverage is now role-specific for public, employee,
   approver, admin, mobile employee and reception flows, with browser-computed
-  contrast, responsive density and destructive-action recovery proof. The next
-  coverage gap is deeper keyboard evidence for user deactivate, role change,
-  admin handoff and blackout deactivate.
+  contrast, responsive density and destructive-action recovery proof for
+  reject, return, user deactivate, role change, admin handoff and blackout
+  deactivate. The next coverage gap is manual screen-reader confirmation and
+  configured/unconfigured NetFleet screenshots.
 - Production observability now has structured request logs; next hardening is
   external alert delivery and an operator-facing log retention/export decision.
 - Intelligence snapshots/materialized insights remain intentionally deferred
@@ -229,7 +231,7 @@ Use it before choosing the next implementation task.
 | Frontend | Intent-driven cockpit, rails, timeline and NetFleet context are already premium. | `static/app.js` is too large for safe autonomous edits. | Create module boundaries before the next large UI addition. |
 | CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies risky token pairs and density on key role surfaces. | 3177-line stylesheet still makes overlap regressions easy. | Keep density evidence green, then split component CSS if churn continues. |
 | Database | Alembic production path and PostgreSQL smoke exist. | Runtime bootstrap/upgrades in `db.py` can drift from migrations. | Add schema parity tests for SQLite bootstrap, PostgreSQL bootstrap and Alembic head. |
-| E2E evidence | Playwright smoke now runs separate public, contrast, employee, approver, admin, mobile, reception, responsive density and destructive recovery checks. | More destructive-action evidence is still needed for settings/user-management flows. | Add keyboard recovery screenshots for deactivate, role change, handoff and blackout deactivate. |
+| E2E evidence | Playwright smoke now runs separate public, contrast, employee, approver, admin, mobile, reception, responsive density and destructive recovery checks. | Manual screen-reader and real production URL evidence are still external. | Add configured/unconfigured NetFleet screenshots and record real cutover smoke. |
 | NetFleet | Server-side key handling, scoped employee/reception pickup context and freshness wording are correct. | Real operators may still want an address/geocoding layer later. | Keep GPS read-only; consider address enrichment only after live use proves it helps. |
 | Production | Makefile, prod checks, Docker health, backups and restore drill are in place. | GitHub alert state still needs direct external confirmation. | Inspect GitHub Security/Dependabot after push and record exact closure evidence. |
 | Intelligence | Best-car scoring and compact Fleet Pulse are explainable and light. | Premature analytics tables would add complexity before real usage data. | Defer snapshots until production data volume or operator needs prove the need. |
@@ -2109,13 +2111,13 @@ from the last 60 minutes instead of raw NetFleet events.
    Note: local `gh` is not installed and unauthenticated `curl` to the private
    Dependabot API returns 401, so use GitHub web UI or an authenticated API
    token to inspect the exact alert.
-2. **8.5 destructive-action recovery sweep** - extend the new reject/return
-   evidence to deactivate, role change, handoff and blackout deactivate.
+2. **Production rehearsal with `make go-live-check`** - run the final gate
+   against the actual production URL after real `.env` and backup/restore drill,
+   then record the result in `docs/PRODUCTION_READINESS_ASSESSMENT.md`.
 3. **Responsive density review** - inspect the new density screenshots for weak
    hierarchy before production handoff and keep the automated guard green.
-4. **Production rehearsal with `make go-live-check`** - run the final gate
-   against the actual production URL after backup/restore drill and record the
-   result in the handoff notes.
+4. **External production signal closure** - confirm GitHub Actions Production
+   Gates and inspect the GitHub Dependabot alert directly.
 5. **10.3 Split `static/app.js` into modules** - do this before large frontend
    additions; the file is already 4254 lines.
 6. **10.4 reservation service extraction** - keep endpoints stable while
@@ -2183,6 +2185,28 @@ If time is limited, execute items 1-4 before any new feature work.
   cases + 10 Playwright checks, and `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed.
+
+### 2026-04-21 - Production readiness assessment and admin recovery sweep
+
+- **Goal:** Decide honestly how close FleetFlow is to production and close the
+  remaining planned destructive-action keyboard evidence.
+- **Docs:** added `docs/PRODUCTION_READINESS_ASSESSMENT.md` with an 88/100
+  readiness verdict, green areas, go-live blockers and explicit go/no-go rules.
+- **UX:** role change now requires an audit reason in the dialog; admin handoff
+  now requires a selected user plus reason with field-level recovery.
+- **Keyboard evidence:** Playwright now captures user deactivate confirmation,
+  role-change required-reason recovery, admin handoff required-reason recovery,
+  admin handoff confirmation and blackout deactivate confirmation.
+- **Production finding:** `make prod-check` is blocked in the source checkout
+  because `.env` is missing, which is the expected operator guard. Real cutover
+  still needs final `.env`, backup/restore drill and `make go-live-check
+  APP_URL=<production-url>`.
+- **Verification:** `node --check static/app.js`, `node --check static/i18n.js`,
+  `tests/test_ui_compliance.py` -> 35 passed, targeted Playwright admin
+  destructive recovery -> 1 passed, full Playwright smoke -> 11 passed,
+  `make qa-premium` -> 148 pytest cases + 11 Playwright checks, and
+  `make smoke-live APP_URL=http://127.0.0.1:8001` ->
+  health/ready/active-admin/public overview passed.
 
 ### 2026-04-20 - NetFleet pickup clarity
 

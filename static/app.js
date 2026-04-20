@@ -233,6 +233,8 @@ const fieldErrorIds = [
   "newDisplayName",
   "newGsmNumber",
   "newUserPassword",
+  "handoffUserId",
+  "handoffReason",
   "plate",
   "model",
   "netfleetApiKey",
@@ -564,6 +566,10 @@ function roleChangeDialog(user) {
       role: form.elements.role.value,
       reason: form.elements.reason.value.trim() || null,
     }),
+    validate: (value) =>
+      value.role !== user.role && !value.reason
+        ? { message: t("admin.roleChangeReasonRequired"), fieldName: "reason" }
+        : null,
   });
 }
 
@@ -610,6 +616,11 @@ function setFieldError(id, message) {
     inputNode.setAttribute("aria-invalid", "true");
     inputNode.setAttribute("aria-describedby", `${id}Error`);
   }
+}
+
+function focusFirstFieldError(ids = fieldErrorIds) {
+  const firstInvalidId = ids.find((id) => document.getElementById(id)?.getAttribute("aria-invalid") === "true");
+  document.getElementById(firstInvalidId)?.focus();
 }
 
 function showMessage(title, text, type = "error", details = []) {
@@ -3283,6 +3294,20 @@ function validateUserForm() {
   return valid;
 }
 
+function validateHandoffForm() {
+  clearErrors();
+  let valid = true;
+  if (!els.handoffUserId?.value) {
+    setFieldError("handoffUserId", t("admin.handoffUserRequired"));
+    valid = false;
+  }
+  if (!els.handoffReason?.value.trim()) {
+    setFieldError("handoffReason", t("admin.handoffReasonRequired"));
+    valid = false;
+  }
+  return valid;
+}
+
 function validateCarForm() {
   clearErrors();
   let valid = true;
@@ -3613,8 +3638,9 @@ async function handleCarCreate(event) {
 
 async function handleHandoff(event) {
   event.preventDefault();
-  if (!els.handoffUserId || !els.handoffUserId.value) {
-    showMessage("Липсва потребител", "Избери активен потребител за admin handoff.");
+  if (!validateHandoffForm()) {
+    showMessage("Има проблем", "Поправи данните за admin handoff.");
+    focusFirstFieldError(["handoffUserId", "handoffReason"]);
     return;
   }
 
