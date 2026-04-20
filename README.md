@@ -187,7 +187,7 @@ make prod-check
 
 Текущата go-live оценка е в
 [`docs/PRODUCTION_READINESS_ASSESSMENT.md`](docs/PRODUCTION_READINESS_ASSESSMENT.md).
-Краткият извод: готово за контролиран вътрешен pilot след real `.env`,
+Краткият извод: **90/100 за контролиран вътрешен pilot** след real `.env`,
 fresh backup/restore drill, `make go-live-check APP_URL=<production-url>` и
 директна проверка на GitHub Dependabot alert-а.
 
@@ -437,7 +437,9 @@ responsive density evidence и destructive-action keyboard recovery.
 `destructive-user-deactivate-confirmation.png`,
 `destructive-role-change-recovery.png`, `destructive-handoff-recovery.png`,
 `destructive-handoff-confirmation.png` и
-`destructive-blackout-deactivate-confirmation.png`.
+`destructive-blackout-deactivate-confirmation.png`. Calendar/reception evidence
+добавя `admin-overdue-return-signal.png` и
+`reception-overdue-return-signal.png`.
 `test-results/` е игнориран от git.
 
 ## Спокойни и надеждни flows
@@ -449,10 +451,15 @@ FleetFlow трябва да се усеща като тих operational cockpit.
 - **Approver:** започва от Decision Rail; reject изисква причина, фокусира
   точното поле при празен submit и не губи контекста.
 - **Reception:** започва от Reception Rail; approved handoff и active return
-  са пред таблицата, а return има confirmation ritual и Escape cancel.
+  са пред таблицата, overdue return е top signal пред нормални approvals, а
+  return има confirmation ritual и Escape cancel.
 - **Admin:** вижда Fleet Pulse, readiness, NetFleet и configuration само когато
   ролята има право; employee не остава на `/admin`; role change и admin
-  handoff изискват причина и exact-field recovery.
+  handoff изискват причина и exact-field recovery; overdue return също излиза
+  като първи next signal за admin.
+- **Calendar:** multi-day записи се показват на всяка засегната дата като
+  начало/продължава/край и са сортирани най-горе, без да преливат в съседни
+  дати.
 - **Public pre-login:** показва реални aggregate counts и календарна заетост
   без заявител, GSM, GPS, reservation id или lifecycle действия.
 
@@ -495,8 +502,8 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Последна premium QA проверка:
-`make qa-premium` -> passed (dependency audit, Python compile, 148 pytest
-cases, JS syntax, 11 Playwright browser checks). `make smoke-live
+`make qa-premium` -> passed (dependency audit, Python compile, 149 pytest
+cases, JS syntax, 12 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
 `pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,

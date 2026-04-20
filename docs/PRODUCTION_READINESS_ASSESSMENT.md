@@ -7,7 +7,11 @@
 FleetFlow е готов за **контролиран вътрешен production pilot**, след като
 операторските cutover условия бъдат изпълнени върху реалния deployment.
 
-Оценка: **88/100**.
+Оценка: **90/100 за контролиран pilot**.
+
+Оценка за unattended/full rollout: **не още**. Преди това трябва да има реален
+production URL rehearsal, преглед на GitHub Dependabot alert-а и поне няколко
+дни наблюдение на служебния процес.
 
 Това не е "няма какво да се счупи" оценка. Това е: core процесите, ролите,
 UI guardrails, backup/restore discipline и browser evidence са достатъчно
@@ -30,6 +34,10 @@ UI guardrails, backup/restore discipline и browser evidence са достатъ
 - Backup/restore drill е част от финалния gate.
 - UI/UX evidence вече включва responsive density, contrast и destructive
   keyboard recovery screenshots.
+- Всички календарни изгледи показват multi-day записи на всяка засегната дата
+  като начало/продължава/край, със записи от диапазони най-горе в деня.
+- Reception и admin получават top next signal за просрочено връщане преди
+  pending approvals, защото това е по-спешен operational риск.
 
 ## Remaining go-live blockers
 
@@ -62,11 +70,12 @@ UI guardrails, backup/restore discipline и browser evidence са достатъ
 
 - `node --check static/app.js` -> passed.
 - `node --check static/i18n.js` -> passed.
-- `pytest tests/test_ui_compliance.py -q` -> 35 passed.
+- `pytest tests/test_ui_compliance.py -q` -> 36 passed.
 - Targeted Playwright admin destructive recovery -> 1 passed.
-- Full Playwright smoke -> 11 passed.
-- `make qa-premium` -> dependency audit, Python compile, 148 pytest cases,
-  JS syntax and 11 Playwright browser checks passed.
+- Targeted Playwright reception calendar + overdue return signal -> 2 passed.
+- Full Playwright smoke -> 12 passed.
+- `make qa-premium` -> dependency audit, Python compile, 149 pytest cases,
+  JS syntax and 12 Playwright browser checks passed.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> `/health`,
   `/health/ready`, `/auth/setup-status` and `/public/overview` passed.
 - `make prod-check` in the source checkout -> blocked as expected because
@@ -84,6 +93,10 @@ reliable flows:
 - admin handoff requires a reason and field-level recovery;
 - blackout deactivate confirmation supports keyboard activation and Escape
   recovery.
+- admin/reception overdue return next signal is visible before less urgent
+  work;
+- calendar range records stay visible on every covered day without overflowing
+  neighboring date cells.
 
 The remaining UX risk before broad rollout is not a missing module; it is
 operational observation. Use the first week to collect where employees,

@@ -322,7 +322,7 @@ operations assistant for internal mobility**, което е:
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
   Alembic revision `20260420_0009`.
 - Latest go-live gate verification: `pytest tests/test_prod_readiness.py -q`
-  -> 7 passed, `make qa-premium` -> 148 pytest cases + 11 browser checks,
+  -> 7 passed, `make qa-premium` -> 149 pytest cases + 12 browser checks,
   and `make smoke-live APP_URL=http://127.0.0.1:8001` returned
   health/ready/active-admin/public overview from the running PostgreSQL stack.
 - Latest calm-flow verification: Playwright captures responsive density
@@ -334,6 +334,10 @@ operations assistant for internal mobility**, което е:
   validation bubbles. Role-by-role user flows are documented in
   `docs/ROLE_USER_FLOWS.md`; production readiness is summarized in
   `docs/PRODUCTION_READINESS_ASSESSMENT.md`.
+- Calendar and reception/admin signal update: multi-day records now appear on
+  every covered calendar date as start/continue/end, range records are sorted
+  at the top of each day, and overdue returns are the first next signal for
+  both reception and admin before lower-risk approval work.
 
 ## Go-Live Plan
 
@@ -376,10 +380,10 @@ visible modules.
 
 ### Current risks to address before broad production use
 
-- **Frontend size:** `static/app.js` is 4254 lines and `static/styles.css` is
-  3177 lines. New UX work should stop growing the monolith and start extracting
+- **Frontend size:** `static/app.js` is 4357 lines and `static/styles.css` is
+  3209 lines. New UX work should stop growing the monolith and start extracting
   stable vanilla modules.
-- **Reservation router size:** `routers/reservations.py` is 960 lines and owns
+- **Reservation router size:** `routers/reservations.py` is 964 lines and owns
   creation, conflict checks, suggestions, lifecycle, bulk decisions, listing
   and export. Split service logic after the next small hardening pass.
 - **Schema duality:** `db.py` still supports runtime `CREATE TABLE IF NOT
@@ -391,9 +395,10 @@ visible modules.
   tests for public overview/calendar, employee booking/current trip, approver
   decisions, reception handoff/return, admin settings, browser-computed
   light/dark contrast, responsive density and destructive recovery, including
-  deeper keyboard coverage for user deactivate, role change, admin handoff and
-  blackout deactivate. Remaining evidence gap is manual screen-reader
-  confirmation and configured/unconfigured NetFleet screenshots.
+  deeper keyboard coverage for user deactivate, role change, admin handoff,
+  blackout deactivate, reception calendar and admin/reception overdue return
+  signal. Remaining evidence gap is manual screen-reader confirmation and
+  configured/unconfigured NetFleet screenshots.
 - **External signal closure:** local audits and Docker Scout were clean, but
   GitHub Security/Dependabot must still be inspected directly after push
   before claiming the banner is closed.

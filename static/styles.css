@@ -1235,6 +1235,11 @@ select {
   color: var(--brand-strong);
 }
 
+.status-pill--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 .status-tag--pending {
   background: var(--warning-soft);
   color: var(--warning);
@@ -1655,6 +1660,7 @@ select {
 
 .calendar-day {
   min-height: 122px;
+  min-width: 0;
   padding: var(--sp-3);
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
@@ -1664,6 +1670,7 @@ select {
   gap: var(--sp-2);
   text-align: left;
   cursor: pointer;
+  overflow: hidden;
   transition:
     transform var(--dur-fast) var(--ease-out),
     box-shadow var(--dur-base) var(--ease-out),
@@ -1736,12 +1743,19 @@ select {
 .calendar-day__list {
   display: grid;
   gap: 5px;
+  min-width: 0;
+  align-content: start;
+  overflow: hidden;
 }
 
 .calendar-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 5px 9px;
   border-radius: var(--radius-pill);
   font-size: 0.74rem;
@@ -1779,6 +1793,22 @@ select {
 .calendar-pill--returned {
   background: var(--violet-soft);
   color: var(--violet);
+}
+
+.calendar-pill--range {
+  border: 1px solid currentColor;
+}
+
+.calendar-pill--range-start {
+  border-radius: var(--radius-pill) 8px 8px var(--radius-pill);
+}
+
+.calendar-pill--range-middle {
+  border-radius: 8px;
+}
+
+.calendar-pill--range-end {
+  border-radius: 8px var(--radius-pill) var(--radius-pill) 8px;
 }
 
 .calendar-more {

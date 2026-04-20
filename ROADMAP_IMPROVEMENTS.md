@@ -60,15 +60,15 @@ routers/
   cars.py                    fleet CRUD + telemetry proxy/config + blackout windows
   notifications.py           user inbox
   ops.py                     admin-only production readiness preflight
-  reservations.py            960-line full lifecycle state machine and reservation query surface
+  reservations.py            964-line full lifecycle state machine and reservation query surface
   users.py                   user CRUD + password change + admin handoff
 templates/
   index.html                 employee surface
   admin.html                 admin surface
 static/
-  app.js                     4255-line SPA logic; split before next large UI package
+  app.js                     4357-line SPA logic; split before next large UI package
   i18n.js                    Bulgarian UI copy dictionary + interpolation
-  styles.css                 3179-line design system stylesheet with responsive cockpit UI
+  styles.css                 3209-line design system stylesheet with responsive cockpit UI
 alembic/                     migration scripts
 tests/test_app.py            Core FastAPI TestClient regression cases
 e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
@@ -90,7 +90,7 @@ docs/PRODUCTION_READINESS_ASSESSMENT.md Go-live readiness verdict and blockers
 
 ---
 
-## Current status snapshot (2026-04-20)
+## Current status snapshot (2026-04-21)
 
 This document is now the tactical source of truth. Completed work stays in
 `## Done` with commit references; active work remains in the phase sections.
@@ -148,6 +148,12 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Reception calendar is now role-aware: `fleet_reception` sees approved
   handoffs plus checked-out returns from the operational snapshot, not only the
   table's current status filter.
+- Multi-day calendar records now render on every covered date, tagged as
+  start/continue/end, sorted before single-day records and constrained inside
+  their day cells so long reservations do not disappear under the next date.
+- Overdue returns are now the top next signal for both `fleet_reception` and
+  `fleet_admin`: once a checked-out course is past its approved end time, the
+  cockpit promotes `чака връщане` before normal approvals or table browsing.
 - Fleet Intelligence Seed is shipped: quick-book and explicit best-car
   suggestions use explainable scoring, admin Fleet Pulse shows compact derived
   insights, and `car_assignments` records why a car was chosen.
@@ -185,6 +191,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Final go-live command is now first-class: `make go-live-check APP_URL=...`
   requires generated production env, a fresh restore-drill evidence marker,
   local release gates and live smoke before real use.
+- Current production-readiness assessment is **90/100 for a controlled
+  internal pilot** after final real `.env`, real domain/CORS, backup/restore
+  drill, NetFleet verification and `make go-live-check APP_URL=<production-url>`.
 
 ### Active product gaps
 
@@ -193,10 +202,11 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   accessibility regression tests before claiming "compliant" in release notes.
 - Browser-level end-to-end coverage is now role-specific for public, employee,
   approver, admin, mobile employee and reception flows, with browser-computed
-  contrast, responsive density and destructive-action recovery proof for
-  reject, return, user deactivate, role change, admin handoff and blackout
-  deactivate. The next coverage gap is manual screen-reader confirmation and
-  configured/unconfigured NetFleet screenshots.
+  contrast, responsive density, overdue-return next signal and
+  destructive-action recovery proof for reject, return, user deactivate, role
+  change, admin handoff and blackout deactivate. The next coverage gap is
+  manual screen-reader confirmation and configured/unconfigured NetFleet
+  screenshots.
 - Production observability now has structured request logs; next hardening is
   external alert delivery and an operator-facing log retention/export decision.
 - Intelligence snapshots/materialized insights remain intentionally deferred
@@ -205,8 +215,8 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
 - The monolithic `static/app.js` should be split before the frontend grows much
-  further; it is now 4254 lines and `static/styles.css` is 3177 lines.
-- `routers/reservations.py` is now 960 lines and carries too many concerns:
+  further; it is now 4357 lines and `static/styles.css` is 3209 lines.
+- `routers/reservations.py` is now 964 lines and carries too many concerns:
   creation, conflict checks, lifecycle transitions, suggestions, bulk decisions,
   listing and export. Keep endpoints stable, but extract service modules before
   adding more reservation behavior.
@@ -229,9 +239,9 @@ Use it before choosing the next implementation task.
 | Product model | Role-separated pool process is clear: employee, approver, reception, admin. | Extra roles/features can make the app feel like ERP. | Preserve the four-role model; add permissions only when a real pool workflow requires them. |
 | Backend API | FastAPI routers, auth rebinding, refresh rotation, readiness and audit trail are strong. | `routers/reservations.py` has too many responsibilities. | Extract reservation services in small slices without changing routes or schemas. |
 | Frontend | Intent-driven cockpit, rails, timeline and NetFleet context are already premium. | `static/app.js` is too large for safe autonomous edits. | Create module boundaries before the next large UI addition. |
-| CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies risky token pairs and density on key role surfaces. | 3177-line stylesheet still makes overlap regressions easy. | Keep density evidence green, then split component CSS if churn continues. |
+| CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies risky token pairs and density on key role surfaces. | 3209-line stylesheet still makes overlap regressions easy. | Keep density evidence green, then split component CSS if churn continues. |
 | Database | Alembic production path and PostgreSQL smoke exist. | Runtime bootstrap/upgrades in `db.py` can drift from migrations. | Add schema parity tests for SQLite bootstrap, PostgreSQL bootstrap and Alembic head. |
-| E2E evidence | Playwright smoke now runs separate public, contrast, employee, approver, admin, mobile, reception, responsive density and destructive recovery checks. | Manual screen-reader and real production URL evidence are still external. | Add configured/unconfigured NetFleet screenshots and record real cutover smoke. |
+| E2E evidence | Playwright smoke now runs separate public, contrast, employee, approver, admin, mobile, reception, overdue-return, responsive density and destructive recovery checks. | Manual screen-reader and real production URL evidence are still external. | Add configured/unconfigured NetFleet screenshots and record real cutover smoke. |
 | NetFleet | Server-side key handling, scoped employee/reception pickup context and freshness wording are correct. | Real operators may still want an address/geocoding layer later. | Keep GPS read-only; consider address enrichment only after live use proves it helps. |
 | Production | Makefile, prod checks, Docker health, backups and restore drill are in place. | GitHub alert state still needs direct external confirmation. | Inspect GitHub Security/Dependabot after push and record exact closure evidence. |
 | Intelligence | Best-car scoring and compact Fleet Pulse are explainable and light. | Premature analytics tables would add complexity before real usage data. | Defer snapshots until production data volume or operator needs prove the need. |
@@ -2106,20 +2116,23 @@ from the last 60 minutes instead of raw NetFleet events.
 
 ## Suggested sequencing (from current state)
 
-1. **7.1/7.2 external production signal closure** - confirm GitHub Actions
-   Production Gates and inspect the GitHub Dependabot alert directly.
+1. **Production rehearsal with `make go-live-check`** - run the final gate
+   against the actual production URL after real `.env` and backup/restore drill,
+   then record the result in `docs/PRODUCTION_READINESS_ASSESSMENT.md`.
+2. **7.1/7.2 external production signal closure** - confirm GitHub Actions
+   Gates and inspect the GitHub Dependabot alert directly.
    Note: local `gh` is not installed and unauthenticated `curl` to the private
    Dependabot API returns 401, so use GitHub web UI or an authenticated API
    token to inspect the exact alert.
-2. **Production rehearsal with `make go-live-check`** - run the final gate
-   against the actual production URL after real `.env` and backup/restore drill,
-   then record the result in `docs/PRODUCTION_READINESS_ASSESSMENT.md`.
-3. **Responsive density review** - inspect the new density screenshots for weak
-   hierarchy before production handoff and keep the automated guard green.
-4. **External production signal closure** - confirm GitHub Actions Production
-   Gates and inspect the GitHub Dependabot alert directly.
+3. **Manual operator rehearsal** - walk through employee request, approver
+   decision, reception start, overdue return and admin override on the
+   production-like stack with real accounts, then save screenshots in
+   `test-results/e2e` or the release evidence pack.
+4. **Configured/unconfigured NetFleet evidence** - capture the admin setting
+   flow, employee pickup location after approval and reception handoff location
+   with the real key configured, plus the calm fallback when it is absent.
 5. **10.3 Split `static/app.js` into modules** - do this before large frontend
-   additions; the file is already 4254 lines.
+   additions; the file is already 4357 lines.
 6. **10.4 reservation service extraction** - keep endpoints stable while
     moving lifecycle/domain logic out of the router.
 7. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
@@ -2138,6 +2151,34 @@ If time is limited, execute items 1-4 before any new feature work.
 ---
 
 ## Done
+
+### 2026-04-21 - Calendar range visibility and overdue return next signal
+
+- **Goal:** Close the two pre-live UX gaps where calendar records could be
+  visually lost under later dates and overdue returns were not promoted clearly
+  enough for reception/admin.
+- **Calendar UX:** range reservations are repeated on every covered calendar
+  date with explicit `начало`, `продължава` and `край` labels. Range pills sort
+  at the top of each day and are constrained by `min-width: 0`, `max-width:
+  100%` and hidden cell overflow so they stay inside the date box instead of
+  sliding under the next day.
+- **Reception/admin signal:** `checked_out` reservations whose end time is in
+  the past now become the first next signal for both `fleet_reception` and
+  `fleet_admin`, with copy `чака връщане`, a danger status pill and
+  `просрочено от {time}` in Reception Rail.
+- **Go-live assessment:** documentation now rates FleetFlow at **90/100 for a
+  controlled internal pilot**, not full unattended rollout. Remaining real
+  cutover requirements are production `.env`, real domain/CORS, backup/restore
+  drill, NetFleet verification and `make go-live-check APP_URL=<production-url>`.
+- **Docs:** README, ROADMAP, ROADMAP_IMPROVEMENTS, Production User Guide,
+  Role User Flows, UI/UX Compliance Audit and Production Readiness Assessment
+  now all describe the same calm handoff flow and production status.
+- **Verification:** `tests/test_ui_compliance.py` -> 36 passed; targeted
+  Playwright reception/calendar + overdue signal -> 2 passed; `make
+  qa-premium` -> dependency audit, Python compile, 149 pytest cases, JS syntax
+  and 12 Playwright browser checks; `make smoke-live
+  APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
+  passed.
 
 ### 2026-04-21 - Final go-live gate and docs review
 

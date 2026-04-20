@@ -283,7 +283,15 @@ def test_role_specific_surfaces_hide_irrelevant_work() -> None:
     assert "state.status = defaultStatusForRole(user.role);" in app_js
     assert '"role.fleet_approver": "Одобряващ"' in i18n_js
     assert '"role.fleet_reception": "Рецепция ключове"' in i18n_js
-    assert '"intent.receptionApprovedTitle": "{count} курса чакат ключове"' in i18n_js
+    assert '"intent.receptionApprovedTitle.one": "{count} курс чака ключове"' in i18n_js
+    assert '"intent.receptionOverdueReturnTitle.many": "{count} курса чакат връщане"' in i18n_js
+    assert 'receptionTitle("receptionOverdueReturnTitle", overdueReturns)' in app_js
+    assert app_js.index("if (canManageTripHandoff() && overdueReturns)") < app_js.index(
+        "if (canApproveReservations() && pending)"
+    )
+    assert app_js.index("if (canManageTripHandoff() && overdueReturns)") < app_js.index(
+        "if (canManageTripHandoff() && approved)"
+    )
 
 
 def test_admin_decision_rail_promotes_pending_queue_before_table() -> None:
@@ -320,6 +328,10 @@ def test_reception_rail_promotes_key_handoff_before_table() -> None:
     assert "function renderReceptionRail()" in app_js
     assert "const showRail = canManageTripHandoff() && surface === \"admin\" && state.token;" in app_js
     assert "function receptionRailItems()" in app_js
+    assert "function isOverdueReturn(item)" in app_js
+    assert "const aOverdue = isOverdueReturn(a);" in app_js
+    assert 'overdue ? "receptionRail.overdueReturnBy"' in app_js
+    assert 'status-pill--danger' in app_js
     assert "function loadHandoffTelemetry()" in app_js
     assert 'apiFetch(`/cars/${carId}/telemetry/latest`' in app_js
     assert "state.handoffTelemetry[item.car_id]" in app_js
@@ -344,6 +356,28 @@ def test_reception_calendar_uses_operational_snapshot_not_table_filter() -> None
     assert 'state.currentRole === "fleet_reception" ? ["approved", "checked_out"]' in app_js
     assert '["pending", "approved", "checked_out"]' in app_js
     assert "const calendarItems = calendarSourceItems();" in app_js
+
+
+def test_calendar_expands_multi_day_items_and_keeps_range_pills_visible() -> None:
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+
+    assert "function calendarItemKeys(item)" in app_js
+    assert "while (cursor <= final)" in app_js
+    assert "calendar_segment: calendarSegmentFor(index, keys.length)" in app_js
+    assert "calendar_span_days: keys.length" in app_js
+    assert "function sortCalendarItems(items)" in app_js
+    assert "item.calendar_segment?.range ? 0 : 1" in app_js
+    assert "const visibleItems = items.slice(0, 4);" in app_js
+    assert '"calendar.rangeStart": "начало"' in i18n_js
+    assert '"calendar.rangeMiddle": "продължава"' in i18n_js
+    assert '"calendar.rangeEnd": "край"' in i18n_js
+    assert ".calendar-pill--range" in styles
+    assert ".calendar-day__list" in styles
+    assert "width: 100%;" in styles
+    assert "min-width: 0;" in styles
+    assert "overflow: hidden;" in styles
 
 
 def test_authenticated_reservation_surfaces_show_requester_gsm_without_public_leak() -> None:

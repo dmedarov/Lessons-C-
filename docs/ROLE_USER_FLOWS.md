@@ -57,9 +57,11 @@
 1. Отваря `/admin`.
 2. Вижда Reception Rail с approved handoffs и active returns пред таблицата.
 3. Вижда GSM номера на заявителя, когато е въведен.
-4. При approved курс използва `Започни курс`.
-5. При active курс използва `Върни автомобил`.
-6. Вижда локация само за approved/checked-out handoff коли, не fleet-wide GPS.
+4. Ако active курс е след крайния час, **Следващ сигнал** показва
+   `чака връщане` преди нормалните handoff задачи.
+5. При approved курс използва `Започни курс`.
+6. При active курс използва `Върни автомобил`.
+7. Вижда локация само за approved/checked-out handoff коли, не fleet-wide GPS.
 
 **Надеждност:**
 
@@ -74,7 +76,8 @@
 **Цел:** admin има full control, но интерфейсът остава подреден.
 
 1. Започва от Fleet Pulse и production readiness.
-2. Вижда Decision Rail и Reception Rail, когато има operational работа.
+2. Вижда overdue returns като първи next signal, после Decision Rail и
+   Reception Rail, когато има operational работа.
 3. Управлява потребители, роли, автомобили, blackout-и, NetFleet ключ и
    production settings.
 4. За role change и admin handoff добавя причина, за да има audit trail.
@@ -120,11 +123,13 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 - `destructive-handoff-recovery.png`
 - `destructive-handoff-confirmation.png`
 - `destructive-blackout-deactivate-confirmation.png`
+- `admin-overdue-return-signal.png`
+- `reception-overdue-return-signal.png`
 
 Latest verification:
 
-- `make qa-premium` -> passed: dependency audit, Python compile, 148 pytest
-  cases, JS syntax and 11 Playwright browser checks.
+- `make qa-premium` -> passed: dependency audit, Python compile, 149 pytest
+  cases, JS syntax and 12 Playwright browser checks.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> passed:
   `/health`, `/health/ready`, `/auth/setup-status` and `/public/overview`.
 

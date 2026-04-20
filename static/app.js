@@ -822,7 +822,10 @@ function lifecycleMeter(item) {
 
 function calendarPill(item, car) {
   const label = item.plate_number || (car ? car.plate_number : `Car ${item.car_id}`);
-  return `<span class="calendar-pill calendar-pill--${item.status}">${escapeHtml(label)}</span>`;
+  const segment = item.calendar_segment;
+  const segmentText = segment?.range && segment.kind ? ` · ${t(`calendar.range${segment.kind}`)}` : "";
+  const segmentClass = segment?.range ? ` calendar-pill--range calendar-pill--range-${segment.kind.toLowerCase()}` : "";
+  return `<span class="calendar-pill calendar-pill--${item.status}${segmentClass}">${escapeHtml(`${label}${segmentText}`)}</span>`;
 }
 
 function carMap() {
@@ -842,14 +845,77 @@ function calendarSourceItems() {
   return source.filter((item) => currentStatuses.includes(item.status));
 }
 
+function calendarItemKeys(item) {
+  const start = new Date(item.start_time);
+  const end = new Date(item.end_time);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
+  const keys = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const final = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  while (cursor <= final) {
+    keys.push(dateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return keys;
+}
+
+function calendarSegmentFor(index, total) {
+  if (total <= 1) return { range: false, kind: "" };
+  if (index === 0) return { range: true, kind: "Start" };
+  if (index === total - 1) return { range: true, kind: "End" };
+  return { range: true, kind: "Middle" };
+}
+
+function calendarItemPriority(item) {
+  const statusPriority = {
+    checked_out: 0,
+    approved: 1,
+    pending: 2,
+    returned: 3,
+    rejected: 4,
+    cancelled: 5,
+  };
+  return [
+    item.calendar_segment?.range ? 0 : 1,
+    statusPriority[item.status] ?? 9,
+    new Date(item.start_time).getTime() || 0,
+    item.id || 0,
+  ];
+}
+
+function sortCalendarItems(items) {
+  return [...items].sort((a, b) => {
+    const left = calendarItemPriority(a);
+    const right = calendarItemPriority(b);
+    for (let index = 0; index < left.length; index += 1) {
+      if (left[index] !== right[index]) return left[index] - right[index];
+    }
+    return 0;
+  });
+}
+
+function isOverdueReturn(item) {
+  return item.status === "checked_out" && new Date(item.end_time) < new Date();
+}
+
+function receptionTitle(kind, count) {
+  return t(`intent.${kind}.${count === 1 ? "one" : "many"}`, { count });
+}
+
 function dayMap() {
   const map = new Map();
   const calendarItems = calendarSourceItems();
   calendarItems.forEach((item) => {
-    const key = dateKey(new Date(item.start_time));
-    const list = map.get(key) || [];
-    list.push(item);
-    map.set(key, list);
+    const keys = calendarItemKeys(item);
+    keys.forEach((key, index) => {
+      const list = map.get(key) || [];
+      list.push({
+        ...item,
+        calendar_segment: calendarSegmentFor(index, keys.length),
+        calendar_span_days: keys.length,
+      });
+      map.set(key, list);
+    });
   });
   return map;
 }
@@ -1355,6 +1421,7 @@ function updateSummary() {
     const adminReservations = state.pulseReservations;
     const pending = adminReservations.filter((item) => item.status === "pending").length;
     const approved = adminReservations.filter((item) => item.status === "approved").length;
+    const overdueReturns = adminReservations.filter((item) => isOverdueReturn(item)).length;
     const activeTrips = adminReservations.filter((item) => item.status === "checked_out").length;
     const adminSurface = state.surface === "admin";
     if (isFullAdmin()) {
@@ -1369,6 +1436,15 @@ function updateSummary() {
       els.modeHeading.textContent = "Reception workspace";
       els.modeCopy.textContent = "Фокус върху реалното предаване и връщане: ключове, документи и активни курсове.";
     }
+    if (canManageTripHandoff() && overdueReturns) {
+      els.nextSignalTitle.textContent = receptionTitle("receptionOverdueReturnTitle", overdueReturns);
+      els.nextSignalCopy.textContent = t("intent.receptionOverdueReturnCopy");
+      setIntentActions([
+        { name: "view-active-trips", labelKey: "intent.action.viewActiveTrips", primary: true },
+        ...(isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet" }] : []),
+      ]);
+      return;
+    }
     if (canApproveReservations() && pending) {
       els.nextSignalTitle.textContent = t("intent.adminDecisionTitle", { count: pending });
       els.nextSignalCopy.textContent = t("intent.adminDecisionCopy");
@@ -1379,7 +1455,7 @@ function updateSummary() {
       return;
     }
     if (canManageTripHandoff() && approved) {
-      els.nextSignalTitle.textContent = t("intent.receptionApprovedTitle", { count: approved });
+      els.nextSignalTitle.textContent = receptionTitle("receptionApprovedTitle", approved);
       els.nextSignalCopy.textContent = t("intent.receptionApprovedCopy");
       setIntentActions([
         { name: "view-handoffs", labelKey: "intent.action.viewHandoffs", primary: true },
@@ -1388,7 +1464,7 @@ function updateSummary() {
       return;
     }
     if (canManageTripHandoff() && activeTrips) {
-      els.nextSignalTitle.textContent = t("intent.receptionActiveTitle", { count: activeTrips });
+      els.nextSignalTitle.textContent = receptionTitle("receptionActiveTitle", activeTrips);
       els.nextSignalCopy.textContent = t("intent.receptionActiveCopy");
       setIntentActions([
         { name: "view-active-trips", labelKey: "intent.action.viewActiveTrips", primary: true },
@@ -2270,6 +2346,9 @@ function receptionRailItems() {
     .sort((a, b) => {
       const aTime = new Date(a.status === "checked_out" ? a.end_time : a.start_time);
       const bTime = new Date(b.status === "checked_out" ? b.end_time : b.start_time);
+      const aOverdue = isOverdueReturn(a);
+      const bOverdue = isOverdueReturn(b);
+      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
       if (a.status !== b.status) return a.status === "approved" ? -1 : 1;
       return aTime - bTime;
     });
@@ -2334,9 +2413,10 @@ function renderReceptionRail() {
         const car = cars.get(item.car_id);
         const carLabel = car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id });
         const isActive = item.status === "checked_out";
+        const overdue = isOverdueReturn(item);
         const action = isActive ? "return" : "start";
         const label = isActive ? t("action.returnCar") : t("action.startTrip");
-        const timeKey = isActive ? "receptionRail.returnBy" : "receptionRail.startAt";
+        const timeKey = overdue ? "receptionRail.overdueReturnBy" : isActive ? "receptionRail.returnBy" : "receptionRail.startAt";
         const timeValue = isActive ? item.end_time : item.start_time;
         const handoffTelemetry = state.handoffTelemetry[item.car_id];
         const locationMarkup = state.loading.handoffTelemetry && !handoffTelemetry
@@ -2348,7 +2428,7 @@ function renderReceptionRail() {
               <strong>${escapeHtml(carLabel)}</strong>
               <p>${escapeHtml(item.employee_name)} · ${escapeHtml(t(timeKey, { time: formatDateTime(timeValue) }))}</p>
               ${requesterGsmLine(item)}
-              <span class="status-pill ${isActive ? "status-pill--warning" : "status-pill--success"}">${escapeHtml(t(`status.${item.status}`))}</span>
+              <span class="status-pill ${overdue ? "status-pill--danger" : isActive ? "status-pill--warning" : "status-pill--success"}">${escapeHtml(t(`status.${item.status}`))}</span>
               ${item.purpose ? `<p class="decision-card__purpose">${escapeHtml(item.purpose)}</p>` : ""}
               ${locationMarkup}
             </div>
@@ -2458,9 +2538,7 @@ function renderCalendar() {
 
   if (mobileCalendarMedia.matches) {
     const selected = localDateFromKey(state.selectedDateKey);
-    const selectedItems = (days.get(state.selectedDateKey) || []).sort(
-      (a, b) => new Date(a.start_time) - new Date(b.start_time)
-    );
+    const selectedItems = sortCalendarItems(days.get(state.selectedDateKey) || []);
     els.calendarMonthLabel.textContent = formatMonthLabel(startOfMonth(selected));
     els.calendarGrid.classList.add("calendar-grid--mobile");
     els.calendarGrid.innerHTML = `
@@ -2505,8 +2583,8 @@ function renderCalendar() {
     const current = new Date(firstDay);
     current.setDate(firstDay.getDate() + index);
     const key = dateKey(current);
-    const items = (days.get(key) || []).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-    const visibleItems = items.slice(0, 3);
+    const items = sortCalendarItems(days.get(key) || []);
+    const visibleItems = items.slice(0, 4);
     const hiddenCount = Math.max(items.length - visibleItems.length, 0);
     const button = document.createElement("button");
     button.type = "button";
@@ -2543,9 +2621,7 @@ function renderCalendar() {
 
 function renderDayTimeline() {
   const cars = carMap();
-  const selectedItems = [...(dayMap().get(state.selectedDateKey) || [])].sort(
-    (a, b) => new Date(a.start_time) - new Date(b.start_time)
-  );
+  const selectedItems = sortCalendarItems(dayMap().get(state.selectedDateKey) || []);
   els.selectedDateLabel.textContent = formatDayLabel(state.selectedDateKey);
   els.dayTimeline.innerHTML = "";
 

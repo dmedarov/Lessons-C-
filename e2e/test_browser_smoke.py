@@ -376,7 +376,7 @@ def _seed_pending_reservation(server: str, car_index: int = 3) -> dict:
     )
 
 
-def _seed_reception_work(server: str) -> None:
+def _seed_reception_work(server: str) -> dict:
     admin_token = _api_login(server, "admin", "AdminPass123")
     ivan_token = _api_login(server, "ivan", "IvanPass123")
     maria_token = _api_login(server, "maria", "MariaPass123")
@@ -427,6 +427,11 @@ def _seed_reception_work(server: str) -> None:
     _api_json(server, f"/reservations/{approved_reservation['id']}/approve", "POST", admin_token, {})
     _api_json(server, f"/reservations/{active_reservation['id']}/approve", "POST", admin_token, {})
     _api_json(server, f"/reservations/{active_reservation['id']}/start", "POST", reception_token, {"note": "Keys handed over"})
+    return {
+        "base_start": base_start,
+        "approved_reservation": approved_reservation,
+        "active_reservation": active_reservation,
+    }
 
 
 def test_public_orientation_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
@@ -588,6 +593,52 @@ def test_reception_handoff_calendar_surface(browser: Browser, server: str, artif
     expect(reception_page.locator("#usersDeck")).to_be_hidden()
     reception_page.screenshot(path=artifact_dir / "reception-desktop.png", full_page=True)
     reception.close()
+
+
+def test_reception_overdue_return_next_signal(browser: Browser, server: str, artifact_dir: Path) -> None:
+    seed = _seed_reception_work(server)
+    _seed_pending_reservation(server, car_index=0)
+    fixed_now = int((seed["base_start"] + timedelta(hours=4)).timestamp() * 1000)
+
+    def overdue_context():
+        context = browser.new_context(viewport={"width": 1280, "height": 900})
+        context.add_init_script(
+            script=f"""
+            (() => {{
+              const fixedNow = {fixed_now};
+              const RealDate = Date;
+              class FleetFlowMockDate extends RealDate {{
+                constructor(...args) {{
+                  if (args.length === 0) return new RealDate(fixedNow);
+                  return new RealDate(...args);
+                }}
+                static now() {{ return fixedNow; }}
+              }}
+              FleetFlowMockDate.UTC = RealDate.UTC;
+              FleetFlowMockDate.parse = RealDate.parse;
+              FleetFlowMockDate.prototype = RealDate.prototype;
+              window.Date = FleetFlowMockDate;
+            }})();
+            """
+        )
+        return context
+
+    admin_context = overdue_context()
+    admin_page = admin_context.new_page()
+    _login(admin_page, server, "/admin", "admin", "AdminPass123")
+    expect(admin_page.locator("#nextSignalTitle")).to_contain_text("чака връщане", timeout=10_000)
+    expect(admin_page.locator("#nextSignalCopy")).to_contain_text("Срокът е изтекъл")
+    admin_page.screenshot(path=artifact_dir / "admin-overdue-return-signal.png", full_page=True)
+    admin_context.close()
+
+    context = overdue_context()
+    page = context.new_page()
+    _login(page, server, "/admin", "reception", "ReceptionPass123")
+    expect(page.locator("#nextSignalTitle")).to_contain_text("чака връщане", timeout=10_000)
+    expect(page.locator("#nextSignalCopy")).to_contain_text("Срокът е изтекъл")
+    expect(page.locator("#receptionRail")).to_contain_text("просрочено от")
+    page.screenshot(path=artifact_dir / "reception-overdue-return-signal.png", full_page=True)
+    context.close()
 
 
 def test_responsive_density_evidence_across_roles(browser: Browser, server: str, artifact_dir: Path) -> None:

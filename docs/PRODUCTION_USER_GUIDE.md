@@ -58,8 +58,12 @@ make go-live-check APP_URL=http://127.0.0.1:8000
 доказателство, локалните release тестове и live health/readiness/active-admin/
 public overview smoke срещу подадения `APP_URL`.
 
-Текущата readiness оценка и go/no-go правилата са в
+Текущата readiness оценка е **90/100 за контролиран production pilot**.
+Go/no-go правилата са в
 [`docs/PRODUCTION_READINESS_ASSESSMENT.md`](PRODUCTION_READINESS_ASSESSMENT.md).
+Не третирай това като full rollout без наблюдение: първо направи реален
+production URL rehearsal, провери GitHub Dependabot alert-а и наблюдавай първите
+дни работа.
 
 ## 2. Bootstrap token и първи admin
 
@@ -96,6 +100,14 @@ make logs
 
 Блокерите трябва да са 0 преди реална употреба. Бележките може да останат само
 ако са съзнателно решение, например NetFleet ще се добави по-късно.
+
+Практическа go-live оценка:
+
+- **Go за pilot:** `make go-live-check APP_URL=<production-url>` е зелен,
+  има поне двама active admins, има отделни approver/reception потребители или
+  съзнателно решение admin да поема тези роли.
+- **No-go:** wildcard/example CORS, dev/default database password, липсващ
+  restore drill, липсващ active admin, или employee достъп до `/admin`.
 
 ### Как да разчетеш най-честите блокери
 
