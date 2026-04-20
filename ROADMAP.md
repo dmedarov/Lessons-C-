@@ -337,8 +337,9 @@ visible modules.
   and export. Split service logic after the next small hardening pass.
 - **Schema duality:** `db.py` still supports runtime `CREATE TABLE IF NOT
   EXISTS` bootstrap and `_apply_runtime_upgrades()` while production also uses
-  Alembic. Keep this for dev ergonomics now, but add automated schema parity
-  checks so SQLite bootstrap, PostgreSQL bootstrap and Alembic head do not drift.
+  Alembic. The first automated guardrail now checks SQLite bootstrap execution,
+  SQLite/PostgreSQL schema contracts, route uniqueness and the single Alembic
+  head. Keep extending this when schema complexity grows.
 - **Browser evidence gap:** current Playwright coverage is a valuable broad
   smoke, but production readiness needs smaller role-specific tests that fail
   near the broken flow: public overview/calendar, employee booking/current
@@ -352,27 +353,24 @@ visible modules.
 
 ## Next Recommended Slices
 
-1. Add route/schema guard tests: route registry has no duplicate method/path,
-   SQLite/PostgreSQL bootstrap SQL parses, and Alembic head stays in sync with
-   runtime bootstrap assumptions.
-2. Confirm GitHub Actions **Production Gates** and inspect the open GitHub
+1. Confirm GitHub Actions **Production Gates** and inspect the open GitHub
    Dependabot alert directly; local `pip-audit` and Docker Scout evidence is
    clean, so do not chase phantom upgrades without the alert details.
-3. Split Playwright smoke into role-specific production flows: pre-login public
+2. Split Playwright smoke into role-specific production flows: pre-login public
    overview/calendar, employee quick-book/current-trip, approver decision rail,
    reception handoff/return calendar and admin NetFleet/readiness.
-4. Browser-computed contrast checks for translucent surfaces, focus rings,
+3. Browser-computed contrast checks for translucent surfaces, focus rings,
    theme-aware message alerts and Fleet Pulse/status chips.
-5. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
+4. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
    change, handoff and blackout deactivate.
-6. Split `static/app.js` into small vanilla JS modules before the next large UI
+5. Split `static/app.js` into small vanilla JS modules before the next large UI
    package. Suggested boundaries: API/session, shell/overview, reservations
    lifecycle, calendar, admin users/fleet/settings, notifications/dialogs.
-7. Split reservation domain logic out of `routers/reservations.py` into service
+6. Split reservation domain logic out of `routers/reservations.py` into service
    modules without changing endpoint contracts.
-8. Add session-management UI and refresh-token cleanup job after the role flows
+7. Add session-management UI and refresh-token cleanup job after the role flows
    are stable.
-9. After real production usage, add materialized intelligence snapshots
+8. After real production usage, add materialized intelligence snapshots
    (`car_status_snapshots`, `fleet_insights`, `fleet_demand_snapshots`) only if
    inline metrics become too slow or operators need historical trend review.
 

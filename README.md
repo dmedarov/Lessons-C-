@@ -367,6 +367,7 @@ docker-compose.postgres.yml
 27. **Explainable fleet intelligence first** — quick-book uses a thin rules/metrics layer and records `car_assignments`; snapshot tables/jobs stay future work until production usage proves the need.
 28. **Public orientation, private operations** — pre-login UI may show fleet counts and calendar occupancy with plate/model for frictionless orientation; users, trip purpose, GPS, reservation ids and lifecycle actions stay behind auth.
 29. **Production gates** — GitHub Actions пази `master` с Python 3.12/3.14 tests, JS syntax check, full production dependency audit and Docker build; `make release-check` дава стабилен локален guardrail без browser smoke.
+30. **Route/schema guardrails** — тестовете вече пазят FastAPI route registry от duplicate `(method, path)`, проверяват SQLite bootstrap schema, сравняват SQLite/PostgreSQL table-column contracts и assert-ват single Alembic head.
 
 ## Тестове
 
@@ -398,7 +399,11 @@ Admin Decision Rail, Reception Rail, role-aware reception calendar, Fleet Pulse 
 `employee-desktop.png`, `admin-desktop.png`, `employee-mobile.png` и `reception-desktop.png`.
 `test-results/` е игнориран от git.
 
-Последна локална проверка за request-first/role-separated-lifecycle/reception-calendar пакета:
+Последна локална проверка за route/schema guardrails пакета:
+`pytest tests/test_schema_contracts.py -q` -> 5 passed,
+`pytest -q` -> 140 passed.
+
+Предишна локална проверка за request-first/role-separated-lifecycle/reception-calendar пакета:
 `make audit-prod` -> no known vulnerabilities for pinned runtime dependencies,
 direct `pip-audit -r requirements.txt` -> no known vulnerabilities when the resolver completes,
 `docker scout cves fleetflow_prod_smoke-car-pool:latest` -> 0 vulnerable packages,
@@ -439,6 +444,7 @@ restore в изолиран `fleetflow_restore_drill` project с провере�
 - one-tap booking suggestion/create flow и smart prefill preferences за обичайна кола/час/продължителност
 - Fleet Intelligence Seed: best-car scoring, admin intelligence pulse и `car_assignments` traceability
 - timeline-first reservation cards before the secondary table, including lifecycle actions and admin pending selection
+- route/schema contracts: duplicate route registry guard, SQLite bootstrap execution, SQLite/PostgreSQL schema parity and single Alembic head
 
 ## Alembic migrations
 
@@ -458,7 +464,7 @@ alembic revision -m "describe change"
 
 - Няма UI за управление на активни sessions по устройства; logout ревокира текущия refresh token, а replay защита чисти активната refresh верига за user-а.
 - Rate limiting-ът е in-memory и е подходящ за single-container deployment; за multi-instance production го изнеси към Redis, API gateway или WAF.
-- Следващата production/UI стъпка е операторска дисциплина плюс browser evidence: PostgreSQL migration smoke, backup/restore playbook, structured JSON logs, `make prod-check` в release checklist и Playwright screenshots/e2e за `/`, `/admin`, mobile calendar и reject/bulk flows.
+- Следващата production/UI стъпка е външно closure доказателство и browser evidence: потвърди GitHub Actions Production Gates + Dependabot alert, раздели Playwright smoke по роли, добави browser-computed contrast checks и продължи с модулното разделяне на `static/app.js`.
 
 ## План за развитие
 

@@ -1863,6 +1863,12 @@ usage".
 
 ### 10.1 Route and schema guardrails
 
+**Status:** Shipped on 2026-04-20. `tests/test_schema_contracts.py` now covers
+route registry uniqueness, SQLite bootstrap execution, SQLite/PostgreSQL
+bootstrap schema contract parity, runtime-upgrade bootstrap columns and the
+single Alembic head revision. `alembic.ini` also declares `path_separator = os`
+to keep Alembic config parsing warning-free.
+
 - **Goal:** Catch duplicate routes and schema drift automatically.
 - **Files:** `app.py`, `db.py`, `tests/test_app.py` or new
   `tests/test_schema_contracts.py`
@@ -2056,37 +2062,35 @@ usage".
 
 ## Suggested sequencing (from current state)
 
-1. **10.1 route/schema guardrails** - add duplicate route registry and schema
-   parity checks before more production code changes.
-2. **7.1/7.2 external production signal closure** - confirm GitHub Actions
+1. **7.1/7.2 external production signal closure** - confirm GitHub Actions
    Production Gates and inspect the GitHub Dependabot alert directly.
-3. **10.2 split Playwright by role** - public, employee, approver, reception
+2. **10.2 split Playwright by role** - public, employee, approver, reception
    and admin flows with separate screenshots and failure points.
-4. **8.2 browser-computed contrast** - close translucent surfaces, focus rings
+3. **8.2 browser-computed contrast** - close translucent surfaces, focus rings
    and alert/status pair evidence.
-5. **8.3 responsive density pass** - use the new screenshots to hunt overlap,
+4. **8.3 responsive density pass** - use the new screenshots to hunt overlap,
    clipped text and weak hierarchy at 390/768/1024/1440.
-6. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
+5. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
    handoff and blackout deactivate.
-7. **5.4/5.9 production proof** - PostgreSQL migration smoke, backup/restore
+6. **5.4/5.9 production proof** - PostgreSQL migration smoke, backup/restore
    playbook and structured logs.
-8. **7.3 PostgreSQL migration smoke + backups** - required before serious
+7. **7.3 PostgreSQL migration smoke + backups** - required before serious
    production rollout.
-9. **10.3 Split `static/app.js` into modules** - do this before large frontend
+8. **10.3 Split `static/app.js` into modules** - do this before large frontend
    additions; the file is already 4048 lines.
-10. **10.4 reservation service extraction** - keep endpoints stable while
+9. **10.4 reservation service extraction** - keep endpoints stable while
     moving lifecycle/domain logic out of the router.
-11. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
+10. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
     after the core flows stabilize.
-12. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
+11. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
    the frontend is modular enough.
-13. **10.5 Session-management UI** - list active refresh sessions per user,
+12. **10.5 Session-management UI** - list active refresh sessions per user,
    revoke current/all sessions and expose security audit history.
-14. **10.6 NetFleet pickup clarity** - freshness labels and human pickup
+13. **10.6 NetFleet pickup clarity** - freshness labels and human pickup
     wording before maps or telemetry-heavy features.
-15. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
+14. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
     for real fleet accountability.
-16. **10.7 materialized intelligence snapshots** - only after live usage proves
+15. **10.7 materialized intelligence snapshots** - only after live usage proves
     inline metrics are too slow or historical trend review is needed.
 
 If time is limited, execute items 1-4 before any new feature work.
@@ -2094,6 +2098,22 @@ If time is limited, execute items 1-4 before any new feature work.
 ---
 
 ## Done
+
+### 2026-04-20 - Phase 10.1 route/schema guardrails
+
+- **Route registry guard:** new `tests/test_schema_contracts.py` asserts every
+  FastAPI `(method, path)` pair is unique, so accidental duplicate decorators
+  fail fast.
+- **Bootstrap schema guard:** SQLite bootstrap SQL executes cleanly against an
+  empty in-memory DB and required operational tables are present.
+- **Schema parity guard:** SQLite and PostgreSQL bootstrap table/column
+  contracts are compared so dual-DB drift is caught before production.
+- **Migration guard:** Alembic is asserted to have the single expected head
+  revision `20260420_0009`.
+- **Alembic hygiene:** `alembic.ini` now sets `path_separator = os`, removing
+  the config deprecation warning from the new guard test.
+- **Verification:** `pytest tests/test_schema_contracts.py -q` -> 5 passed;
+  `pytest -q` -> 140 passed.
 
 ### 2026-04-20 - Codebase analysis and future-development handoff
 
