@@ -1,15 +1,18 @@
 # Roadmap: FleetFlow
 
 ## Product North Star
-Вътрешно приложение за pool car управление, което е:
+Вътрешно приложение за pool car управление, позиционирано като **calm
+operations assistant for internal mobility**, което е:
 
 - спокойно и ясно като executive tool, не като ERP
+- intent-driven: surface-ът сам показва следващия най-важен ход
 - сигурно и предвидимо при role промени, деактивации и operational edge cases
 - устойчиво за production промени чрез миграции, audit trail и контролируем lifecycle
 
 ## Design Principles
 
 - Една основна задача на екран: employee вижда бърз booking и собствените курсове; admin вижда флот, чакащи решения и operational visibility.
+- Един primary action на surface: всичко останало е secondary или contextual.
 - Ясен status model: заявка, одобрение, активен курс, връщане и уведомяване без скрити състояния.
 - Кратки и стойностни нотификации: без шум, без дублиране, без чувствителни данни.
 - Migration-first backend: schema промени минават през Alembic, не през ad-hoc ръчни SQL промени.
@@ -199,22 +202,26 @@
   exact-field `aria-invalid` recovery instead of silent generic fallback reasons
 - Cancel dialogs now require a human reason and send it to the reservation
   audit trail while keeping backward-compatible no-body API calls.
-- Latest local verification for this slice: `pytest -q` -> 84 passed, JS
+- Intent-driven summary layer: employee/admin surfaces now expose contextual
+  next-action buttons for free mode, active/approved trips, pending admin work,
+  active trips and calm fleet state.
+- Status bar now reports free cars as active cars minus active trips, matching
+  the cockpit wireframe's "available now" mental model.
+- Latest local verification for this slice: `pytest -q` -> 86 passed, JS
   syntax checks, `git diff --check`, Docker rebuild and `/health` on `8001`.
 
 ## Next Recommended Slices
 
-1. Browser-level Playwright screenshots/e2e за employee booking, admin approve/reject, bulk reject reason validation, refresh/logout и mobile calendar.
-2. Apple layout/responsive density pass: no overlap, 44 px controls, resilient text, verified at 390 / 768 / 1024 / 1440 px.
-3. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
-4. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
-5. PostgreSQL migration smoke + backup/restore playbook за production оператори.
-6. Structured JSON logs, request correlation и traceable incident debugging.
-7. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
-8. Fleet Gantt / week planning и utilization analytics.
-9. Session-management UI: активни устройства, revoke current/all sessions и audit trail.
-10. Scheduled reminder notifications преди start/end на резервация.
-11. Maintenance workflows с attachment-и и service provider metadata.
+1. Current trip hero: активната/следващата резервация да стане hero element, не само ред в таблица.
+2. Admin decision rail: най-спешните pending заявки + batch action над таблицата.
+3. Fleet Pulse strip: 3-4 executive insights, not a heavy BI dashboard.
+4. One-tap booking: "резервирай най-подходящата свободна кола" върху вече наличните conflict/slot правила.
+5. Smart prefill: последна кола, често време и типична продължителност.
+6. Timeline-first reservation view; таблицата остава вторичен режим.
+7. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
+8. Browser-level Playwright screenshots/e2e за employee booking, admin approve/reject, bulk reject reason validation, intent actions, refresh/logout и mobile calendar.
+9. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
+10. PostgreSQL migration smoke + backup/restore playbook за production оператори.
 
 ## References
 

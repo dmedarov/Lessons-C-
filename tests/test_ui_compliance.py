@@ -91,3 +91,31 @@ def test_cancel_dialog_requires_reason_before_destructive_action() -> None:
     assert 'reservation.cancelReasonRequired' in app_js
     assert 'payload = await cancelReservationDialog(id);' in app_js
     assert '"reservation.cancelReasonRequired": "Добави причина за отмяната, преди да продължиш."' in i18n_js
+
+
+def test_intent_driven_summary_exposes_one_primary_next_action() -> None:
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+    for template in ("templates/index.html", "templates/admin.html"):
+        html = _read(template)
+        assert 'id="nextSignalActions" aria-label="Следващ ход"' in html
+    assert "function setIntentActions(actions = [])" in app_js
+    assert 'data-primary-intent="true"' in app_js
+    assert 'name: "review-pending", labelKey: "intent.action.reviewPending", primary: true' in app_js
+    assert 'name: "book-now", labelKey: "intent.action.bookNow", primary: true' in app_js
+    assert 'name: "reservation-transition"' in app_js
+    assert "function handleIntentAction(button)" in app_js
+    assert "function focusReservationRow(id, action = null)" in app_js
+    assert '"intent.employeeFreeTitle": "Свободен режим"' in i18n_js
+    assert ".summary-card__actions .btn" in styles
+    assert "min-height: 44px;" in styles
+
+
+def test_status_bar_reports_free_cars_not_only_active_cars() -> None:
+    app_js = _read("static/app.js")
+    for template in ("templates/index.html", "templates/admin.html"):
+        html = _read(template)
+        assert '<span class="stat-card__label">Свободни коли</span>' in html
+    assert "const availableCars = Math.max(activeCars - activeTrips, 0);" in app_js
+    assert 'kpiAvailable.querySelector(".stat-card__value").textContent = availableCars;' in app_js

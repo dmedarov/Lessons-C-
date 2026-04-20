@@ -1575,6 +1575,68 @@ with return/deactivate/role/handoff/blackout recovery checks.
 
 ---
 
+## Phase 9: Obsessively Good Product Experience
+
+**Product target:** FleetFlow is not a "car booking app"; it is a **calm
+operations assistant for internal mobility**. Future agents should optimize for
+one primary action, less thinking, fewer visible controls and stronger
+confidence after every click.
+
+### 9.1 Intent-driven home / next-action layer ✅ started 2026-04-20
+
+**Status:** Started. The summary deck now exposes contextual next-action
+buttons for employee free mode, approved trip, active trip, admin pending
+queue, admin active trips and calm fleet state. The top status bar now reports
+free cars as active cars minus active trips, so the KPI matches the cockpit
+wireframe's "available now" meaning.
+
+- **Files:** `templates/index.html`, `templates/admin.html`, `static/app.js`,
+  `static/i18n.js`, `static/styles.css`, `tests/test_ui_compliance.py`
+- **Acceptance criteria:**
+  - No authenticated surface should leave the user without a next step.
+  - Each surface gets at most one primary intent action; secondary actions
+    remain visually quieter.
+  - Intent actions must call existing workflows, not create duplicate business
+    logic.
+- **Verification:** `pytest tests/test_ui_compliance.py`, full `pytest -q`,
+  manual browser check at desktop and 390 px.
+- **Next agent action:** Capture screenshots and continue with current trip
+  hero so active/approved reservations stop feeling like table rows.
+
+### 9.2 Current trip hero
+
+- **Goal:** Make an active or next approved trip the hero object for employee
+  mode.
+- **Files:** `templates/index.html`, `static/app.js`, `static/styles.css`,
+  `static/i18n.js`
+- **Acceptance criteria:** active trip shows car, time window, status and one
+  primary button (`Старт` or `Върни`) without requiring table scanning.
+
+### 9.3 Admin decision rail
+
+- **Goal:** Admin starts with the top 3 pending decisions and batch action,
+  while the full table becomes secondary.
+- **Files:** `templates/admin.html`, `static/app.js`, `static/styles.css`
+- **Acceptance criteria:** pending queue is visible before filters/tables;
+  urgency is text-backed, not color-only.
+
+### 9.4 Quiet intelligence
+
+- **Goal:** Predict useful defaults without "AI assistant" complexity.
+- **Initial rules:** last used car first, common time range, typical duration,
+  next free slot action, pending-first admin dashboard.
+
+### 9.5 Applicability notes from premium wireframe
+
+- **Already present / strengthened:** live KPI strip, contextual lifecycle
+  actions, timeline meter, next free slot action and intent-driven next step.
+- **Apply next:** current trip hero, admin decision rail, Fleet Pulse strip and
+  quick booking suggestion.
+- **Defer:** heavy BI dashboards, GPS/telematics, extra roles, settings
+  labyrinth and generic chat assistant.
+
+---
+
 ## Cross-cutting concerns (apply to every item)
 
 - **No new dependencies** without listing them in the PR description with
@@ -1657,7 +1719,11 @@ If time is limited, execute items 1-4 before any new feature work.
   now require a reason and persist it to reservation audit history. The shared
   dialog validation path targets the exact invalid field rather than always
   marking the first control.
-- **Verification:** `pytest -q` passes with 84 tests, JS syntax checks,
+- **Phase 9.1 started:** Summary deck now acts as an intent-driven next-action
+  layer with one primary action per mode: book now, start/return current trip,
+  review pending admin work, view active trips or inspect fleet state. Status
+  bar now reports free cars instead of merely active cars.
+- **Verification:** `pytest -q` passes with 86 tests, JS syntax checks,
   `git diff --check`, Docker compose rebuild and `/health` smoke on `8001`.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation

@@ -2068,6 +2068,17 @@ select {
   min-height: 180px;
 }
 
+.summary-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+
+.summary-card__actions .btn {
+  min-height: 44px;
+}
+
 .session-summary,
 .notifications-list,
 .users-grid {

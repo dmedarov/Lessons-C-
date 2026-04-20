@@ -36,6 +36,8 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Surface | Files | Status | Required Checks | Next Agent Action |
 | --- | --- | --- | --- | --- |
 | Login/setup | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Apple buttons, WCAG labels/errors, bootstrap token copy, keyboard submit | Verify labels, focus order, error recovery and 390 px layout. Field errors are now wired with `aria-invalid` + `aria-describedby`. |
+| Intent summary / next action | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | One primary action, clear next step, keyboard focus, 44 px targets | Summary deck now renders contextual next-action buttons for employee/admin modes. Capture desktop/mobile screenshots and verify no surface exposes competing primary actions. |
+| Status bar / fleet KPIs | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Live system status, text labels, no color-only meaning, 390 px fit | KPI strip now reports pending, active trips and free cars. Verify mobile wrapping and screen-reader order. |
 | Employee booking form | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Apple layout, NN/g error prevention, WCAG form semantics, conflict preview status | Test invalid date range, conflict warning, preserved input after failure. `conflictPreview` already has `role=status` + `aria-live=polite`. |
 | Calendar studio | `templates/index.html`, `static/app.js`, `static/styles.css` | needs evidence | Responsive 390/768/1440, keyboard reachability, color+text statuses, no overlap | Capture mobile day mode and desktop month screenshots; verify day controls. Month prev/next controls now have accessible labels on both surfaces. |
 | Reservation list/cards | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Status text, lifecycle clarity, cards at mobile, table/card labels, cancel recovery | Verify no color-only state and all actions have accessible names. Lifecycle meter has text labels; table body is `aria-live=polite`; cancel now requires a reason. |
@@ -97,9 +99,15 @@ styles.
 - `pass`: cancel dialogs require a concrete reason before the destructive
   action and the backend stores the reason in `audit_log`; covered by
   `tests/test_ui_compliance.py` and `tests/test_app.py`.
+- `pass`: intent-driven summary actions expose one primary next step for
+  employee/admin modes and keep 44 px button targets; covered by
+  `tests/test_ui_compliance.py`.
+- `pass`: status bar reports free cars as active cars minus active trips,
+  aligning the KPI with the cockpit wireframe; covered by
+  `tests/test_ui_compliance.py`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
-- `evidence`: latest local handoff check ran `pytest -q` -> 84 passed,
+- `evidence`: latest local handoff check ran `pytest -q` -> 86 passed,
   `node --check static/app.js`, `node --check static/i18n.js`,
   `git diff --check`, Docker rebuild and `/health` on `8001`.
 

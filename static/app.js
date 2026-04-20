@@ -131,6 +131,7 @@ const els = {
   modeCopy: document.getElementById("modeCopy"),
   nextSignalTitle: document.getElementById("nextSignalTitle"),
   nextSignalCopy: document.getElementById("nextSignalCopy"),
+  nextSignalActions: document.getElementById("nextSignalActions"),
   reservationSearch: document.getElementById("reservationSearch"),
   reservationStartDate: document.getElementById("reservationStartDate"),
   reservationEndDate: document.getElementById("reservationEndDate"),
@@ -838,6 +839,7 @@ function updateOverview() {
   const activeCars = state.cars.filter((car) => car.active).length;
   const pending = state.reservations.filter((item) => item.status === "pending").length;
   const activeTrips = state.reservations.filter((item) => item.status === "checked_out").length;
+  const availableCars = Math.max(activeCars - activeTrips, 0);
 
   const kpiPending = document.getElementById("kpiPending");
   const kpiActive = document.getElementById("kpiActive");
@@ -852,8 +854,8 @@ function updateOverview() {
     kpiActive.classList.toggle("stat-card--active-trips", activeTrips > 0);
   }
   if (kpiAvailable) {
-    kpiAvailable.querySelector(".stat-card__value").textContent = activeCars;
-    kpiAvailable.classList.toggle("stat-card--available", activeCars > 0);
+    kpiAvailable.querySelector(".stat-card__value").textContent = availableCars;
+    kpiAvailable.classList.toggle("stat-card--available", availableCars > 0);
   }
 }
 
@@ -865,6 +867,21 @@ function updateNotificationBadge() {
   els.notificationBadge.classList.toggle("notification-badge--pulse", unread > 0);
 }
 
+function setIntentActions(actions = []) {
+  if (!els.nextSignalActions) return;
+  toggleHidden(els.nextSignalActions, !actions.length);
+  els.nextSignalActions.innerHTML = actions
+    .map((action, index) => {
+      const classes = action.primary ? "btn btn--primary" : "btn btn--ghost";
+      const reservationId = action.reservationId ? ` data-reservation-id="${action.reservationId}"` : "";
+      const reservationAction = action.reservationAction
+        ? ` data-reservation-action-target="${action.reservationAction}"`
+        : "";
+      return `<button class="${classes}" type="button" data-intent-action="${action.name}"${reservationId}${reservationAction} ${index === 0 ? 'data-primary-intent="true"' : ""}>${escapeHtml(t(action.labelKey))}</button>`;
+    })
+    .join("");
+}
+
 function updateSummary() {
   if (!state.currentUser) {
     els.modeHeading.textContent = "Влез в системата";
@@ -873,6 +890,7 @@ function updateSummary() {
     els.nextSignalCopy.textContent = state.hasAdmin
       ? "Влез с наличен профил, за да заредиш данните."
       : "Създай първия fleet admin, за да инициализираш системата.";
+    setIntentActions([]);
     return;
   }
 
@@ -885,16 +903,27 @@ function updateSummary() {
     els.modeCopy.textContent = adminSurface
       ? "Отделна admin страница за approvals, fleet control, blackout windows и continuity actions."
       : "Това е общият desk. За потребители, handoff и blackout-и използвай отделната Admin страница.";
-    els.nextSignalTitle.textContent = pending
-      ? `${pending} чакащи заявки`
-      : activeTrips
-        ? `${activeTrips} активни курса`
-        : "Няма критични опашки";
-    els.nextSignalCopy.textContent = pending
-      ? "Прегледай pending редовете и вземи решение директно от таблицата."
-      : activeTrips
-        ? "Следи кои автомобили са в курс и кои още не са върнати."
-        : "Флотът е под контрол и няма чакащи решения.";
+    if (pending) {
+      els.nextSignalTitle.textContent = t("intent.adminDecisionTitle", { count: pending });
+      els.nextSignalCopy.textContent = t("intent.adminDecisionCopy");
+      setIntentActions([
+        { name: "review-pending", labelKey: "intent.action.reviewPending", primary: true },
+        { name: "view-fleet", labelKey: "intent.action.viewFleet" },
+      ]);
+      return;
+    }
+    if (activeTrips) {
+      els.nextSignalTitle.textContent = t("intent.adminActiveTitle", { count: activeTrips });
+      els.nextSignalCopy.textContent = t("intent.adminActiveCopy");
+      setIntentActions([
+        { name: "view-active-trips", labelKey: "intent.action.viewActiveTrips", primary: true },
+        { name: "view-fleet", labelKey: "intent.action.viewFleet" },
+      ]);
+      return;
+    }
+    els.nextSignalTitle.textContent = t("intent.adminCalmTitle");
+    els.nextSignalCopy.textContent = t("intent.adminCalmCopy");
+    setIntentActions([{ name: "view-fleet", labelKey: "intent.action.viewFleet", primary: true }]);
     return;
   }
 
@@ -906,17 +935,41 @@ function updateSummary() {
   els.modeHeading.textContent = "Employee workspace";
   els.modeCopy.textContent = "Личен изглед с ясна история на заявките, активните курсове и нотификациите, които те касаят.";
   if (activeTrip) {
-    els.nextSignalTitle.textContent = "Имаш активен курс";
-    els.nextSignalCopy.textContent = `Автомобилът е в статус active trip до ${formatDateTime(activeTrip.end_time)}. При приключване го маркирай като върнат.`;
+    els.nextSignalTitle.textContent = t("intent.employeeActiveTitle");
+    els.nextSignalCopy.textContent = t("intent.employeeActiveCopy", { end: formatDateTime(activeTrip.end_time) });
+    setIntentActions([
+      {
+        name: "reservation-transition",
+        labelKey: "action.returnCar",
+        primary: true,
+        reservationId: activeTrip.id,
+        reservationAction: "return",
+      },
+      { name: "focus-reservation", labelKey: "intent.action.viewTrip", reservationId: activeTrip.id },
+    ]);
     return;
   }
   if (nextApproved) {
-    els.nextSignalTitle.textContent = "Имаш одобрена заявка";
-    els.nextSignalCopy.textContent = `Следващият ти слот започва ${formatDateTime(nextApproved.start_time)}. Когато вземеш автомобила, маркирай го като активен курс.`;
+    els.nextSignalTitle.textContent = t("intent.employeeApprovedTitle");
+    els.nextSignalCopy.textContent = t("intent.employeeApprovedCopy", { start: formatDateTime(nextApproved.start_time) });
+    setIntentActions([
+      {
+        name: "reservation-transition",
+        labelKey: "action.startTrip",
+        primary: true,
+        reservationId: nextApproved.id,
+        reservationAction: "start",
+      },
+      { name: "focus-reservation", labelKey: "intent.action.viewTrip", reservationId: nextApproved.id },
+    ]);
     return;
   }
-  els.nextSignalTitle.textContent = "Няма активен ангажимент";
-  els.nextSignalCopy.textContent = "Ако ти трябва автомобил, можеш да подадеш нова заявка отляво.";
+  els.nextSignalTitle.textContent = t("intent.employeeFreeTitle");
+  els.nextSignalCopy.textContent = t("intent.employeeFreeCopy");
+  setIntentActions([
+    { name: "book-now", labelKey: "intent.action.bookNow", primary: true },
+    { name: "view-my-trips", labelKey: "intent.action.viewMyTrips" },
+  ]);
 }
 
 function renderNotifications() {
@@ -1334,6 +1387,63 @@ function setAllPendingReservationsSelected(selected) {
   renderReservations();
 }
 
+function focusReservationRow(id, action = null) {
+  const row = document.querySelector(`[data-reservation-row="${id}"]`);
+  if (!row) return;
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+  row.tabIndex = -1;
+  const target = action ? row.querySelector(`[data-reservation-action="${action}"]`) : row;
+  window.setTimeout(() => (target || row).focus(), 180);
+}
+
+function focusReservationForm() {
+  els.reservationForm?.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.setTimeout(() => (els.carId || els.startTime || els.reservationForm)?.focus(), 180);
+}
+
+async function handleIntentAction(button) {
+  const action = button.dataset.intentAction;
+  const reservationId = Number(button.dataset.reservationId || 0);
+  const reservationActionTarget = button.dataset.reservationActionTarget || null;
+
+  if (action === "reservation-transition" && reservationId && reservationActionTarget) {
+    await reservationAction(reservationId, reservationActionTarget);
+    return;
+  }
+  if (action === "focus-reservation" && reservationId) {
+    focusReservationRow(reservationId, reservationActionTarget);
+    return;
+  }
+  if (action === "book-now") {
+    focusReservationForm();
+    return;
+  }
+  if (action === "view-my-trips") {
+    state.scope = "mine";
+    updateToolbarPressedStates(document.querySelectorAll("[data-scope]"), "scope");
+    await loadReservations();
+    document.getElementById("reservationsDeck")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  if (action === "review-pending" || action === "view-active-trips") {
+    state.status = action === "review-pending" ? "pending" : "checked_out";
+    updateToolbarPressedStates(document.querySelectorAll("[data-status]"), "status");
+    await loadReservations();
+    document.getElementById("reservationsDeck")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => {
+      const target =
+        action === "review-pending"
+          ? els.bulkSelectAll || document.querySelector('[data-reservation-action="approve"]')
+          : document.querySelector('[data-reservation-action="return"]');
+      target?.focus();
+    }, 180);
+    return;
+  }
+  if (action === "view-fleet") {
+    document.getElementById("fleetDeck")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
 function reservationContext(item) {
   const details = [];
   if (item.purpose) {
@@ -1407,6 +1517,8 @@ function renderReservations() {
     const car = cars.get(item.car_id);
     const selectable = canBulk && item.status === "pending";
     const row = document.createElement("tr");
+    row.dataset.reservationRow = String(item.id);
+    row.dataset.reservationStatus = item.status;
     row.innerHTML = `
       ${
         canBulk
@@ -2756,7 +2868,11 @@ document.addEventListener("click", (event) => {
   const applySlotButton = event.target.closest("[data-apply-slot]");
   const mobileDayShiftButton = event.target.closest("[data-mobile-day-shift]");
   const mobileBookDayButton = event.target.closest("[data-mobile-book-day]");
+  const intentButton = event.target.closest("[data-intent-action]");
 
+  if (intentButton) {
+    handleIntentAction(intentButton).catch((error) => showMessage("Следващият ход не успя", error.message));
+  }
   if (applySlotButton) {
     const [start, end] = applySlotButton.dataset.applySlot.split("|");
     if (els.startTime && els.endTime) {

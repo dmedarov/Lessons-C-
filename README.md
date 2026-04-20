@@ -1,6 +1,6 @@
 # Lessons-C- / Car Pool Reservation API
 
-Чист, модулен пример за управление на pool car процес в компания — FastAPI, Docker, real auth/user management, role-aware UI и dual-database setup за SQLite в dev и PostgreSQL в production. Фокусът вече е върху operational lifecycle: заявка, одобрение, активен курс, връщане и релевантни нотификации.
+Чист, модулен пример за управление на pool car процес в компания — FastAPI, Docker, real auth/user management, role-aware UI и dual-database setup за SQLite в dev и PostgreSQL в production. Продуктовата цел вече е **calm operations assistant for internal mobility**: по-малко UI шум, един основен ход на surface и ясна следваща стъпка.
 
 ## Какво прави
 
@@ -25,6 +25,8 @@
 - Бърз operational overview: активни коли, pending заявки, активни курсове и непрочетени нотификации.
 - Loading skeleton-и и submit busy states за основните форми и панели.
 - Ясни status тагове, филтри и действия в контекста на всеки запис.
+- Intent-driven summary: началният operational слой показва следващия най-важен ход според режима.
+- Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
 - Реален месечен календарен изглед за планиране и натоварване по дни.
 - Mobile day calendar mode под 768px, с предишен/следващ ден и бързо резервиране.
 - PostgreSQL-ready режим чрез `DATABASE_URL`.
@@ -268,7 +270,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-Последна локална проверка за UI/error-prevention пакета: `pytest -q` -> 84 passed, `node --check static/app.js`, `node --check static/i18n.js`, `git diff --check`, Docker rebuild + `/health` на `8001`.
+Последна локална проверка за UI/intent пакета: `pytest -q` -> 86 passed, `node --check static/app.js`, `node --check static/i18n.js`, `git diff --check`, Docker rebuild + `/health` на `8001`.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 
@@ -285,7 +287,7 @@ pytest -q
 - dev seed reset на тестовите акаунти
 - login rate limiting
 - refresh-token rotation, replay protection и logout invalidation
-- UI compliance guardrails: live regions, dialog focus return, exact invalid-field targeting, theme-aware alerts, safe-area mobile nav и задължителни reject/cancel reasons
+- UI compliance guardrails: live regions, dialog focus return, exact invalid-field targeting, intent-driven next actions, theme-aware alerts, safe-area mobile nav и задължителни reject/cancel reasons
 
 ## Alembic migrations
 
