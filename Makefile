@@ -4,8 +4,9 @@ COMPOSE_PROD := docker compose -f docker-compose.postgres.yml
 COMPOSE_DEV  := docker compose
 PYTHON       := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 PIP_AUDIT    := $(shell if [ -x .venv/bin/pip-audit ]; then echo .venv/bin/pip-audit; else echo pip-audit; fi)
+APP_URL      ?= http://127.0.0.1:8001
 
-.PHONY: help setup prod prod-check prod-backup prod-restore-drill audit-prod audit-prod-full release-check dev down logs test test-e2e guard-env guard-backup
+.PHONY: help setup prod prod-check prod-backup prod-restore-drill audit-prod audit-prod-full release-check qa-premium smoke-live dev down logs test test-e2e guard-env guard-backup
 
 help:
 	@echo "FleetFlow"
@@ -18,6 +19,8 @@ help:
 	@echo "  make audit-prod Audit pinned runtime dependencies"
 	@echo "  make audit-prod-full Audit runtime dependencies with resolver"
 	@echo "  make release-check Run local production release gates"
+	@echo "  make qa-premium Run release gates + browser role smoke"
+	@echo "  make smoke-live APP_URL=http://... Smoke a running app URL"
 	@echo "  make dev     Build and start dev stack (SQLite, demo data)"
 	@echo "  make down    Stop all containers"
 	@echo "  make logs    Tail application logs"
@@ -67,6 +70,16 @@ release-check: audit-prod
 	$(PYTHON) -m pytest -q
 	node --check static/app.js
 	node --check static/i18n.js
+
+qa-premium: release-check test-e2e
+	@echo ""
+	@echo "Premium QA gate passed."
+	@echo "Optional live container smoke: make smoke-live APP_URL=$(APP_URL)"
+
+smoke-live:
+	curl -fsS "$(APP_URL)/health"
+	curl -fsS "$(APP_URL)/health/ready"
+	curl -fsS "$(APP_URL)/public/overview"
 
 dev: guard-env
 	$(COMPOSE_DEV) up --build -d

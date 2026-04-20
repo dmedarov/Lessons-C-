@@ -191,6 +191,8 @@ make prod-restore-drill BACKUP=backups/fleetflow-....dump # dry-run restore в �
 make audit-prod # локален audit на pinned production runtime dependencies
 make audit-prod-full # resolver audit за production dependencies (същият подход като CI)
 make release-check # локални production gates: audit, compile, tests, JS syntax
+make qa-premium # release gates + browser role smoke
+make smoke-live APP_URL=http://127.0.0.1:8001 # health/ready/public overview на жив stack
 make test   # pytest suite
 make test-e2e # optional Playwright browser smoke
 ```
@@ -371,6 +373,7 @@ docker-compose.postgres.yml
 28. **Public orientation, private operations** — pre-login UI may show fleet counts and calendar occupancy with plate/model for frictionless orientation; users, trip purpose, GPS, reservation ids and lifecycle actions stay behind auth.
 29. **Production gates** — GitHub Actions пази `master` с Python 3.12/3.14 tests, JS syntax check, full production dependency audit and Docker build; `make release-check` дава стабилен локален guardrail без browser smoke.
 30. **Route/schema guardrails** — тестовете вече пазят FastAPI route registry от duplicate `(method, path)`, проверяват SQLite bootstrap schema, сравняват SQLite/PostgreSQL table-column contracts и assert-ват single Alembic head.
+31. **Premium QA gate** — `make qa-premium` комбинира dependency audit, Python compile, full pytest, JS syntax и browser role smoke; `make smoke-live APP_URL=...` проверява вече вдигнат stack.
 
 ## Тестове
 
@@ -380,6 +383,8 @@ make test
 make audit-prod
 make audit-prod-full
 make release-check
+make qa-premium
+make smoke-live APP_URL=http://127.0.0.1:8001
 ```
 
 Browser-level UI/UX smoke тестът е отделен от бързия unit/static suite, за да
@@ -440,6 +445,13 @@ targeted Playwright employee-admin-deny flow -> 1 passed,
 full `.venv/bin/python -m pytest -q` -> 143 passed,
 full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
+
+Последна premium QA проверка:
+`make qa-premium` -> passed (dependency audit, Python compile, 143 pytest
+cases, JS syntax, 7 Playwright role flows). `make smoke-live
+APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
+`/public/overview` passed. Активният Docker stack `fleetflow_prod_smoke` е
+healthy на `8001`.
 
 Предишна локална проверка за request-first/role-separated-lifecycle/reception-calendar пакета:
 `make audit-prod` -> no known vulnerabilities for pinned runtime dependencies,

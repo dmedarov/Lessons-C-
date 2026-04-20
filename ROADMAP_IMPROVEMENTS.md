@@ -170,6 +170,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Current automated coverage: growing `pytest` suite plus optional Playwright
   browser smoke (`e2e/`) that captures desktop/mobile screenshots, JS syntax
   checks, Python compile checks and Docker smoke used in shipped verification.
+- Premium QA commands are now first-class: `make qa-premium` runs release gates
+  plus browser role smoke, and `make smoke-live APP_URL=...` checks health,
+  readiness and public overview on a running stack.
 
 ### Active product gaps
 
@@ -2116,6 +2119,21 @@ If time is limited, execute items 1-4 before any new feature work.
 ---
 
 ## Done
+
+### 2026-04-20 - Premium QA command gate
+
+- **Goal:** Make "test it like QA" repeatable for future agents instead of
+  relying on chat memory.
+- **Makefile:** added `make qa-premium` for release-check + browser role smoke,
+  and `make smoke-live APP_URL=...` for live health/readiness/public overview
+  checks against a running container or deployment URL.
+- **Latest QA run:** `make qa-premium` passed after network-enabled
+  dependency audit; full pytest reported 143 passed; full Playwright role smoke
+  reported 7 passed. `make smoke-live APP_URL=http://127.0.0.1:8001` returned
+  ok/ready and public overview data from PostgreSQL.
+- **Operator note:** `.env` is absent in the checkout, so `make prod-check`
+  remains intentionally blocked until `make setup` or a real production `.env`
+  is present.
 
 ### 2026-04-20 - Authenticated requester GSM in reservation surfaces
 
