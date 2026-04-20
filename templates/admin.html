@@ -269,6 +269,32 @@
             </form>
           </section>
 
+          <section class="glass-card hidden" id="netfleetPanel">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">GPS сигнали</p>
+                <h2>NetFleet ключ</h2>
+              </div>
+            </div>
+            <form class="stack" id="netfleetForm" novalidate>
+              <label class="field">
+                <span>API ключ</span>
+                <input
+                  id="netfleetApiKey"
+                  name="netfleetApiKey"
+                  type="password"
+                  autocomplete="off"
+                  placeholder="Постави ключа само при добавяне или смяна"
+                />
+                <small class="field__hint" id="netfleetConfigStatus" aria-live="polite">
+                  Ключът не се показва обратно след запис.
+                </small>
+                <small class="field__error" id="netfleetApiKeyError"></small>
+              </label>
+              <button class="btn btn--ghost" type="submit">Запази NetFleet ключ</button>
+            </form>
+          </section>
+
           <section class="glass-card hidden" id="blackoutPanel">
             <div class="glass-card__header">
               <div>

@@ -116,12 +116,14 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   and forms.
 - Mobile calendar day mode below 768 px with previous/next day controls and a
   "book this day" affordance.
-- Intent-driven summary, Current Trip Hero, Admin Decision Rail and Fleet
-  Pulse started as the premium "calm operations assistant" layer.
+- Intent-driven summary, one-tap booking, smart prefill, Current Trip Hero,
+  Admin Decision Rail and Fleet Pulse started as the premium "calm operations
+  assistant" layer.
 - NetFleet latest GPS events are wired through an admin-only server-side proxy;
   employees can read pickup location only for their own approved/active trip.
-  `NETFLEET_API_KEY` must stay in `.env` and must never be committed.
-- Current automated coverage: 94 `pytest` cases plus JS syntax checks, Python
+  The key can be supplied by `.env` or saved once/changed from Admin UI as a
+  DB-backed setting; it must never be committed or echoed back to the browser.
+- Current automated coverage: 109 `pytest` cases plus JS syntax checks, Python
   compile checks and Docker smoke used in shipped verification.
 
 ### Active product gaps
@@ -1649,28 +1651,41 @@ using the existing bulk approval flow.
 before approvals with a global reservation snapshot independent of table
 filters. It summarizes active trips, cars releasing within 1 hour, pending
 decisions, busiest car and NetFleet GPS signal availability. Admin fleet cards
-show last GPS coordinates/speed/time when `NETFLEET_API_KEY` is configured.
+show last GPS coordinates/speed/time when NetFleet is configured by Admin UI
+or runtime env.
 Employee Current Trip Hero shows "Къде да вземеш колата" only for the user's
 own approved/active reservation, so location helps pickup without exposing the
-whole fleet.
+whole fleet. Employee free-mode booking now uses `/reservations/suggest` and
+`/reservations/quick-book` so the primary "Резервирай сега" action creates a
+pending request for the nearest available active car without scanning the form.
+Smart prefill now reads `/reservations/preferences` and offers the user's most
+common car, hour and duration from recent reservations as a reviewed one-click
+form fill, not an invisible auto-submit.
+Admins can now open `/admin`, use the GPS signals panel to add/change the
+NetFleet key, and see only status/last-change metadata; the secret is stored
+server-side and never echoed back.
 
 - **Goal:** Predict useful defaults without "AI assistant" complexity.
-- **Initial rules:** last used car first, common time range, typical duration,
-  next free slot action, pending-first admin dashboard.
+- **Initial rules:** nearest active car first, conflict/blackout-safe quick
+  booking, last used car first, common time range, typical duration, next free
+  slot action, pending-first admin dashboard.
 - **Files:** `templates/admin.html`, `static/app.js`, `static/i18n.js`,
-  `static/styles.css`, `config.py`, `netfleet_service.py`, `routers/cars.py`,
-  `.env.example`, `docker-compose.yml`, `docker-compose.postgres.yml`
-- **Verification:** `pytest tests/test_ui_compliance.py tests/test_app.py`,
-  full `pytest -q` -> 94 passed, JS syntax checks and Python compile check;
-  still needs
-  browser screenshot evidence for telemetry configured/unconfigured states.
+  `static/styles.css`, `app_settings.py`, `config.py`, `netfleet_service.py`, `routers/cars.py`,
+  `routers/reservations.py`, `.env.example`, `docker-compose.yml`,
+  `docker-compose.postgres.yml`
+- **Verification:** `pytest tests/test_netfleet_service.py tests/test_ui_compliance.py tests/test_app.py -q`
+  -> 73 passed, full `pytest -q` -> 109 passed, JS syntax checks, Python
+  compile check and PostgreSQL Docker rebuild smoke on `8001`; still needs
+  browser screenshot evidence for quick-book and telemetry configured/
+  unconfigured states.
 
 ### 9.5 Applicability notes from premium wireframe
 
 - **Already present / strengthened:** live KPI strip, contextual lifecycle
-  actions, timeline meter, next free slot action and intent-driven next step.
-- **Apply next:** one-tap booking suggestion, smart prefill and timeline-first
-  reservation view.
+  actions, timeline meter, next free slot action, smart prefill and
+  intent-driven next step, plus Admin UI NetFleet key setup/change.
+- **Apply next:** timeline-first reservation view and browser evidence for
+  one-tap/smart-prefill/NetFleet flows.
 - **Defer:** heavy BI dashboards, extra roles, settings labyrinth and generic
   chat assistant. GPS stays limited to read-only coordinates/availability
   context unless a specific operational flow needs more.
@@ -1770,10 +1785,15 @@ If time is limited, execute items 1-4 before any new feature work.
   decisions into a Decision Rail before the table, with direct approve/reject
   actions and a bulk approve path for the whole pending queue.
 - **Phase 9.4 started:** Admin surface now includes Fleet Pulse and optional
-  NetFleet live GPS coordinates via server-side `NETFLEET_API_KEY`.
-- **Verification:** `pytest -q` passes with 94 tests, JS syntax checks, Python
-  compile check, `git diff --check`, Docker compose rebuild and `/health`
-  smoke on `8001`; `fleetflow_test-car-pool-1` is healthy.
+  NetFleet live GPS coordinates via Admin UI DB setting or runtime env.
+  Employee free-mode booking now has one-tap quick-booking through the same
+  conflict and blackout guardrails as manual reservations, plus smart prefill
+  for the user's usual car/hour/duration.
+- **Verification:** `pytest -q` passes with 109 tests, targeted
+  NetFleet/UI/API pack passes with 73 tests, JS syntax checks, Python compile
+  check and a clean `fleetflow_test` Docker rebuild after adding
+  `app_settings.py` to the runtime image; `/health` on `8001` returns ok and
+  the app container is healthy.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation
 

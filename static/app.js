@@ -36,7 +36,9 @@ const state = {
   notifications: [],
   telemetry: [],
   telemetryConfigured: false,
+  netfleetConfig: null,
   pickupTelemetry: null,
+  reservationPreferences: null,
   users: [],
   userAudit: {},
   blackouts: [],
@@ -46,7 +48,9 @@ const state = {
     pulseReservations: false,
     notifications: false,
     telemetry: false,
+    netfleetConfig: false,
     pickupTelemetry: false,
+    preferences: false,
     users: false,
     blackouts: false,
   },
@@ -83,9 +87,18 @@ const els = {
   sessionMeta: document.getElementById("sessionMeta"),
   heroCaption: document.getElementById("heroCaption"),
   reservationForm: document.getElementById("reservationForm"),
+  quickBookPanel: document.getElementById("quickBookPanel"),
+  quickBookBtn: document.getElementById("quickBookBtn"),
+  quickBookHint: document.getElementById("quickBookHint"),
+  smartPrefillPanel: document.getElementById("smartPrefillPanel"),
+  smartPrefillBtn: document.getElementById("smartPrefillBtn"),
+  smartPrefillHint: document.getElementById("smartPrefillHint"),
   passwordForm: document.getElementById("passwordForm"),
   userForm: document.getElementById("userForm"),
   carForm: document.getElementById("carForm"),
+  netfleetForm: document.getElementById("netfleetForm"),
+  netfleetApiKey: document.getElementById("netfleetApiKey"),
+  netfleetConfigStatus: document.getElementById("netfleetConfigStatus"),
   reservationPanel: document.getElementById("reservationPanel"),
   passwordPanel: document.getElementById("passwordPanel"),
   userCreatePanel: document.getElementById("userCreatePanel"),
@@ -172,6 +185,7 @@ const fieldErrorIds = [
   "newUserPassword",
   "plate",
   "model",
+  "netfleetApiKey",
 ];
 
 let conflictPreviewTimer = null;
@@ -825,10 +839,13 @@ function renderShell() {
   toggleHidden(els.sessionPanel, !authenticated);
   toggleHidden(els.logoutBtn, !authenticated);
   toggleHidden(els.reservationPanel, !authenticated);
+  toggleHidden(els.quickBookPanel, !authenticated || adminMode);
+  toggleHidden(els.smartPrefillPanel, !authenticated || adminMode || !state.reservationPreferences?.available);
   toggleHidden(els.passwordPanel, !authenticated);
   toggleHidden(els.summaryDeck, !authenticated);
   toggleHidden(els.userCreatePanel, !authenticated || !adminMode || !adminSurface);
   toggleHidden(els.carPanel, !authenticated || !adminMode || !adminSurface);
+  toggleHidden(els.netfleetForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
   toggleHidden(els.usersDeck, !authenticated || !adminMode || !adminSurface);
   toggleHidden(els.handoffForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
   toggleHidden(els.blackoutForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
@@ -986,6 +1003,26 @@ function renderFleetPulse() {
       `).join("")}
     </div>
   `;
+}
+
+function renderNetfleetConfig() {
+  if (!els.netfleetConfigStatus) return;
+  const config = state.netfleetConfig;
+  if (state.loading.netfleetConfig) {
+    els.netfleetConfigStatus.textContent = t("netfleet.loading");
+    return;
+  }
+  if (!config?.configured) {
+    els.netfleetConfigStatus.textContent = t("netfleet.notConfigured");
+    return;
+  }
+  if (config.source === "database") {
+    els.netfleetConfigStatus.textContent = t("netfleet.configuredUi", {
+      time: formatDateTime(config.updated_at),
+    });
+    return;
+  }
+  els.netfleetConfigStatus.textContent = t("netfleet.configuredRuntime");
 }
 
 function updateNotificationBadge() {
@@ -1616,6 +1653,43 @@ function focusReservationForm() {
   window.setTimeout(() => (els.carId || els.startTime || els.reservationForm)?.focus(), 180);
 }
 
+function nextPreferredSlot(hour, durationMinutes) {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0, 0);
+  if (start <= now) {
+    start.setDate(start.getDate() + 1);
+  }
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  return { start, end };
+}
+
+function renderSmartPrefill() {
+  if (!els.smartPrefillPanel) return;
+  const available = Boolean(state.token && state.currentRole !== "fleet_admin" && state.reservationPreferences?.available);
+  toggleHidden(els.smartPrefillPanel, !available);
+  if (!available) return;
+  const prefs = state.reservationPreferences;
+  if (els.smartPrefillHint) {
+    els.smartPrefillHint.textContent = t("smartPrefill.hint", {
+      car: `${prefs.plate_number} · ${prefs.model}`,
+      hour: String(prefs.start_hour).padStart(2, "0"),
+      duration: prefs.duration_minutes,
+    });
+  }
+}
+
+function applySmartPrefill() {
+  const prefs = state.reservationPreferences;
+  if (!prefs?.available) return;
+  const slot = nextPreferredSlot(prefs.start_hour, prefs.duration_minutes);
+  if (els.carId) els.carId.value = String(prefs.car_id);
+  if (els.startTime) els.startTime.value = localInputValue(slot.start);
+  if (els.endTime) els.endTime.value = localInputValue(slot.end);
+  scheduleConflictPreview();
+  focusReservationForm();
+  showMessage(t("smartPrefill.appliedTitle"), t("smartPrefill.appliedBody"), "success");
+}
+
 async function handleIntentAction(button) {
   const action = button.dataset.intentAction;
   const reservationId = Number(button.dataset.reservationId || 0);
@@ -1630,7 +1704,7 @@ async function handleIntentAction(button) {
     return;
   }
   if (action === "book-now") {
-    focusReservationForm();
+    await quickBookReservation();
     return;
   }
   if (action === "view-my-trips") {
@@ -2161,6 +2235,45 @@ async function loadTelemetry() {
   }
 }
 
+async function loadNetfleetConfig() {
+  if (!state.token || state.currentRole !== "fleet_admin") {
+    state.netfleetConfig = null;
+    renderNetfleetConfig();
+    return;
+  }
+
+  setLoading("netfleetConfig", true);
+  renderNetfleetConfig();
+  try {
+    state.netfleetConfig = await apiFetch("/cars/telemetry/config", { headers: authHeaders() });
+  } catch (error) {
+    state.netfleetConfig = null;
+    console.warn("NetFleet config failed", error);
+  } finally {
+    setLoading("netfleetConfig", false);
+    renderNetfleetConfig();
+  }
+}
+
+async function loadReservationPreferences() {
+  if (!state.token || state.currentRole === "fleet_admin") {
+    state.reservationPreferences = null;
+    renderSmartPrefill();
+    return;
+  }
+
+  setLoading("preferences", true);
+  try {
+    state.reservationPreferences = await apiFetch("/reservations/preferences", { headers: authHeaders() });
+  } catch (error) {
+    state.reservationPreferences = null;
+    console.warn("Reservation preferences failed", error);
+  } finally {
+    setLoading("preferences", false);
+    renderSmartPrefill();
+  }
+}
+
 async function loadPickupTelemetry() {
   const candidate = currentTripCandidate();
   if (!state.token || !candidate) {
@@ -2361,7 +2474,15 @@ async function refreshData() {
   try {
     hideMessage();
     await loadCars();
-    await Promise.all([loadReservations(), loadFleetPulseReservations(), loadTelemetry(), loadNotifications(), loadUsers()]);
+    await Promise.all([
+      loadReservations(),
+      loadFleetPulseReservations(),
+      loadNetfleetConfig(),
+      loadTelemetry(),
+      loadReservationPreferences(),
+      loadNotifications(),
+      loadUsers(),
+    ]);
     await loadPickupTelemetry();
     updateOverview();
     updateSummary();
@@ -2560,7 +2681,9 @@ async function handleLogout() {
   state.pulseReservations = [];
   state.telemetry = [];
   state.telemetryConfigured = false;
+  state.netfleetConfig = null;
   state.pickupTelemetry = null;
+  state.reservationPreferences = null;
   state.users = [];
   state.userAudit = {};
   state.blackouts = [];
@@ -2573,6 +2696,8 @@ async function handleLogout() {
   renderCurrentTripHero();
   renderDecisionRail();
   renderFleetPulse();
+  renderNetfleetConfig();
+  renderSmartPrefill();
   renderUsers();
   renderBlackouts();
   renderHandoffCandidates();
@@ -2611,6 +2736,58 @@ async function handleReservationCreate(event) {
   }
 }
 
+async function quickBookReservation() {
+  if (!state.token) return;
+  const button = els.quickBookBtn;
+  const originalText = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.dataset.loading = "true";
+    button.textContent = t("quickBook.loading");
+  }
+  if (els.quickBookHint) {
+    els.quickBookHint.textContent = t("quickBook.searching");
+  }
+  try {
+    const reservation = await apiFetch("/reservations/quick-book", {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    const suggestion = reservation.quick_suggestion || {};
+    const car = suggestion.plate_number
+      ? `${suggestion.plate_number} · ${suggestion.model}`
+      : t("entity.car", { id: reservation.car_id });
+    if (els.quickBookHint) {
+      els.quickBookHint.textContent = t("quickBook.createdHint", {
+        car,
+        start: formatDateTime(reservation.start_time),
+        end: formatDateTime(reservation.end_time),
+      });
+    }
+    showMessage(
+      t("quickBook.createdTitle"),
+      t("quickBook.createdBody", {
+        car,
+        start: formatDateTime(reservation.start_time),
+      }),
+      "success",
+    );
+    await refreshData();
+  } catch (error) {
+    if (els.quickBookHint) {
+      els.quickBookHint.textContent = t("quickBook.failedHint");
+    }
+    showMessage(t("quickBook.failedTitle"), error.message);
+    focusReservationForm();
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.dataset.loading = "false";
+      button.textContent = originalText || t("quickBook.button");
+    }
+  }
+}
+
 async function handlePasswordChange(event) {
   event.preventDefault();
   if (!validatePasswordForm()) {
@@ -2632,6 +2809,41 @@ async function handlePasswordChange(event) {
     showMessage("Паролата е обновена", "Новата парола е активна.", "success");
   } catch (error) {
     showMessage("Неуспешна смяна", error.message);
+  } finally {
+    releaseSubmit();
+  }
+}
+
+function validateNetfleetForm() {
+  clearErrors();
+  const value = els.netfleetApiKey?.value.trim() || "";
+  if (value.length < 16) {
+    setFieldError("netfleetApiKey", t("netfleet.keyTooShort"));
+    return false;
+  }
+  return true;
+}
+
+async function handleNetfleetConfigUpdate(event) {
+  event.preventDefault();
+  if (!validateNetfleetForm()) {
+    showMessage(t("netfleet.invalidTitle"), t("netfleet.invalidBody"));
+    return;
+  }
+
+  const releaseSubmit = setSubmitBusy(event.currentTarget);
+  try {
+    state.netfleetConfig = await apiFetch("/cars/telemetry/config", {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({ api_key: els.netfleetApiKey.value.trim() }),
+    });
+    els.netfleetForm.reset();
+    renderNetfleetConfig();
+    showMessage(t("netfleet.savedTitle"), t("netfleet.savedBody"), "success");
+    await loadTelemetry();
+  } catch (error) {
+    showMessage(t("netfleet.saveFailedTitle"), error.message);
   } finally {
     releaseSubmit();
   }
@@ -3146,6 +3358,8 @@ function initDefaults() {
   renderCalendar();
   renderDayTimeline();
   renderConflictPreview();
+  renderSmartPrefill();
+  renderNetfleetConfig();
   updateOverview();
   updateSummary();
 }
@@ -3155,9 +3369,12 @@ bind(els.loginForm, "submit", handleLogin);
 bind(els.logoutBtn, "click", handleLogout);
 bind(els.logoutBtnSecondary, "click", handleLogout);
 bind(els.reservationForm, "submit", handleReservationCreate);
+bind(els.quickBookBtn, "click", quickBookReservation);
+bind(els.smartPrefillBtn, "click", applySmartPrefill);
 bind(els.passwordForm, "submit", handlePasswordChange);
 bind(els.userForm, "submit", handleUserCreate);
 bind(els.carForm, "submit", handleCarCreate);
+bind(els.netfleetForm, "submit", handleNetfleetConfigUpdate);
 bind(els.handoffForm, "submit", handleHandoff);
 bind(els.blackoutForm, "submit", handleBlackoutCreate);
 bind(els.markAllReadBtn, "click", markAllRead);

@@ -39,7 +39,10 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Intent summary / next action | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | One primary action, clear next step, keyboard focus, 44 px targets | Summary deck now renders contextual next-action buttons for employee/admin modes. Capture desktop/mobile screenshots and verify no surface exposes competing primary actions. |
 | Current trip hero | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | One primary action, status text, keyboard focus, mobile fit | Active/next approved employee trip is promoted above calendar/table with `Старт` or `Върни`. Capture desktop/mobile screenshots and verify focus after action. |
 | Status bar / fleet KPIs | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Live system status, text labels, no color-only meaning, 390 px fit | KPI strip now reports pending, active trips and free cars. Verify mobile wrapping and screen-reader order. |
-| Fleet Pulse / NetFleet telemetry | `templates/admin.html`, `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/cars.py`, `netfleet_service.py` | needs evidence | No exposed API key, employee pickup authorization, text-backed GPS status, responsive strip, coordinates do not overwhelm decisions | Fleet Pulse now uses a global reservation snapshot and optional NetFleet GPS events by plate number. Employee pickup location is limited to the user's own approved/active trip. Capture configured/unconfigured screenshots and verify no key appears in browser payloads. |
+| Fleet Pulse / NetFleet telemetry | `templates/admin.html`, `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `app_settings.py`, `routers/cars.py`, `netfleet_service.py` | needs evidence | No exposed API key, employee pickup authorization, text-backed GPS status, responsive strip, coordinates do not overwhelm decisions | Fleet Pulse now uses a global reservation snapshot and optional NetFleet GPS events by plate number. Employee pickup location is limited to the user's own approved/active trip. Capture configured/unconfigured screenshots and verify no key appears in browser payloads. |
+| Admin NetFleet key setup | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `routers/cars.py`, `app_settings.py`, `schemas.py` | needs evidence | Password input, no current-secret echo, admin-only access, status text, explicit save feedback | Admin can add/change the key once from `/admin`; UI resets the input after save and only shows configured/source metadata. Capture keyboard path and configured/unconfigured screenshots. |
+| One-tap booking | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/reservations.py` | needs evidence | One primary action, conflict/blackout-safe suggestion, no hidden destructive action, clear pending feedback | Quick-book panel appears before the manual form and the free-mode intent action creates a pending reservation through `/reservations/quick-book`. Capture success/failure screenshots and keyboard path. |
+| Smart prefill | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/reservations.py`, `schemas.py` | needs evidence | User keeps review control, no invisible submit, useful defaults, manual form remains reachable | Preferences come from the user's last 10 reservations and fill car/start/end only after an explicit button press. Capture desktop/mobile screenshots and verify keyboard path. |
 | Employee booking form | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Apple layout, NN/g error prevention, WCAG form semantics, conflict preview status | Test invalid date range, conflict warning, preserved input after failure. `conflictPreview` already has `role=status` + `aria-live=polite`. |
 | Calendar studio | `templates/index.html`, `static/app.js`, `static/styles.css` | needs evidence | Responsive 390/768/1440, keyboard reachability, color+text statuses, no overlap | Capture mobile day mode and desktop month screenshots; verify day controls. Month prev/next controls now have accessible labels on both surfaces. |
 | Reservation list/cards | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Status text, lifecycle clarity, cards at mobile, table/card labels, cancel recovery | Verify no color-only state and all actions have accessible names. Lifecycle meter has text labels; table body is `aria-live=polite`; cancel now requires a reason. |
@@ -117,13 +120,28 @@ styles.
   NetFleet GPS data stays behind server endpoints; employee pickup telemetry
   is authorized only for the user's own approved/active trip; covered by
   `tests/test_ui_compliance.py` and `tests/test_app.py`.
+- `pass`: one-tap booking creates a pending reservation via conflict/blackout
+  guarded backend suggestion instead of only focusing the manual form; covered
+  by `tests/test_ui_compliance.py` and `tests/test_app.py`.
+- `pass`: smart prefill predicts the user's usual car, hour and duration while
+  preserving explicit review before submit; covered by
+  `tests/test_ui_compliance.py` and `tests/test_app.py`.
+- `pass`: NetFleet service tests cover unconfigured and normalized live payload
+  paths without storing a real key in the repository.
+- `pass`: Admin-managed NetFleet key flow is admin-only, stores/changes the key
+  server-side, uses it for telemetry calls and never returns the current secret;
+  covered by `tests/test_app.py` and `tests/test_ui_compliance.py`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
-- `evidence`: latest local handoff check ran `pytest -q` -> 94 passed,
-  `node --check static/app.js`, `node --check static/i18n.js` and
-  Python compile check for `config.py`, `netfleet_service.py` and
-  `routers/cars.py`, plus `git diff --check`, Docker rebuild and `/health` on
-  `8001`; `fleetflow_test-car-pool-1` is healthy.
+- `evidence`: latest local handoff check ran `pytest -q` -> 109 passed,
+  `pytest tests/test_netfleet_service.py tests/test_ui_compliance.py tests/test_app.py -q`
+  -> 73 passed, `node --check static/app.js`, `node --check static/i18n.js`
+  and Python compile check for `app_settings.py routers/cars.py
+  routers/reservations.py schemas.py netfleet_service.py db.py`. Old
+  `fleetflow_test` containers were removed, Docker was rebuilt from scratch
+  after adding `app_settings.py` to the runtime image, Alembic started in
+  PostgreSQL compose, `/health` on `8001` returned ok and the app container is
+  healthy.
 
 ## PR/Handoff Checklist
 

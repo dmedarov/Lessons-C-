@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 from collections.abc import Iterator
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -824,6 +825,97 @@ def test_reservation_conflicts_require_auth_and_valid_window(client: TestClient)
     assert invalid.status_code == 400
 
 
+def test_reservation_suggest_returns_first_available_active_car(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "suggest", "Suggest User", "SuggestPass123")
+    employee = _login(client, "suggest", "SuggestPass123")
+    car_id = _create_car(client, admin, plate="CB3700AA")
+
+    res = client.get("/reservations/suggest", headers=_auth(employee))
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["car_id"] == car_id
+    assert data["plate_number"] == "CB3700AA"
+    assert data["duration_minutes"] == 120
+    assert datetime.fromisoformat(data["end_time"]) > datetime.fromisoformat(data["start_time"])
+
+
+def test_quick_book_creates_pending_reservation(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "quick", "Quick User", "QuickPass123")
+    employee = _login(client, "quick", "QuickPass123")
+    car_id = _create_car(client, admin, plate="CB3701AA")
+
+    res = client.post("/reservations/quick-book", headers=_auth(employee))
+    assert res.status_code == 201, res.text
+    data = res.json()
+    assert data["car_id"] == car_id
+    assert data["status"] == "pending"
+    assert data["purpose"] == "Бърза заявка от FleetFlow"
+    assert data["quick_suggestion"]["plate_number"] == "CB3701AA"
+
+
+def test_reservation_suggest_skips_conflicting_car(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "busy", "Busy User", "BusyPass123")
+    employee = _login(client, "busy", "BusyPass123")
+    busy_car = _create_car(client, admin, plate="CB3702AA")
+    free_car = _create_car(client, admin, plate="CB3703AA")
+    start = datetime.now(timezone.utc) + timedelta(minutes=20)
+    end = start + timedelta(days=8)
+    _create_reservation(client, busy_car, employee, start.isoformat(), end.isoformat(), "Long reservation")
+
+    res = client.get("/reservations/suggest", headers=_auth(employee))
+    assert res.status_code == 200, res.text
+    assert res.json()["car_id"] == free_car
+
+
+def test_reservation_preferences_return_common_car_hour_and_duration(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "prefs", "Prefs User", "PrefsPass123")
+    employee = _login(client, "prefs", "PrefsPass123")
+    car_id = _create_car(client, admin, plate="CB3704AA")
+    _create_reservation(
+        client,
+        car_id,
+        employee,
+        "2099-04-18T09:00:00+00:00",
+        "2099-04-18T11:00:00+00:00",
+        "Morning trip",
+    )
+    _create_reservation(
+        client,
+        car_id,
+        employee,
+        "2099-04-19T09:00:00+00:00",
+        "2099-04-19T11:00:00+00:00",
+        "Morning trip",
+    )
+
+    res = client.get("/reservations/preferences", headers=_auth(employee))
+    assert res.status_code == 200, res.text
+    assert res.json() == {
+        "available": True,
+        "car_id": car_id,
+        "plate_number": "CB3704AA",
+        "model": "Skoda Octavia",
+        "start_hour": 9,
+        "duration_minutes": 120,
+        "sample_size": 2,
+    }
+
+
+def test_reservation_preferences_empty_for_new_employee(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "newprefs", "New Prefs", "PrefsPass123")
+    employee = _login(client, "newprefs", "PrefsPass123")
+
+    res = client.get("/reservations/preferences", headers=_auth(employee))
+    assert res.status_code == 200, res.text
+    assert res.json()["available"] is False
+    assert res.json()["sample_size"] == 0
+
+
 def test_start_time_and_end_time_validation(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
     _create_user(client, admin, "ivan", "Ivan Petrov", "IvanPass123")
@@ -1086,6 +1178,81 @@ def test_car_telemetry_returns_unconfigured_without_secret(client: TestClient) -
     assert res.json() == {"configured": False, "items": []}
 
 
+def test_netfleet_config_can_be_saved_once_or_changed_by_admin(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+
+    status_res = client.get("/cars/telemetry/config", headers=_auth(admin))
+    assert status_res.status_code == 200
+    assert status_res.json() == {
+        "configured": False,
+        "source": "none",
+        "updated_at": None,
+        "updated_by_id": None,
+    }
+
+    create_res = client.put(
+        "/cars/telemetry/config",
+        json={"api_key": "stored-test-key-123456"},
+        headers=_auth(admin),
+    )
+    assert create_res.status_code == 200
+    data = create_res.json()
+    assert data["configured"] is True
+    assert data["source"] == "database"
+    assert data["updated_by_id"] is not None
+    assert "api_key" not in data
+
+    change_res = client.put(
+        "/cars/telemetry/config",
+        json={"api_key": "changed-test-key-654321"},
+        headers=_auth(admin),
+    )
+    assert change_res.status_code == 200
+    assert change_res.json()["source"] == "database"
+
+
+def test_netfleet_config_is_admin_only(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "nogpsadmin", "No GPS Admin", "EmpPass123")
+    emp = _login(client, "nogpsadmin", "EmpPass123")
+
+    read_res = client.get("/cars/telemetry/config", headers=_auth(emp))
+    write_res = client.put(
+        "/cars/telemetry/config",
+        json={"api_key": "employee-test-key-123456"},
+        headers=_auth(emp),
+    )
+
+    assert read_res.status_code == 403
+    assert write_res.status_code == 403
+
+
+def test_car_telemetry_uses_admin_saved_netfleet_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from routers import cars
+
+    admin = _bootstrap_admin(client)
+    captured = {}
+
+    client.put(
+        "/cars/telemetry/config",
+        json={"api_key": "stored-ui-key-123456"},
+        headers=_auth(admin),
+    )
+
+    def fake_fetch(api_key=None):
+        captured["api_key"] = api_key
+        return SimpleNamespace(configured=True, items=[])
+
+    monkeypatch.setattr(cars, "fetch_latest_gps_events", fake_fetch)
+
+    res = client.get("/cars/telemetry/latest", headers=_auth(admin))
+    assert res.status_code == 200
+    assert res.json() == {"configured": True, "items": []}
+    assert captured["api_key"] == "stored-ui-key-123456"
+
+
 def test_car_telemetry_employee_forbidden(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
     _create_user(client, admin, "empgps", "Emp GPS", "EmpPass123")
@@ -1104,7 +1271,7 @@ def test_car_telemetry_returns_normalized_netfleet_payload(client: TestClient, m
     monkeypatch.setattr(
         cars,
         "fetch_latest_gps_events",
-        lambda: SimpleNamespace(
+        lambda api_key=None: SimpleNamespace(
             configured=True,
             items=[
                 {
@@ -1140,7 +1307,7 @@ def test_employee_can_read_pickup_telemetry_for_approved_trip(client: TestClient
     monkeypatch.setattr(
         cars,
         "fetch_latest_gps_events",
-        lambda: SimpleNamespace(
+        lambda api_key=None: SimpleNamespace(
             configured=True,
             items=[{"plate_number": "CB9024AA", "latitude": 42.7, "longitude": 23.3, "speed": 0}],
         ),

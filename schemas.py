@@ -96,6 +96,17 @@ class CarNotesPayload(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=1000)
 
 
+class NetFleetConfigPayload(BaseModel):
+    api_key: str = Field(min_length=16, max_length=500)
+
+
+class NetFleetConfigResponse(BaseModel):
+    configured: bool
+    source: Literal["database", "environment", "none"]
+    updated_at: Optional[str] = None
+    updated_by_id: Optional[int] = None
+
+
 class CarBlackoutCreate(BaseModel):
     start_time: datetime
     end_time: datetime
@@ -152,6 +163,16 @@ class BulkDecisionResponse(BaseModel):
 
 class LifecycleNotePayload(BaseModel):
     note: Optional[str] = Field(default=None, max_length=500)
+
+
+class ReservationPreferencesResponse(BaseModel):
+    available: bool
+    car_id: Optional[int] = None
+    plate_number: Optional[str] = None
+    model: Optional[str] = None
+    start_hour: Optional[int] = None
+    duration_minutes: Optional[int] = None
+    sample_size: int = 0
 
 
 class NotificationResponse(BaseModel):

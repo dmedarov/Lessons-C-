@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import csv
 import io
+from collections import Counter
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
@@ -18,6 +19,7 @@ from schemas import (
     DecisionPayload,
     LifecycleNotePayload,
     ReservationCreate,
+    ReservationPreferencesResponse,
     ReservationStatus,
 )
 from security import AuthContext, get_auth_context, require_admin
@@ -140,6 +142,57 @@ def _blackout_conflict_rows(conn: DbConn, car_id: int, start_iso: str, end_iso: 
         """,
         (car_id, end_iso, start_iso),
     ).fetchall()
+
+
+def _round_up_to_quarter_hour(value: datetime) -> datetime:
+    timestamp = int(value.timestamp())
+    rounded = ((timestamp + 899) // 900) * 900
+    return datetime.fromtimestamp(rounded, tz=timezone.utc)
+
+
+def _parse_datetime(value: Any) -> datetime:
+    text = str(value)
+    if text.endswith("Z"):
+        text = f"{text[:-1]}+00:00"
+    parsed = datetime.fromisoformat(text)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _find_suggested_slot(conn: DbConn, duration_minutes: int = 120) -> dict[str, Any]:
+    cars = conn.execute(
+        "SELECT id, plate_number, model FROM cars WHERE active=1 ORDER BY id"
+    ).fetchall()
+    if not cars:
+        raise HTTPException(status_code=409, detail="No active cars available")
+
+    duration = timedelta(minutes=duration_minutes)
+    first_start = _round_up_to_quarter_hour(datetime.now(timezone.utc) + timedelta(minutes=30))
+    search_steps = 7 * 24 * 2  # 7 days in 30-minute increments.
+
+    for step in range(search_steps):
+        start = first_start + timedelta(minutes=step * 30)
+        end = start + duration
+        start_iso = _to_utc_iso(start)
+        end_iso = _to_utc_iso(end)
+        for car in cars:
+            car_id = int(car["id"])
+            if _reservation_conflict_rows(conn, car_id, start_iso, end_iso):
+                continue
+            if _blackout_conflict_rows(conn, car_id, start_iso, end_iso):
+                continue
+            return {
+                "car_id": car_id,
+                "plate_number": str(car["plate_number"]),
+                "model": str(car["model"]),
+                "start_time": start_iso,
+                "end_time": end_iso,
+                "duration_minutes": duration_minutes,
+                "purpose": "Бърза заявка от FleetFlow",
+            }
+
+    raise HTTPException(status_code=409, detail="No free slot found in the next 7 days")
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -266,6 +319,77 @@ def reservation_conflicts(
 
     items = sorted(reservation_items + blackout_items, key=lambda item: item["start_time"])
     return {"items": items, "total": len(items)}
+
+
+@router.get("/suggest")
+def suggest_reservation(
+    duration_minutes: int = Query(default=120, ge=15, le=480),
+    _: AuthContext = Depends(get_auth_context),
+) -> dict[str, Any]:
+    with get_conn() as conn:
+        return _find_suggested_slot(conn, duration_minutes)
+
+
+@router.post("/quick-book", status_code=status.HTTP_201_CREATED)
+def quick_book(
+    background_tasks: BackgroundTasks,
+    duration_minutes: int = Query(default=120, ge=15, le=480),
+    auth: AuthContext = Depends(get_auth_context),
+) -> dict[str, Any]:
+    with get_conn() as conn:
+        suggestion = _find_suggested_slot(conn, duration_minutes)
+    payload = ReservationCreate(
+        car_id=int(suggestion["car_id"]),
+        start_time=datetime.fromisoformat(str(suggestion["start_time"])),
+        end_time=datetime.fromisoformat(str(suggestion["end_time"])),
+        purpose=str(suggestion["purpose"]),
+    )
+    response = create_reservation(payload, background_tasks, auth)
+    response["quick_suggestion"] = suggestion
+    return response
+
+
+@router.get("/preferences", response_model=ReservationPreferencesResponse)
+def reservation_preferences(auth: AuthContext = Depends(get_auth_context)) -> ReservationPreferencesResponse:
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT r.car_id, r.start_time, r.end_time, c.plate_number, c.model
+            FROM reservations r
+            JOIN cars c ON c.id = r.car_id
+            WHERE r.created_by_id=? AND c.active=1
+            ORDER BY r.created_at DESC
+            LIMIT 10
+            """,
+            (auth.user_id,),
+        ).fetchall()
+
+    if not rows:
+        return ReservationPreferencesResponse(available=False, sample_size=0)
+
+    car_counts = Counter(int(row["car_id"]) for row in rows)
+    hour_counts: Counter[int] = Counter()
+    duration_counts: Counter[int] = Counter()
+    car_meta = {int(row["car_id"]): row for row in rows}
+
+    for row in rows:
+        start = _parse_datetime(row["start_time"])
+        end = _parse_datetime(row["end_time"])
+        duration = max(int((end - start).total_seconds() // 60), 15)
+        hour_counts[start.hour] += 1
+        duration_counts[duration] += 1
+
+    car_id = car_counts.most_common(1)[0][0]
+    car = car_meta[car_id]
+    return ReservationPreferencesResponse(
+        available=True,
+        car_id=car_id,
+        plate_number=str(car["plate_number"]),
+        model=str(car["model"]),
+        start_hour=hour_counts.most_common(1)[0][0],
+        duration_minutes=duration_counts.most_common(1)[0][0],
+        sample_size=len(rows),
+    )
 
 
 def _decide(

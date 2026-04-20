@@ -27,7 +27,7 @@ WORKDIR /app
 
 COPY --from=builder --chown=10001:10001 /install /app/vendor
 COPY --from=builder --chown=10001:10001 /data /data
-COPY --chown=10001:10001 app.py bootstrap_tokens.py config.py container_entrypoint.py db.py netfleet_service.py notifications_service.py rate_limit.py security.py schemas.py ./
+COPY --chown=10001:10001 app.py app_settings.py bootstrap_tokens.py config.py container_entrypoint.py db.py netfleet_service.py notifications_service.py rate_limit.py security.py schemas.py ./
 COPY --chown=10001:10001 alembic.ini ./
 COPY --chown=10001:10001 alembic ./alembic
 COPY --chown=10001:10001 routers ./routers

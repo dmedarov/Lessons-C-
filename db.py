@@ -117,6 +117,14 @@ SQLITE_SCHEMA = [
         created_at TEXT NOT NULL
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS app_settings (
+        setting_key TEXT PRIMARY KEY,
+        setting_value TEXT NOT NULL,
+        updated_by_id INTEGER REFERENCES users(id),
+        updated_at TEXT NOT NULL
+    )
+    """,
     "CREATE INDEX IF NOT EXISTS idx_reservations_car_time ON reservations(car_id, start_time, end_time)",
     "CREATE INDEX IF NOT EXISTS idx_reservations_status ON reservations(status)",
     "CREATE INDEX IF NOT EXISTS idx_audit_reservation ON audit_log(reservation_id)",
@@ -245,6 +253,14 @@ POSTGRES_SCHEMA = [
         active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
         created_by_id INTEGER NOT NULL REFERENCES users(id),
         created_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS app_settings (
+        setting_key TEXT PRIMARY KEY,
+        setting_value TEXT NOT NULL,
+        updated_by_id INTEGER REFERENCES users(id),
+        updated_at TEXT NOT NULL
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_reservations_car_time ON reservations(car_id, start_time, end_time)",

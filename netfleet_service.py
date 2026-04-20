@@ -33,15 +33,16 @@ def _normalize_event(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def fetch_latest_gps_events() -> NetFleetTelemetry:
-    if not settings.netfleet_api_key:
+def fetch_latest_gps_events(api_key: str | None = None) -> NetFleetTelemetry:
+    effective_api_key = api_key or settings.netfleet_api_key
+    if not effective_api_key:
         return NetFleetTelemetry(configured=False, items=[])
 
     url = f"{settings.netfleet_base_url.rstrip('/')}/api/company/latest-gps-events"
     request = urllib.request.Request(
         url,
         headers={
-            "api-key": settings.netfleet_api_key,
+            "api-key": effective_api_key,
             "Accept": "application/json",
         },
         method="GET",

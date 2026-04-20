@@ -5,9 +5,18 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app_settings import get_netfleet_api_key, get_netfleet_config_status, set_netfleet_api_key
 from db import get_conn
 from netfleet_service import fetch_latest_gps_events
-from schemas import BlackoutUpdatePayload, CarBlackoutCreate, CarBlackoutResponse, CarCreate, CarNotesPayload
+from schemas import (
+    BlackoutUpdatePayload,
+    CarBlackoutCreate,
+    CarBlackoutResponse,
+    CarCreate,
+    CarNotesPayload,
+    NetFleetConfigPayload,
+    NetFleetConfigResponse,
+)
 from security import AuthContext, get_auth_context, require_admin
 
 router = APIRouter(prefix="/cars", tags=["cars"])
@@ -75,10 +84,25 @@ def list_cars(active_only: bool = True) -> dict[str, list[dict]]:
 @router.get("/telemetry/latest")
 def latest_car_telemetry(_: AuthContext = Depends(require_admin)) -> dict:
     try:
-        telemetry = fetch_latest_gps_events()
+        telemetry = fetch_latest_gps_events(api_key=get_netfleet_api_key())
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail="NetFleet telemetry unavailable") from exc
     return {"configured": telemetry.configured, "items": telemetry.items}
+
+
+@router.get("/telemetry/config", response_model=NetFleetConfigResponse)
+def get_telemetry_config(_: AuthContext = Depends(require_admin)) -> NetFleetConfigResponse:
+    return NetFleetConfigResponse(**get_netfleet_config_status())
+
+
+@router.put("/telemetry/config", response_model=NetFleetConfigResponse)
+def update_telemetry_config(
+    payload: NetFleetConfigPayload,
+    auth: AuthContext = Depends(require_admin),
+) -> NetFleetConfigResponse:
+    if len(payload.api_key.strip()) < 16:
+        raise HTTPException(status_code=400, detail="NetFleet API key is too short")
+    return NetFleetConfigResponse(**set_netfleet_api_key(payload.api_key, auth.user_id))
 
 
 @router.get("/{car_id}/telemetry/latest")
@@ -100,7 +124,7 @@ def latest_car_telemetry_for_car(car_id: int, auth: AuthContext = Depends(get_au
                 raise HTTPException(status_code=403, detail="No approved trip for this car")
 
     try:
-        telemetry = fetch_latest_gps_events()
+        telemetry = fetch_latest_gps_events(api_key=get_netfleet_api_key())
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail="NetFleet telemetry unavailable") from exc
 

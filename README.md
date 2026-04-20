@@ -26,10 +26,12 @@
 - Loading skeleton-и и submit busy states за основните форми и панели.
 - Ясни status тагове, филтри и действия в контекста на всеки запис.
 - Intent-driven summary: началният operational слой показва следващия най-важен ход според режима.
+- One-tap booking: employee може да подаде pending заявка за най-близката свободна активна кола без ръчно попълване.
+- Smart prefill: employee формата предлага обичайната кола, час и продължителност от последните резервации.
 - Current Trip Hero: активната или следваща одобрена резервация излиза като основен hero блок с един primary action.
 - Admin Decision Rail: `/admin` започва с най-спешните pending заявки, директни approve/reject действия и bulk approve, преди таблицата.
 - Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола и GPS сигнал.
-- NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в `.env`.
+- NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а.
 - Pickup location: служителят вижда къде да вземе колата само за своя одобрена/активна резервация.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
 - Реален месечен календарен изглед за планиране и натоварване по дни.
@@ -115,12 +117,22 @@ make prod
 - изпълнява Alembic миграциите преди старта на приложението;
 - оставя UI-то на `http://localhost:${APP_PORT:-8000}`.
 
-Преди live deployment смени само:
+Преди live deployment смени поне:
 
 ```env
 CORS_ALLOW_ORIGINS=https://your-real-domain.example
-NETFLEET_API_KEY=your-netfleet-company-api-key   # optional, за live GPS координати
 ```
+
+GPS сигналите могат да се включат по два начина:
+
+1. Препоръчано за оператори: влез като `fleet_admin`, отвори `/admin` и в панела **GPS сигнали / NetFleet ключ** постави ключа еднократно или при промяна. Текущият ключ не се показва обратно в UI.
+2. Fallback за инфраструктура: добави ключа в runtime `.env` файла:
+
+```env
+NETFLEET_API_KEY=your-netfleet-company-api-key
+```
+
+Ако използваш `.env`, рестартирай stack-а с `make prod` или `docker compose ... up -d --build`. Не добавяй реалния ключ в `README`, source файлове, tests или frontend assets.
 
 Ако порт `8000` е зает, задай например:
 
@@ -181,7 +193,7 @@ make logs
 
 1. Попълни `.env` с реални стойности за `SECRET_KEY`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` и `DATABASE_URL`.
 2. Ако искаш външни нотификации, попълни и `SMTP_*`, `SLACK_WEBHOOK_URL`, `TEAMS_WEBHOOK_URL`.
-   Ако искаш live координати, попълни `NETFLEET_API_KEY`; `NETFLEET_BASE_URL`
+   Ако искаш live координати, добави ключа през `/admin` или попълни `NETFLEET_API_KEY` в `.env`; `NETFLEET_BASE_URL`
    по подразбиране е `https://api.netfleet.bg:8080`.
    Ако порт `8000` е зает, задай `APP_PORT=8001` или друг свободен порт в `.env`.
 
@@ -203,6 +215,7 @@ docker compose -f docker-compose.yml -f docker-compose.postgres.yml down
 
 ```
 app.py              # FastAPI factory + lifespan
+app_settings.py     # DB-backed runtime settings for admin-managed secrets such as NetFleet
 config.py           # Настройки от env (SECRET_KEY, DB_PATH, DATABASE_URL, TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS, CORS/rate limits, NetFleet)
 db.py               # SQLite/PostgreSQL adapters, schema bootstrap, runtime compatibility upgrades
 netfleet_service.py # Server-side NetFleet GPS telemetry client; ключът не стига до browser-а
@@ -212,7 +225,7 @@ routers/
   auth.py           # setup-status, bootstrap-admin, login, refresh, logout, auth/me
   cars.py           # /cars + deactivate/activate + blackout windows
   notifications.py  # user notification inbox
-  reservations.py   # /reservations + approve/reject/start/return/cancel
+  reservations.py   # /reservations + suggest/quick-book/preferences + approve/reject/start/return/cancel
   users.py          # user management + password change + admin handoff
 notifications_service.py  # in-app + outbound notification delivery
 alembic/            # versioned DB migrations
@@ -238,11 +251,16 @@ docker-compose.postgres.yml
 ## Правила
 
 - `POST /cars`, `POST /cars/{id}/deactivate`, `POST /cars/{id}/activate` — само `fleet_admin`.
+- `GET /cars/telemetry/config` и `PUT /cars/telemetry/config` — само `fleet_admin`; записва/сменя NetFleet ключ без да връща текущата стойност.
+- `GET /cars/telemetry/latest` — само `fleet_admin`; връща последните NetFleet GPS събития, ако ключът е конфигуриран.
+- `GET /cars/{id}/telemetry/latest` — admin или employee със собствена одобрена/активна резервация за тази кола.
 - `GET /users`, `POST /users`, `POST /users/{id}/activate`, `POST /users/{id}/deactivate` — само `fleet_admin`.
 - `POST /users/{id}/handoff-admin` — guarded admin handoff към друг активен user.
 - `POST /users/me/password` — логнат потребител, със задължителна текуща парола.
 - `POST /cars/{id}/blackouts`, `GET /cars/{id}/blackouts`, `POST /cars/blackouts/{id}/deactivate` — blackout management за service/maintenance.
 - `POST /reservations` — всеки логнат потребител. Резервацията се записва на името на логнатия (не може да се прави „от името на колега").
+- `GET /reservations/suggest` и `POST /reservations/quick-book` — employee quick-booking за най-близката свободна активна кола през същите conflict/blackout guardrails.
+- `GET /reservations/preferences` — employee smart prefill от последните 10 собствени резервации.
 - `POST /reservations/{id}/approve`/`reject` — само `fleet_admin`.
 - `POST /reservations/{id}/start` и `POST /reservations/{id}/return` — requester или admin.
 - `POST /reservations/{id}/cancel` — admin за всички, employee само за собствените си.
@@ -279,7 +297,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-Последна локална проверка за UI/fleet-pulse + NetFleet pickup telemetry пакета: `pytest -q` -> 94 passed, `node --check static/app.js`, `node --check static/i18n.js`, `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile config.py netfleet_service.py routers/cars.py`, `git diff --check`, Docker rebuild и `/health` на `8001`; `fleetflow_test-car-pool-1` е healthy.
+Последна локална проверка за one-tap/smart-prefill/admin NetFleet пакета: `pytest -q` -> 109 passed, `node --check static/app.js`, `node --check static/i18n.js`, `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile app_settings.py routers/cars.py routers/reservations.py schemas.py netfleet_service.py db.py` и `pytest tests/test_netfleet_service.py tests/test_ui_compliance.py tests/test_app.py -q` -> 73 passed. Старият `fleetflow_test` stack беше премахнат с `down --remove-orphans`, Docker image-ът беше rebuild-нат от нула след `Dockerfile` fix-а за `app_settings.py`, Alembic тръгна в PostgreSQL compose, `/health` на `8001` върна `{"status":"ok"}` и `fleetflow_test-car-pool-1` е healthy.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 
@@ -297,6 +315,9 @@ pytest -q
 - login rate limiting
 - refresh-token rotation, replay protection и logout invalidation
 - UI compliance guardrails: live regions, dialog focus return, exact invalid-field targeting, intent-driven next actions, current trip hero, theme-aware alerts, safe-area mobile nav и задължителни reject/cancel reasons
+- NetFleet service normalization/unconfigured states и frontend guardrail, че `NETFLEET_API_KEY` не изтича към browser-facing файлове
+- admin-managed NetFleet key flow: status, add/change, admin-only access и server-side usage without returning the secret
+- one-tap booking suggestion/create flow и smart prefill preferences за обичайна кола/час/продължителност
 
 ## Alembic migrations
 

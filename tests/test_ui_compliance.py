@@ -104,12 +104,45 @@ def test_intent_driven_summary_exposes_one_primary_next_action() -> None:
     assert 'data-primary-intent="true"' in app_js
     assert 'name: "review-pending", labelKey: "intent.action.reviewPending", primary: true' in app_js
     assert 'name: "book-now", labelKey: "intent.action.bookNow", primary: true' in app_js
+    assert "await quickBookReservation();" in app_js
     assert 'name: "reservation-transition"' in app_js
     assert "function handleIntentAction(button)" in app_js
     assert "function focusReservationRow(id, action = null)" in app_js
     assert '"intent.employeeFreeTitle": "Свободен режим"' in i18n_js
     assert ".summary-card__actions .btn" in styles
     assert "min-height: 44px;" in styles
+
+
+def test_one_tap_booking_is_available_without_form_scanning() -> None:
+    html = _read("templates/index.html")
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+    assert 'id="quickBookPanel"' in html
+    assert 'id="quickBookBtn"' in html
+    assert html.index('id="quickBookPanel"') < html.index('id="reservationForm"')
+    assert "function quickBookReservation()" in app_js
+    assert 'apiFetch("/reservations/quick-book"' in app_js
+    assert "toggleHidden(els.quickBookPanel, !authenticated || adminMode);" in app_js
+    assert '"quickBook.createdTitle": "Бързата заявка е подадена"' in i18n_js
+    assert ".quick-book .btn" in styles
+
+
+def test_smart_prefill_keeps_manual_booking_predictive() -> None:
+    html = _read("templates/index.html")
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+    assert 'id="smartPrefillPanel"' in html
+    assert 'id="smartPrefillBtn"' in html
+    assert html.index('id="smartPrefillPanel"') < html.index('id="reservationForm"')
+    assert "function loadReservationPreferences()" in app_js
+    assert 'apiFetch("/reservations/preferences"' in app_js
+    assert "function applySmartPrefill()" in app_js
+    assert "function nextPreferredSlot(hour, durationMinutes)" in app_js
+    assert "toggleHidden(els.smartPrefillPanel, !authenticated || adminMode || !state.reservationPreferences?.available);" in app_js
+    assert '"smartPrefill.hint": "Обичайно: {car}, около {hour}:00, за {duration} мин."' in i18n_js
+    assert ".smart-prefill .action-btn" in styles
 
 
 def test_status_bar_reports_free_cars_not_only_active_cars() -> None:
@@ -186,3 +219,40 @@ def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     assert ".car-card__telemetry" in styles
     assert ".pickup-location" in styles
     assert "grid-template-columns: repeat(5, minmax(0, 1fr));" in styles
+
+
+def test_netfleet_secret_stays_out_of_browser_facing_ui() -> None:
+    browser_files = [
+        "templates/index.html",
+        "templates/admin.html",
+        "static/app.js",
+        "static/i18n.js",
+        "static/styles.css",
+    ]
+    for path in browser_files:
+        content = _read(path)
+        assert "NETFLEET_API_KEY" not in content
+        assert "api-key" not in content
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    assert 'apiFetch(`/cars/${candidate.car_id}/telemetry/latest`' in app_js
+    assert '"pickup.title": "Къде да вземеш колата"' in i18n_js
+    assert '"fleetPulse.telemetryNotConfigured": "NetFleet ключът не е включен в runtime средата."' in i18n_js
+
+
+def test_admin_netfleet_key_can_be_configured_without_displaying_current_secret() -> None:
+    html = _read("templates/admin.html")
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+
+    assert 'id="netfleetForm"' in html
+    assert 'id="netfleetApiKey"' in html
+    assert 'type="password"' in html
+    assert "Ключът не се показва обратно след запис." in html
+    assert "function loadNetfleetConfig()" in app_js
+    assert "function handleNetfleetConfigUpdate(event)" in app_js
+    assert 'apiFetch("/cars/telemetry/config"' in app_js
+    assert 'body: JSON.stringify({ api_key: els.netfleetApiKey.value.trim() })' in app_js
+    assert 'els.netfleetForm.reset();' in app_js
+    assert '"netfleet.configuredUi": "Конфигуриран през Admin UI. Последна промяна: {time}."' in i18n_js
+    assert '"netfleet.notConfigured": "Не е конфигуриран.' in i18n_js

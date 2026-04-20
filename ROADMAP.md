@@ -205,6 +205,12 @@ operations assistant for internal mobility**, което е:
 - Intent-driven summary layer: employee/admin surfaces now expose contextual
   next-action buttons for free mode, active/approved trips, pending admin work,
   active trips and calm fleet state.
+- One-tap booking: employee free-mode primary action now creates a pending
+  reservation for the nearest available active car, using the existing
+  reservation/blackout conflict rules.
+- Smart prefill: employee booking now predicts the usual car, start hour and
+  typical duration from the user's last 10 reservations, then fills the manual
+  form on request without hiding review.
 - Current Trip Hero: employee active or next approved trip is promoted above
   the calendar/table with one primary action (`Старт` or `Върни`).
 - Admin Decision Rail: `/admin` now promotes the top 3 pending decisions above
@@ -214,25 +220,27 @@ operations assistant for internal mobility**, което е:
   trips, cars releasing within 1 hour, pending decisions, busiest car and GPS
   telemetry availability.
 - NetFleet telemetry: server-side proxy reads latest GPS events by plate number
-  from `NETFLEET_API_KEY`; the key never reaches browser code. Admins see
+  from the admin-managed DB setting or `NETFLEET_API_KEY`; the key never
+  reaches browser code and the UI never echoes the current secret. Admins see
   fleet-wide telemetry, while employees see pickup location only for their own
   approved/active trip.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 94 passed, JS
-  syntax checks, Python compile check, `git diff --check`, Docker rebuild and
-  `/health` on `8001`; `fleetflow_test-car-pool-1` is healthy.
+- Latest local verification for this slice: `pytest -q` -> 109 passed, targeted
+  NetFleet/UI/API regression pack -> 73 passed, JS syntax checks and Python
+  compile check. Old `fleetflow_test` containers were removed, Docker stack
+  was rebuilt from scratch after adding `app_settings.py` to the runtime image,
+  Alembic ran in PostgreSQL compose, `/health` on `8001` returned ok and the
+  app container is healthy.
 
 ## Next Recommended Slices
 
-1. One-tap booking: "резервирай най-подходящата свободна кола" върху вече наличните conflict/slot правила.
-2. Smart prefill: последна кола, често време и типична продължителност.
-3. Timeline-first reservation view; таблицата остава вторичен режим.
-4. Browser-level Playwright screenshots/e2e за employee booking, admin approve/reject, bulk reject reason validation, intent actions, current trip hero, admin decision rail, fleet pulse, NetFleet telemetry empty/configured states, refresh/logout и mobile calendar.
-5. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
-6. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
-7. PostgreSQL migration smoke + backup/restore playbook за production оператори.
-8. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
+1. Timeline-first reservation view; таблицата остава вторичен режим.
+2. Browser-level Playwright screenshots/e2e за one-tap booking, smart prefill, employee booking, admin approve/reject, bulk reject reason validation, intent actions, current trip hero, admin decision rail, fleet pulse, admin NetFleet key update, NetFleet telemetry empty/configured states, refresh/logout и mobile calendar.
+3. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
+4. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
+5. PostgreSQL migration smoke + backup/restore playbook за production оператори.
+6. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
 
 ## References
 
