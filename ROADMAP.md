@@ -244,6 +244,14 @@ operations assistant for internal mobility**, което е:
 - Admin Decision Rail: `/admin` now promotes the top 3 pending decisions above
   the bulk bar/table, with direct approve/reject actions and a bulk approve
   path for roles with approval capability.
+- Reception Rail: `/admin` now promotes approved handoffs and checked-out
+  returns above the lifecycle cards/table for `fleet_reception` and
+  `fleet_admin`, using the global operational snapshot so the next key/document
+  action is visible even when the detailed table is filtered.
+- Role-aware operational calendar: `fleet_reception` calendar/day timeline now
+  reads approved handoffs and checked-out returns from the global operational
+  snapshot instead of the current table filter, so active returns remain visible
+  while the table is filtered to approved work.
 - Timeline-first reservation view: employee/approver/reception/admin surfaces
   now render lifecycle cards before the table, with direct actions and
   role-scoped pending selection; the
@@ -284,10 +292,10 @@ operations assistant for internal mobility**, което е:
   request in production.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 133 passed,
-  targeted UI/API/production readiness pack -> 43 passed, Playwright browser
-  smoke -> 1 passed with desktop/mobile screenshots, JS syntax checks and
-  Python compile check. `make prod-check` fails fast when `.env` is missing in
+- Latest local verification for this slice: `pytest -q` -> 135 passed,
+  `pytest tests/test_ui_compliance.py -q` -> 31 passed, Playwright browser
+  smoke -> 1 passed with employee/admin/reception desktop and employee mobile
+  screenshots, JS syntax checks and Python compile check. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
   was rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on
   `8001` returned ok/ready and the app container is healthy. A real

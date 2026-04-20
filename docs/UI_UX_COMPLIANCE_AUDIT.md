@@ -46,10 +46,11 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | One-tap booking | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/reservations.py`, `e2e/test_browser_smoke.py` | pass | One primary action, conflict/blackout-safe suggestion, no hidden destructive action, clear pending feedback | Browser smoke verifies employee quick booking and captures `employee-desktop.png`; add failure/conflict screenshots next. |
 | Smart prefill | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/reservations.py`, `schemas.py` | needs evidence | User keeps review control, no invisible submit, useful defaults, manual form remains reachable | Preferences come from the user's last 10 reservations and fill car/start/end only after an explicit button press. Capture desktop/mobile screenshots and verify keyboard path. |
 | Employee booking form | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Apple layout, NN/g error prevention, WCAG form semantics, conflict preview status | New request is now before inbox in the side rail. Test invalid date range, conflict warning, preserved input after failure. `conflictPreview` already has `role=status` + `aria-live=polite`. |
-| Calendar studio | `templates/index.html`, `static/app.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | needs evidence | Responsive 390/768/1440, keyboard reachability, color+text statuses, no overlap | Mobile day mode is covered by `employee-mobile.png`; still capture tablet/desktop month and keyboard day controls. Month prev/next controls now have accessible labels on both surfaces. |
+| Calendar studio | `templates/index.html`, `static/app.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | needs evidence | Responsive 390/768/1440, keyboard reachability, color+text statuses, role-aware operational visibility, no overlap | Mobile day mode is covered by `employee-mobile.png`; reception calendar now uses the global operational snapshot for approved/checked-out work instead of the current table filter. Still capture tablet/desktop month and keyboard day controls. |
 | Reservation timeline/cards | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Timeline before table, status text, lifecycle clarity, 44 px actions, table remains secondary, cancel recovery | Employee reservations now render before calendar; browser smoke asserts timeline cards appear before tables. Continue with admin lifecycle action screenshots. |
 | Notifications | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | `aria-live`, unread badge clarity, concise copy, no noisy motion | Notification lists are polite live regions and show only unread items by default; read items are hidden with a calm note. Verify polling update announcement with a screen reader. |
 | Admin pending queue / decision rail | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | needs evidence | Top pending decisions first, bulk selection semantics, action bar visibility, partial-failure feedback, required reject reason | Desktop Decision Rail is covered by `admin-desktop.png`; still test keyboard checkbox selection, mobile and empty reject reason recovery. |
+| Admin reception queue / reception rail | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Approved handoffs and active returns before table, role-separated start/return, direct 44 px actions, no dependency on current table filter | Reception Rail uses the global operational reservation snapshot and promotes approved/checked-out work above lifecycle cards/table. It stays as an empty state for `fleet_reception`, but hides for `fleet_admin` when there is no handoff work to avoid dashboard noise. Capture reception/admin screenshots and keyboard path next. |
 | Admin users | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Destructive confirmations, role-change clarity, audit timeline readability | Verify reset/deactivate/role dialog focus return and success/error copy. |
 | Admin fleet/cars | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Notes textarea labels, active/inactive text state, 44 px controls | Verify notes save path, employee visibility and mobile card spacing. |
 | Blackout management | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Dialog APG behavior, date validation, conflict errors, no overlap | Test create/edit/deactivate via keyboard and invalid dates. |
@@ -173,19 +174,21 @@ styles.
 - `pass`: Fleet Pulse GPS count now uses matching active FleetFlow plates and
   reports `X/Y` instead of raw NetFleet event totals.
 - `pass`: initial Playwright browser smoke verifies employee one-tap booking,
-  employee/admin timeline-first card order, Admin Decision Rail, Fleet Pulse
-  copy and employee mobile calendar against a fresh app server; screenshots are
+  employee/admin/reception timeline-first card order, Admin Decision Rail,
+  Reception Rail, role-aware reception calendar, Fleet Pulse copy and employee
+  mobile calendar against a fresh app server; screenshots are
   written to `test-results/e2e/employee-desktop.png`,
-  `test-results/e2e/admin-desktop.png` and
-  `test-results/e2e/employee-mobile.png`.
+  `test-results/e2e/admin-desktop.png`,
+  `test-results/e2e/employee-mobile.png` and
+  `test-results/e2e/reception-desktop.png`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
-- `evidence`: latest local handoff check ran `pytest -q` -> 133 passed,
-  targeted UI/API/production readiness pack -> 43 passed,
+- `evidence`: latest local handoff check ran `pytest -q` -> 135 passed,
+  `pytest tests/test_ui_compliance.py -q` -> 31 passed,
   `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
   -> 1 passed, `node --check static/app.js`,
   `node --check static/i18n.js` and Python compile check for
-  `production_readiness.py routers/ops.py scripts/prod_check.py app.py schemas.py`.
+  `e2e/test_browser_smoke.py tests/test_ui_compliance.py`.
   `make prod-check` fails fast when `.env` is missing in a clean checkout. Old
   `fleetflow_test` containers were removed, Docker was rebuilt with pinned
   `postgres:16`, `/health` and `/health/ready` on `8001` returned ok/ready and

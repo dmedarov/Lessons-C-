@@ -137,6 +137,13 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Role-specific pool process is now the target model: `fleet_approver` owns
   approve/reject only, `fleet_reception` owns start/return only, `fleet_admin`
   owns configuration and override, and employee stays request/cancel only.
+- Reception Rail is shipped as the reception counterpart to Decision Rail:
+  approved key handoffs and active-trip returns are promoted above the table
+  for `fleet_reception`/`fleet_admin`, using the global operational snapshot
+  rather than the currently filtered table rows.
+- Reception calendar is now role-aware: `fleet_reception` sees approved
+  handoffs plus checked-out returns from the operational snapshot, not only the
+  table's current status filter.
 - Fleet Intelligence Seed is shipped: quick-book and explicit best-car
   suggestions use explainable scoring, admin Fleet Pulse shows compact derived
   insights, and `car_assignments` records why a car was chosen.
@@ -1597,7 +1604,8 @@ with return/deactivate/role/handoff/blackout recovery checks.
   - CI failure tells agents which surface and viewport regressed.
 - **Verification:** `pytest` + Playwright command documented in README and
   audit doc; latest local browser run -> 1 passed with
-  `employee-desktop.png`, `admin-desktop.png`, `employee-mobile.png`.
+  `employee-desktop.png`, `admin-desktop.png`, `employee-mobile.png`,
+  `reception-desktop.png`.
 - **Depends on:** 8.2, 8.3, 8.4
 - **Effort:** L
 
@@ -1651,12 +1659,14 @@ Before live use, every shipped change must preserve these flow-level checks:
    the default operational flow; read notifications do not accumulate in the
    visible inbox.
 6. **Decision/reception modes:** pending requests and Decision Rail appear
-   before filters/table for approvers; approved/active handoff work appears
-   first for reception. Approve/reject and start/return are separated.
+   before tables for approvers; approved key handoffs and active returns appear
+   in Reception Rail before lifecycle cards/tables for reception. Approve/reject
+   and start/return are separated by role and by screen priority.
 7. **Admin operations:** Fleet Pulse shows compact insight cards, not a BI
    dashboard; production readiness and NetFleet setup never reveal secrets.
 8. **Calendar/fleet:** timeline/card views come before tables; calendar is for
-   planning context, not the only way to find the next action.
+   planning context, not the only way to find the next action. Operational roles
+   must not lose calendar visibility just because a table filter is active.
 9. **Errors/loading:** every destructive action has a reason ritual, every
    slow surface has a skeleton/busy state, and every failed action keeps user
    input intact.
@@ -1766,17 +1776,18 @@ orientation, but requester, purpose, GPS, reservation ids and actions are not.
   `alembic/versions/20260420_0008_car_assignments.py`,
   `alembic/versions/20260420_0009_split_operational_roles.py`, `.env.example`,
   `docker-compose.yml`, `docker-compose.postgres.yml`
-- **Verification:** `pytest -q` -> 133 passed, targeted
-  UI/API/production readiness pack -> 43 passed, `node --check static/app.js`,
-  `node --check static/i18n.js`, Python compile check and Playwright browser
-  smoke pass with refreshed desktop/mobile screenshots.
+- **Verification:** `pytest -q` -> 135 passed,
+  `pytest tests/test_ui_compliance.py -q` -> 31 passed,
+  `node --check static/app.js`, `node --check static/i18n.js`, Python compile
+  check and Playwright browser smoke pass with refreshed employee/admin/reception
+  desktop and employee mobile screenshots.
 
 ### 9.5 Applicability notes from premium wireframe
 
 - **Already present / strengthened:** live KPI strip, contextual lifecycle
   actions, timeline-first reservation flow, timeline meter, next free slot
-  action, smart prefill and intent-driven next step, plus Admin UI NetFleet key
-  setup/change.
+  action, smart prefill, intent-driven next step, Admin Decision Rail,
+  Reception Rail, plus Admin UI NetFleet key setup/change.
 - **UX review decision:** employee surface is now request-first, not
   calendar-first. The order is current trip/context, reservations lifecycle,
   calendar planning, fleet availability; the new-request control sits before
@@ -1941,10 +1952,10 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Pre-login overview shipped:** `/public/overview` returns only aggregate
   counts for active cars, pending approvals, active trips and free cars; the
   hero status bar uses those values before login.
-- **Verification:** `pytest -q` passes with 133 tests, targeted
-  UI/API/production readiness pack passes with 43 tests, Playwright browser
-  smoke passes with 1 test and screenshots, JS syntax checks and Python compile
-  check pass. `make prod-check` fails fast when `.env` is missing in a clean
+- **Verification:** `pytest -q` passes with 135 tests,
+  `pytest tests/test_ui_compliance.py -q` passes with 31 tests, Playwright
+  browser smoke passes with 1 test and screenshots, JS syntax checks and Python
+  compile check pass. `make prod-check` fails fast when `.env` is missing in a clean
   checkout. Old `fleetflow_test` containers were removed, Docker stack was
   rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on `8001`
   return ok/ready and the app container is healthy. Backup creation and

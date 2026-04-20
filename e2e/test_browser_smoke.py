@@ -6,6 +6,8 @@ import subprocess
 import sys
 import time
 import urllib.request
+import json
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterator
 
@@ -109,6 +111,23 @@ def _login(page: Page, base_url: str, path: str, username: str, password: str) -
     expect(page.locator("#summaryDeck")).to_be_visible()
 
 
+def _api_json(base_url: str, path: str, method: str = "GET", token: str | None = None, payload: dict | None = None) -> dict | list:
+    data = json.dumps(payload).encode("utf-8") if payload is not None else None
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(f"{base_url}{path}", data=data, headers=headers, method=method)
+    with urllib.request.urlopen(request, timeout=5) as response:
+        body = response.read().decode("utf-8")
+    return json.loads(body) if body else {}
+
+
+def _api_login(base_url: str, username: str, password: str) -> str:
+    data = _api_json(base_url, "/auth/login", "POST", payload={"username": username, "password": password})
+    assert isinstance(data, dict)
+    return str(data["access_token"])
+
+
 def _timeline_is_before_table(page: Page) -> bool:
     return bool(
         page.evaluate(
@@ -203,3 +222,68 @@ def test_premium_employee_admin_and_mobile_surfaces(
     expect(mobile_page.locator("#reservationsTimeline")).to_be_visible()
     mobile_page.screenshot(path=artifact_dir / "employee-mobile.png", full_page=True)
     mobile.close()
+
+    admin_token = _api_login(server, "admin", "AdminPass123")
+    ivan_token = _api_login(server, "ivan", "IvanPass123")
+    maria_token = _api_login(server, "maria", "MariaPass123")
+    _api_json(
+        server,
+        "/users",
+        "POST",
+        admin_token,
+        {
+            "username": "reception",
+            "display_name": "Reception Desk",
+            "password": "ReceptionPass123",
+            "role": "fleet_reception",
+        },
+    )
+    reception_token = _api_login(server, "reception", "ReceptionPass123")
+    cars_response = _api_json(server, "/cars", token=admin_token)
+    assert isinstance(cars_response, dict)
+    cars = cars_response["items"]
+    base_start = (datetime.now().astimezone() + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
+
+    approved_reservation = _api_json(
+        server,
+        "/reservations",
+        "POST",
+        ivan_token,
+        {
+            "car_id": cars[3]["id"],
+            "start_time": base_start.isoformat(),
+            "end_time": (base_start + timedelta(hours=1)).isoformat(),
+            "purpose": "Reception approved calendar smoke",
+        },
+    )
+    active_reservation = _api_json(
+        server,
+        "/reservations",
+        "POST",
+        maria_token,
+        {
+            "car_id": cars[4]["id"],
+            "start_time": (base_start + timedelta(hours=2)).isoformat(),
+            "end_time": (base_start + timedelta(hours=3)).isoformat(),
+            "purpose": "Reception active calendar smoke",
+        },
+    )
+    assert isinstance(approved_reservation, dict)
+    assert isinstance(active_reservation, dict)
+    _api_json(server, f"/reservations/{approved_reservation['id']}/approve", "POST", admin_token, {})
+    _api_json(server, f"/reservations/{active_reservation['id']}/approve", "POST", admin_token, {})
+    _api_json(server, f"/reservations/{active_reservation['id']}/start", "POST", reception_token, {"note": "Keys handed over"})
+
+    reception = browser.new_context(viewport={"width": 1440, "height": 1000})
+    reception_page = reception.new_page()
+    _login(reception_page, server, "/admin", "reception", "ReceptionPass123")
+    reception_page.evaluate("dateKey => setSelectedDate(dateKey)", base_start.date().isoformat())
+    expect(reception_page.locator('[data-status="approved"]')).to_have_attribute("aria-pressed", "true")
+    expect(reception_page.locator("#receptionRail")).to_be_visible(timeout=10_000)
+    expect(reception_page.locator("#receptionRail")).to_contain_text("Започни курс")
+    expect(reception_page.locator("#receptionRail")).to_contain_text("Върни автомобил")
+    expect(reception_page.locator("#dayTimeline")).to_contain_text("Одобрена", timeout=10_000)
+    expect(reception_page.locator("#dayTimeline")).to_contain_text("Активен курс")
+    expect(reception_page.locator("#usersDeck")).to_be_hidden()
+    reception_page.screenshot(path=artifact_dir / "reception-desktop.png", full_page=True)
+    reception.close()

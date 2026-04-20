@@ -39,7 +39,9 @@
 - Calm default inbox/listing: employee default филтърът е **Текущи**, така че върнатите/отказаните/отменените не стоят в оперативния поток; прочетените нотификации се прибират от inbox-а.
 - Role-specific operational surfaces: `/admin` показва Decision Rail за `fleet_approver`, handoff/start/return поток за `fleet_reception`, и пълен control surface само за `fleet_admin`.
 - Admin Decision Rail: `/admin` започва с най-спешните pending заявки, директни approve/reject действия и bulk approve за роли с право на решение, преди таблицата.
+- Reception Rail: `/admin` показва одобрените курсове за предаване и активните курсове за връщане най-горе за `fleet_reception`/`fleet_admin`, с директни start/return действия преди таблицата.
 - Timeline-first reservations: employee/approver/reception/admin виждат lifecycle cards преди таблицата, с действия само според ролята и secondary table fallback.
+- Role-aware calendar: operational календарът за `fleet_reception` показва approved handoffs и active returns от глобалния snapshot, независимо от филтъра на таблицата.
 - Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола, `X/Y` GPS позиции и compact Fleet Intelligence insight-и.
 - NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а.
 - Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string.
@@ -384,15 +386,15 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 ```
 
 `make test-e2e` стартира fresh FastAPI server с временна SQLite база, логва
-employee/admin demo users, проверява one-tap booking, timeline-first cards,
-Admin Decision Rail, reception handoff flow, Fleet Pulse copy и mobile calendar, после записва:
-`employee-desktop.png`, `admin-desktop.png` и `employee-mobile.png`.
+employee/admin/reception demo flows, проверява one-tap booking, timeline-first cards,
+Admin Decision Rail, Reception Rail, role-aware reception calendar, Fleet Pulse copy и mobile calendar, после записва:
+`employee-desktop.png`, `admin-desktop.png`, `employee-mobile.png` и `reception-desktop.png`.
 `test-results/` е игнориран от git.
 
-Последна локална проверка за request-first/role-separated-lifecycle/production-readiness пакета:
-`pytest -q` -> 133 passed, targeted UI/API/production readiness pack -> 43 passed,
+Последна локална проверка за request-first/role-separated-lifecycle/reception-calendar пакета:
+`pytest -q` -> 135 passed, `pytest tests/test_ui_compliance.py -q` -> 31 passed,
 `node --check static/app.js`, `node --check static/i18n.js`,
-`PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile app.py db.py schemas.py security.py routers/reservations.py routers/intelligence.py fleet_intelligence/*.py tests/test_app.py tests/test_ui_compliance.py`,
+`PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile e2e/test_browser_smoke.py tests/test_ui_compliance.py`,
 и `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 1 passed. `make prod-check` fail-fast-ва без `.env`, както трябва за clean
 repo. Старият `fleetflow_test` stack беше премахнат, Docker image-ът беше

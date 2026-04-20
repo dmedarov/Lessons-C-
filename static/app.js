@@ -150,6 +150,7 @@ const els = {
   reservationsTableBody: document.getElementById("reservationsTableBody"),
   reservationsTimeline: document.getElementById("reservationsTimeline"),
   decisionRail: document.getElementById("decisionRail"),
+  receptionRail: document.getElementById("receptionRail"),
   fleetPulse: document.getElementById("fleetPulse"),
   overviewStats: document.getElementById("overviewStats"),
   currentTripHero: document.getElementById("currentTripHero"),
@@ -738,9 +739,18 @@ function telemetryByPlate() {
   return new Map(state.telemetry.map((item) => [String(item.plate_number || "").trim().toUpperCase(), item]));
 }
 
+function calendarSourceItems() {
+  if (!state.token) return state.publicCalendar;
+  if (!isOperationalRole()) return state.reservations;
+  const source = state.pulseReservations.length || state.loading.pulseReservations ? state.pulseReservations : state.reservations;
+  const currentStatuses =
+    state.currentRole === "fleet_reception" ? ["approved", "checked_out"] : ["pending", "approved", "checked_out"];
+  return source.filter((item) => currentStatuses.includes(item.status));
+}
+
 function dayMap() {
   const map = new Map();
-  const calendarItems = state.token ? state.reservations : state.publicCalendar;
+  const calendarItems = calendarSourceItems();
   calendarItems.forEach((item) => {
     const key = dateKey(new Date(item.start_time));
     const list = map.get(key) || [];
@@ -1870,7 +1880,9 @@ async function handleIntentAction(button) {
     state.status = action === "review-pending" ? "pending" : action === "view-handoffs" ? "approved" : "checked_out";
     updateToolbarPressedStates(document.querySelectorAll("[data-status]"), "status");
     await loadReservations();
-    document.getElementById("reservationsDeck")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const railTarget = action === "review-pending" ? els.decisionRail : els.receptionRail;
+    (railTarget && !railTarget.classList.contains("hidden") ? railTarget : document.getElementById("reservationsDeck"))
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
     window.setTimeout(() => {
       const target =
         action === "review-pending"
@@ -2111,6 +2123,100 @@ function renderDecisionRail() {
   `;
 }
 
+function receptionRailItems() {
+  const source = isOperationalRole() ? state.pulseReservations : state.reservations;
+  return [...source]
+    .filter((item) => ["approved", "checked_out"].includes(item.status))
+    .sort((a, b) => {
+      const aTime = new Date(a.status === "checked_out" ? a.end_time : a.start_time);
+      const bTime = new Date(b.status === "checked_out" ? b.end_time : b.start_time);
+      if (a.status !== b.status) return a.status === "approved" ? -1 : 1;
+      return aTime - bTime;
+    });
+}
+
+function renderReceptionRail() {
+  if (!els.receptionRail) return;
+  const showRail = canManageTripHandoff() && surface === "admin" && state.token;
+  toggleHidden(els.receptionRail, !showRail);
+  if (!showRail) {
+    els.receptionRail.innerHTML = "";
+    return;
+  }
+
+  if (state.loading.pulseReservations || state.loading.reservations) {
+    els.receptionRail.innerHTML = `
+      <div>
+        <p class="panel__eyebrow">${escapeHtml(t("receptionRail.eyebrow"))}</p>
+        <h3 id="receptionRailTitle">${escapeHtml(t("receptionRail.loadingTitle"))}</h3>
+      </div>
+      ${skeletonCards(2)}
+    `;
+    return;
+  }
+
+  const cars = carMap();
+  const handoffItems = receptionRailItems();
+  const visible = handoffItems.slice(0, 4);
+  const extraCount = Math.max(handoffItems.length - visible.length, 0);
+
+  if (!handoffItems.length && isFullAdmin()) {
+    toggleHidden(els.receptionRail, true);
+    els.receptionRail.innerHTML = "";
+    return;
+  }
+
+  if (!handoffItems.length) {
+    els.receptionRail.innerHTML = `
+      <div>
+        <p class="panel__eyebrow">${escapeHtml(t("receptionRail.eyebrow"))}</p>
+        <h3 id="receptionRailTitle">${escapeHtml(t("receptionRail.emptyTitle"))}</h3>
+        <p class="section-copy">${escapeHtml(t("receptionRail.emptyCopy"))}</p>
+      </div>
+    `;
+    return;
+  }
+
+  els.receptionRail.innerHTML = `
+    <div class="decision-rail__header">
+      <div>
+        <p class="panel__eyebrow">${escapeHtml(t("receptionRail.eyebrow"))}</p>
+        <h3 id="receptionRailTitle">${escapeHtml(t("receptionRail.title", { count: handoffItems.length }))}</h3>
+        <p class="section-copy">${escapeHtml(t("receptionRail.copy"))}</p>
+      </div>
+      <div class="decision-rail__actions">
+        <button class="btn btn--primary" type="button" data-intent-action="view-handoffs">${escapeHtml(t("intent.action.viewHandoffs"))}</button>
+        <button class="btn btn--ghost" type="button" data-intent-action="view-active-trips">${escapeHtml(t("intent.action.viewActiveTrips"))}</button>
+      </div>
+    </div>
+    <div class="decision-rail__list">
+      ${visible.map((item) => {
+        const car = cars.get(item.car_id);
+        const carLabel = car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id });
+        const isActive = item.status === "checked_out";
+        const action = isActive ? "return" : "start";
+        const label = isActive ? t("action.returnCar") : t("action.startTrip");
+        const timeKey = isActive ? "receptionRail.returnBy" : "receptionRail.startAt";
+        const timeValue = isActive ? item.end_time : item.start_time;
+        return `
+          <article class="decision-card reception-card" data-reception-card="${item.id}">
+            <div>
+              <strong>${escapeHtml(carLabel)}</strong>
+              <p>${escapeHtml(item.employee_name)} · ${escapeHtml(t(timeKey, { time: formatDateTime(timeValue) }))}</p>
+              <span class="status-pill ${isActive ? "status-pill--warning" : "status-pill--success"}">${escapeHtml(t(`status.${item.status}`))}</span>
+              ${item.purpose ? `<p class="decision-card__purpose">${escapeHtml(item.purpose)}</p>` : ""}
+            </div>
+            <div class="decision-card__actions">
+              <button class="action-btn action-btn--toggle" type="button" data-reservation-action="${action}" data-id="${item.id}" aria-label="${label} за резервация #${item.id}">${escapeHtml(label)}</button>
+            </div>
+          </article>
+        `;
+      }).join("")}
+    </div>
+    ${extraCount ? `<p class="muted decision-rail__more">${escapeHtml(t("receptionRail.more", { count: extraCount }))}</p>` : ""}
+  `;
+}
+
 function renderReservations() {
   const cars = carMap();
   const canBulk = bulkSelectionEnabled();
@@ -2122,6 +2228,7 @@ function renderReservations() {
     state.selectedReservationIds.clear();
     renderBulkActionBar();
     renderDecisionRail();
+    renderReceptionRail();
     renderReservationFlow(cars, canBulk);
     els.reservationsTableBody.innerHTML = `<tr><td colspan="${colspan}" class="muted">Влез в системата, за да видиш operational потока.</td></tr>`;
     return;
@@ -2130,6 +2237,7 @@ function renderReservations() {
   if (state.loading.reservations) {
     renderBulkActionBar();
     renderDecisionRail();
+    renderReceptionRail();
     renderReservationFlow(cars, canBulk);
     els.reservationsTableBody.innerHTML = `${skeletonTableRow(colspan)}${skeletonTableRow(colspan)}${skeletonTableRow(colspan)}`;
     return;
@@ -2139,6 +2247,7 @@ function renderReservations() {
     state.selectedReservationIds.clear();
     renderBulkActionBar();
     renderDecisionRail();
+    renderReceptionRail();
     renderReservationFlow(cars, canBulk);
     els.reservationsTableBody.innerHTML = `<tr><td colspan="${colspan}" class="muted">${isFullAdmin() ? "Няма резервации за текущия изглед." : "Нямаш видими резервации за текущия изглед."}</td></tr>`;
     return;
@@ -2187,6 +2296,7 @@ function renderReservations() {
   });
   renderBulkActionBar();
   renderDecisionRail();
+  renderReceptionRail();
 }
 
 function renderCalendar() {
@@ -2474,17 +2584,26 @@ async function loadFleetPulseReservations() {
   if (!state.token || !isOperationalRole()) {
     state.pulseReservations = [];
     renderFleetPulse();
+    renderReceptionRail();
+    renderCalendar();
+    renderDayTimeline();
     return;
   }
 
   setLoading("pulseReservations", true);
   renderFleetPulse();
+  renderReceptionRail();
+  renderCalendar();
+  renderDayTimeline();
   try {
     const data = await apiFetch("/reservations?limit=500", { headers: authHeaders() });
     state.pulseReservations = data.items;
   } finally {
     setLoading("pulseReservations", false);
     renderFleetPulse();
+    renderReceptionRail();
+    renderCalendar();
+    renderDayTimeline();
   }
 }
 
@@ -3074,6 +3193,7 @@ async function handleLogout() {
   renderReservations();
   renderCurrentTripHero();
   renderDecisionRail();
+  renderReceptionRail();
   renderFleetPulse();
   renderNetfleetConfig();
   renderSmartPrefill();

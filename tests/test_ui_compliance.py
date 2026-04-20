@@ -173,7 +173,8 @@ def test_public_calendar_feeds_pre_login_calendar_without_private_details() -> N
     assert "publicCalendar: []" in app_js
     assert "function loadPublicCalendar()" in app_js
     assert 'apiFetch(`/public/calendar?${publicCalendarParams().toString()}`)' in app_js
-    assert "const calendarItems = state.token ? state.reservations : state.publicCalendar;" in app_js
+    assert "if (!state.token) return state.publicCalendar;" in app_js
+    assert "const calendarItems = calendarSourceItems();" in app_js
     assert "const label = item.plate_number || (car ? car.plate_number" in app_js
     assert "calendar.publicContext" in app_js
     assert '"calendar.publicDetails": "Влез, за да видиш заявител, цел и действия."' in i18n_js
@@ -276,6 +277,39 @@ def test_admin_decision_rail_promotes_pending_queue_before_table() -> None:
     assert '"decisionRail.emptyCopy": "Опашката е чиста.' in i18n_js
     assert ".decision-rail__actions .btn" in styles
     assert ".decision-card__actions .action-btn" in styles
+
+
+def test_reception_rail_promotes_key_handoff_before_table() -> None:
+    html = _read("templates/admin.html")
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+
+    assert 'id="receptionRail" aria-labelledby="receptionRailTitle" aria-live="polite"' in html
+    assert html.index('id="decisionRail"') < html.index('id="receptionRail"') < html.index('id="reservationsTimeline"')
+    assert "receptionRail: document.getElementById(\"receptionRail\")" in app_js
+    assert "function renderReceptionRail()" in app_js
+    assert "const showRail = canManageTripHandoff() && surface === \"admin\" && state.token;" in app_js
+    assert "function receptionRailItems()" in app_js
+    assert "state.pulseReservations" in app_js
+    assert "if (!handoffItems.length && isFullAdmin())" in app_js
+    assert 'data-reception-card="${item.id}"' in app_js
+    assert 'data-reservation-action="${action}"' in app_js
+    assert 'action = isActive ? "return" : "start"' in app_js
+    assert 't("receptionRail.eyebrow")' in app_js
+    assert '"receptionRail.emptyTitle": "Няма коли за предаване или връщане"' in i18n_js
+    assert '"receptionRail.copy": "Първо предай или приеми ключове и документи.' in i18n_js
+
+
+def test_reception_calendar_uses_operational_snapshot_not_table_filter() -> None:
+    app_js = _read("static/app.js")
+
+    assert "function calendarSourceItems()" in app_js
+    assert "if (!state.token) return state.publicCalendar;" in app_js
+    assert "if (!isOperationalRole()) return state.reservations;" in app_js
+    assert 'state.currentRole === "fleet_reception" ? ["approved", "checked_out"]' in app_js
+    assert '["pending", "approved", "checked_out"]' in app_js
+    assert "const calendarItems = calendarSourceItems();" in app_js
+    assert "renderCalendar();\n    renderDayTimeline();" in app_js
 
 
 def test_reservation_timeline_is_primary_before_table() -> None:
