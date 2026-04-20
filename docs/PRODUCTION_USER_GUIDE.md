@@ -34,11 +34,29 @@ CORS_ALLOW_ORIGINS=https://your-real-domain.example
 make prod-check
 ```
 
-Ако проверката е зелена:
+Преди реална употреба направи backup и restore drill, за да има доказателство,
+че базата може да се възстанови:
+
+```bash
+make prod-backup
+make prod-restore-drill BACKUP=backups/fleetflow-YYYYmmddTHHMMSSZ.dump
+```
+
+Ако проверките са зелени:
 
 ```bash
 make prod
 ```
+
+След това създай първия admin по следващата секция и чак тогава пусни:
+
+```bash
+make go-live-check APP_URL=http://127.0.0.1:8000
+```
+
+`make go-live-check` е финалният gate: проверява `.env`, свежото restore-drill
+доказателство, локалните release тестове и live health/readiness/active-admin/
+public overview smoke срещу подадения `APP_URL`.
 
 ## 2. Bootstrap token и първи admin
 
@@ -157,6 +175,9 @@ Admin започва от:
 Преди да кажеш “ползваме го реално”, провери:
 
 - `make prod-check` минава без `ERROR`;
+- `make prod-backup` е създал актуален dump;
+- `make prod-restore-drill BACKUP=<backup-file>` е минал успешно;
+- `make go-live-check APP_URL=<production-url>` минава успешно;
 - `make audit-prod` минава без известни pinned production dependency vulnerabilities;
 - GitHub Actions Production Gates минава с full resolver dependency audit;
 - `make release-check` минава локално преди cutover;
@@ -190,8 +211,10 @@ make prod-restore-drill BACKUP=backups/fleetflow-YYYYmmddTHHMMSSZ.dump
 
 Restore drill-ът стартира отделен Docker project
 `fleetflow_restore_drill`, възстановява dump-а в отделна база и проверява
-`alembic_version`. По подразбиране временният restore project се изтрива след
-успех. Ако искаш да го инспектираш:
+`alembic_version`. След успех записва локален evidence marker в
+`.fleetflow/restore-drill-ok.json`, който е игнориран от git и се използва от
+`make go-live-check`. По подразбиране временният restore project се изтрива
+след успех. Ако искаш да го инспектираш:
 
 ```bash
 KEEP_RESTORE_DRILL=1 make prod-restore-drill BACKUP=backups/fleetflow-YYYYmmddTHHMMSSZ.dump
@@ -202,7 +225,17 @@ KEEP_RESTORE_DRILL=1 make prod-restore-drill BACKUP=backups/fleetflow-YYYYmmddTH
 1. `make prod-backup`
 2. `make prod-restore-drill BACKUP=<новия backup>`
 3. `make prod`
-4. провери `/health/ready`
+4. `make go-live-check APP_URL=<production-url>`
+5. провери `/health/ready`
+
+По подразбиране restore-drill доказателството е валидно 168 часа. Ако
+организацията изисква по-кратък прозорец, задай
+`RESTORE_DRILL_MAX_AGE_HOURS=24` в `.env`.
+
+`make smoke-live APP_URL=...`, който се изпълнява вътре в `make go-live-check`,
+проверява `/health`, `/health/ready`, `/auth/setup-status` с `has_admin=true` и
+`/public/overview`. Така финалният smoke не може да мине на празна production
+инсталация без active admin.
 
 ## 9. Логове и проследимост
 

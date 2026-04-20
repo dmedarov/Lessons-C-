@@ -61,3 +61,10 @@ docker compose -p "${RESTORE_PROJECT}" -f "${COMPOSE_FILE}" exec -T \
   | grep -q "1"
 
 echo "Restore drill succeeded into project ${RESTORE_PROJECT}, database ${RESTORE_DB}."
+
+MARKER_PATH="${RESTORE_DRILL_MARKER:-.fleetflow/restore-drill-ok.json}"
+CHECKED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+PYTHON_BIN="${PYTHON:-python3}"
+MARKER_PATH="${MARKER_PATH}" CHECKED_AT="${CHECKED_AT}" BACKUP_PATH="${BACKUP_PATH}" RESTORE_PROJECT="${RESTORE_PROJECT}" RESTORE_DB="${RESTORE_DB}" \
+  "${PYTHON_BIN}" -c "import json, os, pathlib; p = pathlib.Path(os.environ['MARKER_PATH']); p.parent.mkdir(parents=True, exist_ok=True); p.write_text(json.dumps({'succeeded': True, 'checked_at': os.environ['CHECKED_AT'], 'backup_path': os.environ['BACKUP_PATH'], 'restore_project': os.environ['RESTORE_PROJECT'], 'restore_db': os.environ['RESTORE_DB']}, ensure_ascii=False, indent=2) + '\n'); p.chmod(0o600)"
+echo "Restore drill evidence written: ${MARKER_PATH}"

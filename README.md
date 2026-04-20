@@ -186,13 +186,14 @@ make prod-check
 make logs   # app logs, включително bootstrap token при fresh install
 make down   # спира production/dev compose контейнерите
 make prod-check # проверява .env преди live cutover
+make go-live-check # final gate: env + restore-drill evidence + release-check + live smoke
 make prod-backup # създава PostgreSQL backup в backups/
 make prod-restore-drill BACKUP=backups/fleetflow-....dump # dry-run restore в отделен project
 make audit-prod # локален audit на pinned production runtime dependencies
 make audit-prod-full # resolver audit за production dependencies (същият подход като CI)
 make release-check # локални production gates: audit, compile, tests, JS syntax
 make qa-premium # release gates + browser role smoke
-make smoke-live APP_URL=http://127.0.0.1:8001 # health/ready/public overview на жив stack
+make smoke-live APP_URL=http://127.0.0.1:8001 # health/ready/active admin/public overview на жив stack
 make test   # pytest suite
 make test-e2e # optional Playwright browser smoke
 ```
@@ -200,8 +201,11 @@ make test-e2e # optional Playwright browser smoke
 Преди първа реална употреба и преди всяка production миграция направи
 `make prod-backup`, после `make prod-restore-drill BACKUP=<backup-file>`. Drill
 командата възстановява dump-а в отделен Docker project
-`fleetflow_restore_drill`, проверява `alembic_version` и не пипа production
-volume-а. Подробната операторска инструкция е в
+`fleetflow_restore_drill`, проверява `alembic_version`, не пипа production
+volume-а и записва локално доказателство в игнорираната директория
+`.fleetflow/restore-drill-ok.json`. `make go-live-check` отказва cutover без
+свеж restore-drill marker от последните `RESTORE_DRILL_MAX_AGE_HOURS` часа
+(default 168). Подробната операторска инструкция е в
 [`docs/PRODUCTION_USER_GUIDE.md`](docs/PRODUCTION_USER_GUIDE.md).
 
 ## Bootstrap token при fresh production install
@@ -294,6 +298,8 @@ alembic/            # versioned DB migrations
 templates/index.html
 static/
 scripts/prod_check.py # .env readiness guard преди live cutover
+scripts/go_live_check.py # final go-live gate: env, restore-drill evidence, release + live smoke
+scripts/smoke_live.py # URL smoke: health, DB readiness, active admin, public overview
 scripts/backup_postgres.sh # PostgreSQL custom-format backup helper
 scripts/restore_postgres_drill.sh # isolated restore validation helper
 tests/test_app.py
@@ -366,7 +372,7 @@ docker-compose.postgres.yml
 21. **Separated pool lifecycle** — служителите заявяват и отменят свои заявки; `fleet_approver` решава заявки; `fleet_reception` отбелязва реално предаване/връщане на ключове и документи; `fleet_admin` има пълен контрол.
 22. **Production cutover check** — `make prod-check` валидира `.env` за real origin, generated secrets, matching `DATABASE_URL`, pinned PostgreSQL image, disabled demo seed и production mode.
 23. **Secret-safe readiness UI** — admin вижда blockers/warnings за live без да получава сурови secret-и, пароли или connection string.
-24. **Backup before migration** — production backup и restore drill са Make targets, а backup файловете са извън git.
+24. **Backup before migration** — production backup и restore drill са Make targets, backup файловете са извън git, а успешният restore drill записва ignored evidence marker за `make go-live-check`.
 25. **User contact data** — email и GSM номер се пазят в user профила за operational coordination, без да участват в login/auth.
 26. **Structured production logs** — access logs са JSON в production и съдържат request id, route, status и latency без secret values.
 27. **Explainable fleet intelligence first** — quick-book uses a thin rules/metrics layer and records `car_assignments`; snapshot tables/jobs stay future work until production usage proves the need.
@@ -374,6 +380,7 @@ docker-compose.postgres.yml
 29. **Production gates** — GitHub Actions пази `master` с Python 3.12/3.14 tests, JS syntax check, full production dependency audit and Docker build; `make release-check` дава стабилен локален guardrail без browser smoke.
 30. **Route/schema guardrails** — тестовете вече пазят FastAPI route registry от duplicate `(method, path)`, проверяват SQLite bootstrap schema, сравняват SQLite/PostgreSQL table-column contracts и assert-ват single Alembic head.
 31. **Premium QA gate** — `make qa-premium` комбинира dependency audit, Python compile, full pytest, JS syntax и browser role smoke; `make smoke-live APP_URL=...` проверява вече вдигнат stack.
+32. **Final go-live gate** — `make go-live-check` валидира production `.env`, свеж restore-drill evidence marker, локалните release gates и live health/readiness/active-admin/public overview smoke срещу `APP_URL`.
 
 ## Тестове
 
@@ -384,6 +391,7 @@ make audit-prod
 make audit-prod-full
 make release-check
 make qa-premium
+make go-live-check APP_URL=http://127.0.0.1:8001
 make smoke-live APP_URL=http://127.0.0.1:8001
 ```
 
@@ -447,11 +455,13 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Последна premium QA проверка:
-`make qa-premium` -> passed (dependency audit, Python compile, 145 pytest
+`make qa-premium` -> passed (dependency audit, Python compile, 147 pytest
 cases, JS syntax, 8 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
-`/public/overview` passed. Активният Docker stack `fleetflow_prod_smoke` е
-healthy на `8001`.
+`/public/overview` passed. Новият go-live evidence guard е покрит от
+`pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,
+missing и stale restore-drill marker сценарии. Активният Docker stack
+`fleetflow_prod_smoke` е healthy на `8001`.
 
 Последна локална проверка за NetFleet pickup clarity:
 `pytest tests/test_ui_compliance.py -q` -> 34 passed, `make qa-premium` ->

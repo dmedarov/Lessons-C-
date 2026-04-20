@@ -298,14 +298,18 @@ operations assistant for internal mobility**, което е:
   major upgrade.
 - Backup/restore posture: `make prod-backup` creates a custom-format PostgreSQL
   dump under ignored `backups/`, and `make prod-restore-drill BACKUP=...`
-  restores it into an isolated Docker project before migrations.
+  restores it into an isolated Docker project before migrations. Successful
+  restore drills now write ignored evidence to `.fleetflow/restore-drill-ok.json`.
+- Final go-live gate: `make go-live-check APP_URL=...` requires production env
+  readiness, fresh restore-drill evidence, local release gates and live
+  health/readiness/active-admin/public overview smoke before real use.
 - Structured production logs: access logs now switch to JSON in production and
   include request id, route, status and latency without secret values. The
   dedicated `fleetflow.access` logger writes one clean stdout JSON line per
   request in production.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 145 passed,
+- Latest local verification for this slice: `pytest -q` -> 147 passed,
   `pytest tests/test_ui_compliance.py -q` -> 32 passed, Playwright browser
   smoke -> 8 passed with public/browser-computed-contrast/employee/
   employee-admin-deny/approver/admin/mobile/reception coverage, JS syntax
@@ -317,6 +321,25 @@ operations assistant for internal mobility**, което е:
   backup/restore drill succeeded from `/tmp/fleetflow-backups/...dump` into
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
   Alembic revision `20260420_0009`.
+- Latest go-live gate verification: `pytest tests/test_prod_readiness.py -q`
+  -> 7 passed, `make qa-premium` -> 147 pytest cases + 8 browser checks,
+  and `make smoke-live APP_URL=http://127.0.0.1:8001` returned
+  health/ready/active-admin/public overview from the running PostgreSQL stack.
+
+## Go-Live Plan
+
+1. Freeze feature work; only production blockers, UX flow defects and security
+   fixes land until first real use.
+2. Set real domain/CORS, create at least two active `fleet_admin` users, one
+   `fleet_approver` and one `fleet_reception` where the business process uses
+   separated duties.
+3. Run `make prod-check`, `make prod-backup`,
+   `make prod-restore-drill BACKUP=<backup-file>`, `make prod` and
+   `make go-live-check APP_URL=<production-url>`.
+4. Execute one real rehearsal: employee request -> approver decision ->
+   reception start -> reception return -> employee notification review.
+5. After go-live, collect operator friction for one week before adding heavier
+   Fleet Intelligence snapshots or new modules.
 
 ## Codebase Analysis: 2026-04-20
 

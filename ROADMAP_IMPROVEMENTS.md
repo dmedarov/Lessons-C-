@@ -73,6 +73,8 @@ alembic/                     migration scripts
 tests/test_app.py            Core FastAPI TestClient regression cases
 e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
 scripts/prod_check.py        Live cutover .env readiness guard
+scripts/go_live_check.py     Final go-live gate: env, restore drill evidence, release gates, live smoke
+scripts/smoke_live.py        Live URL smoke: health, DB readiness, active admin, public overview
 scripts/backup_postgres.sh   PostgreSQL custom-format backup helper
 scripts/restore_postgres_drill.sh Isolated restore drill helper
 docs/PRODUCTION_USER_GUIDE.md Production user/operator guide
@@ -177,6 +179,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Premium QA commands are now first-class: `make qa-premium` runs release gates
   plus browser role smoke, and `make smoke-live APP_URL=...` checks health,
   readiness and public overview on a running stack.
+- Final go-live command is now first-class: `make go-live-check APP_URL=...`
+  requires generated production env, a fresh restore-drill evidence marker,
+  local release gates and live smoke before real use.
 
 ### Active product gaps
 
@@ -2106,23 +2111,22 @@ from the last 60 minutes instead of raw NetFleet events.
    clipped text and weak hierarchy at 390/768/1024/1440.
 3. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
    handoff and blackout deactivate.
-4. **5.4/5.9 production proof** - PostgreSQL migration smoke, backup/restore
-   playbook and structured logs.
-5. **7.3 PostgreSQL migration smoke + backups** - required before serious
-   production rollout.
-6. **10.3 Split `static/app.js` into modules** - do this before large frontend
+4. **Production rehearsal with `make go-live-check`** - run the final gate
+   against the actual production URL after backup/restore drill and record the
+   result in the handoff notes.
+5. **10.3 Split `static/app.js` into modules** - do this before large frontend
    additions; the file is already 4254 lines.
-7. **10.4 reservation service extraction** - keep endpoints stable while
+6. **10.4 reservation service extraction** - keep endpoints stable while
     moving lifecycle/domain logic out of the router.
-8. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
+7. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
     after the core flows stabilize.
-9. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
+8. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
    the frontend is modular enough.
-10. **10.5 Session-management UI** - list active refresh sessions per user,
+9. **10.5 Session-management UI** - list active refresh sessions per user,
    revoke current/all sessions and expose security audit history.
-11. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
+10. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
     for real fleet accountability.
-12. **10.7 materialized intelligence snapshots** - only after live usage proves
+11. **10.7 materialized intelligence snapshots** - only after live usage proves
     inline metrics are too slow or historical trend review is needed.
 
 If time is limited, execute items 1-4 before any new feature work.
@@ -2130,6 +2134,29 @@ If time is limited, execute items 1-4 before any new feature work.
 ---
 
 ## Done
+
+### 2026-04-21 - Final go-live gate and docs review
+
+- **Goal:** Turn production readiness from a checklist into an executable
+  operator gate.
+- **Makefile:** added `make go-live-check APP_URL=...`, which runs
+  `scripts/go_live_check.py`, `make release-check` and `make smoke-live`.
+- **Live smoke:** `make smoke-live` now checks `/auth/setup-status` for
+  `has_admin=true`, so a fresh production install cannot look ready before the
+  first admin is created.
+- **Restore evidence:** `make prod-restore-drill BACKUP=...` now writes an
+  ignored `.fleetflow/restore-drill-ok.json` marker with timestamp, backup path
+  and isolated restore target. The default freshness window is
+  `RESTORE_DRILL_MAX_AGE_HOURS=168`.
+- **Docs:** README, Production User Guide, ROADMAP, ROADMAP_IMPROVEMENTS and
+  UI/UX audit now describe the final go-live sequence and the next real
+  pre-live product polish: responsive density plus destructive-action recovery
+  evidence.
+- **Verification:** `pytest tests/test_prod_readiness.py -q` -> 7 passed,
+  `bash -n scripts/restore_postgres_drill.sh`, Python compile for production
+  scripts, `make qa-premium` -> 147 pytest cases + 8 Playwright checks, and
+  `make smoke-live APP_URL=http://127.0.0.1:8001` ->
+  health/ready/active-admin/public overview passed.
 
 ### 2026-04-20 - NetFleet pickup clarity
 

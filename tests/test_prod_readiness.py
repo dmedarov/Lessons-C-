@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+
+from scripts.go_live_check import restore_drill_messages
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -99,6 +103,7 @@ def test_backup_restore_operator_scripts_are_documented_and_guarded() -> None:
     guide = (ROOT / "docs/PRODUCTION_USER_GUIDE.md").read_text()
     backup = (ROOT / "scripts/backup_postgres.sh").read_text()
     restore = (ROOT / "scripts/restore_postgres_drill.sh").read_text()
+    smoke = (ROOT / "scripts/smoke_live.py").read_text()
 
     assert "prod-backup" in makefile
     assert "prod-restore-drill" in makefile
@@ -114,13 +119,70 @@ def test_backup_restore_operator_scripts_are_documented_and_guarded() -> None:
     assert "fleetflow_restore_drill" in restore
     assert "down -v --remove-orphans" in restore
     assert "pg_restore" in restore
+    assert "restore-drill-ok.json" in restore
+    assert "Restore drill evidence written" in restore
+    assert "/auth/setup-status" in smoke
+    assert "no active admin exists" in smoke
 
 
-def test_backup_restore_shell_scripts_have_valid_syntax() -> None:
-    for script in ("scripts/backup_postgres.sh", "scripts/restore_postgres_drill.sh"):
+def test_go_live_check_accepts_fresh_restore_drill_marker(tmp_path: Path) -> None:
+    marker = tmp_path / "restore-drill-ok.json"
+    backup = tmp_path / "fleetflow.dump"
+    backup.write_text("not-a-real-dump")
+    marker.write_text(
+        (
+            "{"
+            '"succeeded": true,'
+            '"checked_at": "2026-04-21T10:00:00Z",'
+            f'"backup_path": "{backup}",'
+            '"restore_project": "fleetflow_restore_drill",'
+            '"restore_db": "fleetflow_restore_drill"'
+            "}"
+        )
+    )
+
+    errors, warnings = restore_drill_messages(
+        {"RESTORE_DRILL_MARKER": str(marker), "RESTORE_DRILL_MAX_AGE_HOURS": "168"},
+        now=datetime(2026, 4, 21, 12, 0, tzinfo=timezone.utc),
+    )
+
+    assert errors == []
+    assert warnings == []
+
+
+def test_go_live_check_rejects_missing_and_stale_restore_drill_marker(tmp_path: Path) -> None:
+    missing = tmp_path / "missing.json"
+    errors, warnings = restore_drill_messages({"RESTORE_DRILL_MARKER": str(missing)})
+    assert warnings == []
+    assert "Restore drill evidence is missing" in errors[0]
+
+    marker = tmp_path / "restore-drill-ok.json"
+    marker.write_text(
+        '{"succeeded": true, "checked_at": "2026-04-14T10:00:00Z", "backup_path": ""}'
+    )
+    errors, _ = restore_drill_messages(
+        {"RESTORE_DRILL_MARKER": str(marker), "RESTORE_DRILL_MAX_AGE_HOURS": "24"},
+        now=datetime(2026, 4, 21, 12, 0, tzinfo=timezone.utc),
+    )
+
+    assert any("older than 24 hours" in error for error in errors)
+
+
+def test_operator_scripts_have_valid_syntax() -> None:
+    for script in (
+        "scripts/backup_postgres.sh",
+        "scripts/restore_postgres_drill.sh",
+        "scripts/go_live_check.py",
+        "scripts/smoke_live.py",
+    ):
+        if script.endswith(".py"):
+            command = [sys.executable, "-m", "py_compile", str(ROOT / script)]
+        else:
+            command = ["bash", "-n", str(ROOT / script)]
         result = subprocess.run(
-            ["bash", "-n", str(ROOT / script)],
+            command,
             cwd=ROOT,
+            env={**os.environ, "PYTHONPYCACHEPREFIX": "/tmp/fleetflow-pycache"},
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
