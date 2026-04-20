@@ -209,7 +209,8 @@ operations assistant for internal mobility**, което е:
 - Cancel dialogs now require a human reason and send it to the reservation
   audit trail while keeping backward-compatible no-body API calls.
 - Browser-level evidence started: optional Playwright smoke now runs
-  role-specific public, employee, approver, admin, mobile and reception flows
+  role-specific public, employee, employee-admin-deny, approver, admin, mobile
+  and reception flows
   with separate screenshots under `test-results/e2e`.
 - UX hierarchy review: employee requests/lifecycle now appear before the
   calendar, the new-request panel appears before inbox, and auth-only guidance
@@ -226,7 +227,12 @@ operations assistant for internal mobility**, което е:
   factor.
 - Authenticated requester contact: reservation lists/cards now surface the
   requester's GSM number after login for records the current role can already
-  see, while public overview/calendar stay anonymous and never expose GSM.
+  see, including an explicit `GSM: не е въведен` fallback for older users
+  without a saved phone number. Public overview/calendar stay anonymous and
+  never expose GSM.
+- Employee admin guard: employee users are redirected away from `/admin`, and
+  the employee top navigation exposes the Admin shortcut only to operational
+  roles.
 - Intent-driven summary layer: employee/admin surfaces now expose contextual
   next-action buttons for free mode, active/approved trips, pending admin work,
   active trips and calm fleet state.
@@ -296,10 +302,10 @@ operations assistant for internal mobility**, което е:
   request in production.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 141 passed,
+- Latest local verification for this slice: `pytest -q` -> 143 passed,
   `pytest tests/test_ui_compliance.py -q` -> 32 passed, Playwright browser
-  smoke -> 6 passed with public/employee/approver/admin/mobile/reception
-  screenshots, JS syntax checks and Python compile check. UI date/time now
+  smoke -> 7 passed with public/employee/employee-admin-deny/approver/admin/
+  mobile/reception coverage, JS syntax checks and Python compile check. UI date/time now
   renders as `dd.mm.yyyy, HH:MM` with 24-hour time. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
   was rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on

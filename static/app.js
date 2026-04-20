@@ -89,6 +89,7 @@ const els = {
   logoutBtnSecondary: document.getElementById("logoutBtnSecondary"),
   username: document.getElementById("username"),
   password: document.getElementById("password"),
+  operationalLinks: document.querySelectorAll("[data-operational-link]"),
   sessionBadge: document.getElementById("sessionBadge"),
   notificationBadge: document.getElementById("notificationBadge"),
   sessionTitle: document.getElementById("sessionTitle"),
@@ -808,6 +809,9 @@ async function refreshAccessToken() {
       role: data.role,
     };
   }
+  if (redirectEmployeeFromAdminSurface(state.currentUser || { role: data.role })) {
+    throw new Error("Employee role cannot open the admin surface.");
+  }
   renderShell();
   startNotificationPolling();
   return data.access_token;
@@ -862,10 +866,34 @@ async function apiFetch(url, options = {}) {
   return data;
 }
 
+function employeeBlockedFromAdminSurface(user) {
+  return surface === "admin" && user?.role === "employee";
+}
+
+function redirectEmployeeFromAdminSurface(user) {
+  if (!employeeBlockedFromAdminSurface(user)) return false;
+  stopNotificationPolling();
+  try {
+    sessionStorage.setItem("fleetflow.employeeAdminDenied", "1");
+  } catch (_error) {
+    // Session storage may be unavailable; the redirect remains the hard guard.
+  }
+  window.location.replace("/");
+  return true;
+}
+
 function setSession(user, token) {
   state.currentUser = user;
   state.currentRole = user ? user.role : null;
   state.token = token;
+  if (user?.role && user.role !== "employee") {
+    try {
+      sessionStorage.removeItem("fleetflow.employeeAdminDenied");
+    } catch (_error) {}
+  }
+  if (redirectEmployeeFromAdminSurface(user)) {
+    return false;
+  }
   if (user && token) {
     state.status = defaultStatusForRole(user.role);
     state.scope = operationalRoles.has(user.role) ? "all" : "smart";
@@ -878,6 +906,7 @@ function setSession(user, token) {
     stopNotificationPolling();
   }
   renderShell();
+  return true;
 }
 
 function startNotificationPolling() {
@@ -910,11 +939,16 @@ function renderShell() {
   const fullAdmin = isFullAdmin();
   const operationalMode = isOperationalRole();
   const adminSurface = state.surface === "admin";
+  let employeeAdminDenied = false;
+  try {
+    employeeAdminDenied = sessionStorage.getItem("fleetflow.employeeAdminDenied") === "1";
+  } catch (_error) {}
 
   toggleHidden(els.setupPanel, state.hasAdmin || authenticated);
   toggleHidden(els.loginPanel, !state.hasAdmin || authenticated);
   toggleHidden(els.sessionPanel, !authenticated);
   toggleHidden(els.logoutBtn, !authenticated);
+  els.operationalLinks.forEach((link) => toggleHidden(link, employeeAdminDenied || !authenticated || !operationalMode));
   toggleHidden(els.reservationPanel, !authenticated || operationalMode);
   toggleHidden(els.quickBookPanel, !authenticated || operationalMode);
   toggleHidden(els.smartPrefillPanel, !authenticated || operationalMode || !state.reservationPreferences?.available);
@@ -1948,8 +1982,9 @@ function reservationContext(item) {
 }
 
 function requesterGsmLine(item) {
-  if (!state.token || !item.requester_gsm_number) return "";
-  return `<span class="muted">${escapeHtml(t("reservation.requesterGsm", { number: item.requester_gsm_number }))}</span>`;
+  if (!state.token) return "";
+  const number = item.requester_gsm_number || t("reservation.requesterGsmMissing");
+  return `<span class="muted">${escapeHtml(t("reservation.requesterGsm", { number }))}</span>`;
 }
 
 function reservationActions(item) {
@@ -2509,9 +2544,23 @@ async function loadSetupStatus() {
 }
 
 async function loadMe() {
-  if (!state.token) return;
+  if (!state.token) return false;
   const me = await apiFetch("/auth/me", { headers: authHeaders() });
-  setSession(me, state.token);
+  return setSession(me, state.token);
+}
+
+async function restoreSessionFromCookie() {
+  if (state.token) return true;
+  try {
+    await refreshAccessToken();
+    return await loadMe();
+  } catch (_error) {
+    state.token = null;
+    state.currentRole = null;
+    state.currentUser = null;
+    renderShell();
+    return true;
+  }
 }
 
 async function loadCars() {
@@ -3147,7 +3196,8 @@ async function loginWith(username, password) {
     body: JSON.stringify({ username, password }),
   });
   state.token = data.access_token;
-  await loadMe();
+  const allowed = await loadMe();
+  if (!allowed) return;
   await refreshData();
   showMessage("Успешен вход", `Добре дошъл, ${state.currentUser.display_name}.`, "success");
 }
@@ -4088,6 +4138,8 @@ document.addEventListener("click", (event) => {
 async function initialize() {
   initDefaults();
   await loadSetupStatus();
+  const canContinue = await restoreSessionFromCookie();
+  if (!canContinue) return;
   await refreshData();
 }
 

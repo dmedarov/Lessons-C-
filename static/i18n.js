@@ -83,6 +83,7 @@ const bg = {
   "reservation.decidedBy": "Одобрено от: {name}",
   "reservation.rejectedBy": "Отказано от: {name}",
   "reservation.requesterGsm": "GSM: {number}",
+  "reservation.requesterGsmMissing": "не е въведен",
   "reservationFlow.eyebrow": "Lifecycle поток",
   "reservationFlow.title": "Курсовете като времева линия",
   "reservationFlow.copy": "Първо виж статуса, периода и следващото действие. Таблицата отдолу остава за детайлен преглед.",

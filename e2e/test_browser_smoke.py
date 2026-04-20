@@ -242,6 +242,34 @@ def test_employee_quick_booking_surface(browser: Browser, server: str, artifact_
     context.close()
 
 
+def test_employee_cannot_stay_on_admin_surface(browser: Browser, server: str) -> None:
+    admin_token = _api_login(server, "admin", "AdminPass123")
+    _api_json(
+        server,
+        "/users",
+        "POST",
+        admin_token,
+        {
+            "username": "guardemployee",
+            "display_name": "Guard Employee",
+            "password": "GuardEmployeePass123",
+            "role": "employee",
+        },
+    )
+    context = browser.new_context(viewport={"width": 1280, "height": 900})
+    page = context.new_page()
+    page.goto(f"{server}/admin", wait_until="domcontentloaded")
+    page.locator("#username").fill("guardemployee")
+    page.locator("#password").fill("GuardEmployeePass123")
+    expect(page.locator("#username")).to_have_value("guardemployee")
+    page.locator("#loginBtn").click()
+    expect(page).to_have_url(f"{server}/", timeout=10_000)
+    expect(page.locator("body[data-surface='employee']")).to_be_attached()
+    expect(page.locator("#sessionModePill")).to_contain_text("Служител", timeout=10_000)
+    expect(page.locator("[data-operational-link]")).to_be_hidden()
+    context.close()
+
+
 def test_approver_decision_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
     admin_token = _api_login(server, "admin", "AdminPass123")
     _api_json(

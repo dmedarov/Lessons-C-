@@ -15,7 +15,8 @@
 - Bootstrap flow за първия `fleet_admin`, без demo users в production.
 - User management: създаване, activate/deactivate, password change и guarded admin handoff.
 - User contacts: admin може да добавя optional email и GSM номер към потребител.
-- Requester contact in requests: след login заявките показват GSM номера на заявителя за authenticated потребителите, които вече имат право да виждат резервацията; публичният pre-login календар остава без заявител/GSM.
+- Requester contact in requests: след login заявките показват GSM номера на заявителя, или ясно `GSM: не е въведен`, за authenticated потребителите, които вече имат право да виждат резервацията; публичният pre-login календар остава без заявител/GSM.
+- Employee admin guard: employee не остава на `/admin`; Admin shortcut-ът в employee изгледа е скрит и се показва само за operational роли.
 - Structured access logs: production режимът логва request id, route, status и latency като JSON.
 - Пагинация при списъка с резервации.
 - `health` endpoint за Docker healthcheck.
@@ -397,8 +398,9 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 
 `make test-e2e` стартира fresh FastAPI server с временна SQLite база за всеки
 role flow, за да няма скрита зависимост между сценариите. Покрива public
-pre-login orientation, employee quick-booking, approver Decision Rail,
-admin control surface, employee mobile calendar и reception handoff/calendar.
+pre-login orientation, employee quick-booking, employee admin-deny redirect,
+approver Decision Rail, admin control surface, employee mobile calendar и
+reception handoff/calendar.
 При `E2E_ARTIFACT_DIR` записва:
 `public-mobile.png`, `employee-desktop.png`, `approver-desktop.png`,
 `admin-desktop.png`, `employee-mobile.png` и `reception-desktop.png`.
@@ -431,6 +433,13 @@ Employee notification polling вече презарежда резервации
 -> 6 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 UI helper-ът вече форматира дата/час като `dd.mm.yyyy, HH:MM`, без AM/PM и
 без locale-dependent `dateStyle/timeStyle`.
+
+Последна локална проверка за requester GSM + employee admin guard:
+targeted `tests/test_ui_compliance.py` -> 2 passed,
+targeted Playwright employee-admin-deny flow -> 1 passed,
+full `.venv/bin/python -m pytest -q` -> 143 passed,
+full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
+-> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Предишна локална проверка за request-first/role-separated-lifecycle/reception-calendar пакета:
 `make audit-prod` -> no known vulnerabilities for pinned runtime dependencies,

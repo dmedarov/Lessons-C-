@@ -63,7 +63,8 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Structured access logs | `app.py`, `config.py`, `logging_config.py`, `docker-compose.postgres.yml`, `README.md` | pass | Production JSON logs, request correlation, no secret values | Request middleware emits access logs with request id, method, path, route, status and latency. `LOG_FORMAT=auto` keeps dev text logs and production JSON logs; `fleetflow.access` writes one stdout JSON line per request. |
 | Backup / restore drill | `Makefile`, `scripts/backup_postgres.sh`, `scripts/restore_postgres_drill.sh`, `docs/PRODUCTION_USER_GUIDE.md` | pass | Backup files outside git, custom PostgreSQL dump, restore test isolated from production volume | `make prod-backup` writes a `pg_dump --format=custom` file under ignored `backups/`; `make prod-restore-drill BACKUP=...` restores into project `fleetflow_restore_drill`, checks `alembic_version` and removes the temporary volume by default. |
 | User contact fields | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `schemas.py`, `routers/users.py`, `db.py`, `alembic/versions/20260420_0007_user_gsm_number.py` | pass | GSM is optional contact metadata, not auth; field has tel keyboard, max length guard and visible card text | Admin can enter optional GSM number when creating a user. API returns `gsm_number`, user cards show text-backed `GSM: ...`, and tests cover optional/too-long values. |
-| Requester contact in reservations | `routers/reservations.py`, `static/app.js`, `static/i18n.js`, `tests/test_app.py`, `tests/test_ui_compliance.py` | pass | GSM helps authenticated coordination, public surfaces stay anonymous, text label is not color/icon-only | `GET /reservations` returns `requester_gsm_number` for records visible to the logged-in token. Decision Rail, Reception Rail, lifecycle cards, table rows and authenticated day timeline show `GSM: ...`; `/public/calendar` does not expose requester GSM. |
+| Requester contact in reservations | `routers/reservations.py`, `static/app.js`, `static/i18n.js`, `tests/test_app.py`, `tests/test_ui_compliance.py` | pass | GSM helps authenticated coordination, public surfaces stay anonymous, text label is not color/icon-only | `GET /reservations` returns `requester_gsm_number` for records visible to the logged-in token. Decision Rail, Reception Rail, lifecycle cards, table rows and authenticated day timeline show `GSM: ...` or `GSM: не е въведен`; `/public/calendar` does not expose requester GSM. |
+| Employee admin guard | `templates/index.html`, `static/app.js`, `e2e/test_browser_smoke.py`, `tests/test_ui_compliance.py` | pass | Least privilege navigation, no employee admin surface, recoverable redirect | Employee login attempts on `/admin` redirect to `/`. The employee topbar Admin shortcut is hidden by default and is shown only for authenticated operational roles. Browser smoke covers the deny flow. |
 | Role-separated pool workflow | `security.py`, `routers/reservations.py`, `static/app.js`, `static/i18n.js`, `templates/admin.html`, `alembic/versions/20260420_0009_split_operational_roles.py` | pass | Least privilege, one primary task per role, no irrelevant control panels | `fleet_approver` can approve/reject but cannot start/return or manage users/settings. `fleet_reception` can start/return but cannot approve/reject or manage settings. `/admin` adapts copy, default filters and visible panels by role. |
 | Fleet Intelligence Seed | `fleet_intelligence/`, `routers/reservations.py`, `routers/intelligence.py`, `static/app.js`, `static/styles.css`, `alembic/versions/20260420_0008_car_assignments.py` | pass | One primary booking action, explainable suggestions, no heavy BI surface | Quick-book uses best-car scoring and records assignment reason/score. Admin Fleet Pulse shows compact insights below the strip. Quick-book button is full-width/wrapping so text cannot overflow its card on narrow surfaces. |
 | Pre-login operational overview | `app.py`, `static/app.js`, `templates/index.html`, `templates/admin.html` | pass | Informative first screen, public orientation without private operations | `/public/overview` powers pending/active/free counts before login. `/public/calendar` powers calendar occupancy with status, plate number and model. Requester, purpose, GPS, reservation ids and actions remain authenticated. |
@@ -172,8 +173,12 @@ styles.
   coverage and text-backed display in user cards; covered by
   `tests/test_app.py` and `tests/test_ui_compliance.py`.
 - `pass`: authenticated reservation surfaces show requester GSM with explicit
-  `GSM: ...` text, and public calendar payloads remain anonymous; covered by
-  targeted `tests/test_app.py` and `tests/test_ui_compliance.py`.
+  `GSM: ...` / `GSM: не е въведен` text, and public calendar payloads remain
+  anonymous; covered by targeted `tests/test_app.py` and
+  `tests/test_ui_compliance.py`.
+- `pass`: employee users are redirected away from `/admin`, and the employee
+  Admin shortcut is hidden unless the role is operational; covered by
+  `tests/test_ui_compliance.py` and Playwright employee-admin-deny smoke.
 - `pass`: production access logs are structured JSON with request id, route,
   status and latency while dev logs stay text; covered by `tests/test_app.py`.
 - `pass`: Fleet Pulse GPS count now uses matching active FleetFlow plates and
@@ -190,8 +195,9 @@ styles.
   browser-dependent `dateStyle` / `timeStyle` does not come back.
 - `pass`: Playwright browser smoke is now split by role and starts a fresh app
   server/database for each flow. It verifies public pre-login orientation,
-  employee one-tap booking, approver Decision Rail, admin control surface,
-  employee mobile calendar, Reception Rail and role-aware reception calendar.
+  employee one-tap booking, employee admin-deny redirect, approver Decision
+  Rail, admin control surface, employee mobile calendar, Reception Rail and
+  role-aware reception calendar.
   Screenshots are written to `test-results/e2e/public-mobile.png`,
   `test-results/e2e/employee-desktop.png`,
   `test-results/e2e/approver-desktop.png`,
@@ -207,10 +213,10 @@ styles.
   0 vulnerable packages for the current app image.
 - `pass`: `make release-check` runs the local production gate successfully:
   pinned runtime audit, Python compile, `pytest -q`, and browser JS syntax.
-- `evidence`: latest local handoff check ran `pytest -q` -> 141 passed,
+- `evidence`: latest local handoff check ran `pytest -q` -> 143 passed,
   `pytest tests/test_schema_contracts.py -q` -> 5 passed,
   `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
-  -> 6 passed, `node --check static/app.js`,
+  -> 7 passed, `node --check static/app.js`,
   `node --check static/i18n.js` and Python compile check for
   `e2e/test_browser_smoke.py tests/test_schema_contracts.py`.
   `make prod-check` fails fast when `.env` is missing in a clean checkout. Old

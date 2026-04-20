@@ -331,12 +331,30 @@ def test_authenticated_reservation_surfaces_show_requester_gsm_without_public_le
     assert "requester.gsm_number AS requester_gsm_number" in router
     assert "LEFT JOIN users requester ON requester.id = r.created_by_id" in router
     assert "function requesterGsmLine(item)" in app_js
-    assert "if (!state.token || !item.requester_gsm_number) return \"\";" in app_js
-    assert 't("reservation.requesterGsm", { number: item.requester_gsm_number })' in app_js
+    assert "if (!state.token) return \"\";" in app_js
+    assert 'const number = item.requester_gsm_number || t("reservation.requesterGsmMissing");' in app_js
+    assert 't("reservation.requesterGsm", { number })' in app_js
     assert '"reservation.requesterGsm": "GSM: {number}"' in i18n_js
+    assert '"reservation.requesterGsmMissing": "не е въведен"' in i18n_js
     assert "const requesterGsm = requesterGsmLine(item);" in app_js
     assert "requester_gsm_number" not in app_py
     assert "renderCalendar();\n    renderDayTimeline();" in app_js
+
+
+def test_employee_is_redirected_away_from_admin_surface() -> None:
+    index_html = _read("templates/index.html")
+    app_js = _read("static/app.js")
+
+    assert '<a class="hidden" href="/admin" data-operational-link>Admin</a>' in index_html
+    assert 'operationalLinks: document.querySelectorAll("[data-operational-link]")' in app_js
+    assert "function employeeBlockedFromAdminSurface(user)" in app_js
+    assert 'return surface === "admin" && user?.role === "employee";' in app_js
+    assert 'sessionStorage.setItem("fleetflow.employeeAdminDenied", "1");' in app_js
+    assert 'window.location.replace("/");' in app_js
+    assert "const allowed = await loadMe();" in app_js
+    assert "if (!allowed) return;" in app_js
+    assert "await restoreSessionFromCookie();" in app_js
+    assert "els.operationalLinks.forEach((link) => toggleHidden(link, employeeAdminDenied || !authenticated || !operationalMode));" in app_js
 
 
 def test_reservation_timeline_is_primary_before_table() -> None:

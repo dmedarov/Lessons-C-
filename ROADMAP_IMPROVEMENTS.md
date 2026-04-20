@@ -160,7 +160,13 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Requester GSM is now visible in authenticated reservation surfaces for the
   records the current token may already see: Decision Rail, Reception Rail,
   lifecycle cards, table rows and authenticated calendar day timeline. Public
-  overview/calendar stay anonymous and do not return requester GSM.
+  overview/calendar stay anonymous and do not return requester GSM. If the
+  requester has no saved phone number yet, the UI shows `GSM: не е въведен`
+  instead of silently omitting the contact line.
+- Employee admin guard is now explicit: employee users are redirected away
+  from `/admin`, and the Admin link in the employee surface is hidden unless
+  the logged-in role is operational (`fleet_approver`, `fleet_reception` or
+  `fleet_admin`).
 - Current automated coverage: growing `pytest` suite plus optional Playwright
   browser smoke (`e2e/`) that captures desktop/mobile screenshots, JS syntax
   checks, Python compile checks and Docker smoke used in shipped verification.
@@ -2120,14 +2126,18 @@ If time is limited, execute items 1-4 before any new feature work.
   Public `/public/overview` and `/public/calendar` remain anonymous.
 - **UI:** Decision Rail, Reception Rail, lifecycle cards, table requester cells
   and authenticated calendar day timeline show `GSM: ...` when the reservation
-  payload has a requester GSM number.
+  payload has a requester GSM number, or `GSM: не е въведен` when old user data
+  has no number yet.
+- **Admin guard:** employee login attempts on `/admin` redirect to `/`; the
+  employee desk hides the Admin shortcut unless the authenticated role is
+  operational.
 - **Verification:** targeted `tests/test_app.py` confirms approver, reception
   and employee-visible reservation payloads include requester GSM, while public
   calendar does not. `tests/test_ui_compliance.py` guards the UI/i18n/public
   no-leak rule. Full local gate:
-  - `.venv/bin/python -m pytest -q` -> 142 passed
+  - `.venv/bin/python -m pytest -q` -> 143 passed
   - `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
-    -> 6 passed
+    -> 7 passed
   - `node --check static/app.js`
   - `node --check static/i18n.js`
 
