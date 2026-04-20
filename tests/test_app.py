@@ -77,15 +77,22 @@ def _create_user(
     display_name: str,
     password: str,
     role: str = "employee",
+    email: str | None = None,
+    gsm_number: str | None = None,
 ) -> dict:
+    payload = {
+        "username": username,
+        "display_name": display_name,
+        "password": password,
+        "role": role,
+    }
+    if email is not None:
+        payload["email"] = email
+    if gsm_number is not None:
+        payload["gsm_number"] = gsm_number
     res = client.post(
         "/users",
-        json={
-            "username": username,
-            "display_name": display_name,
-            "password": password,
-            "role": role,
-        },
+        json=payload,
         headers=_auth(admin_token),
     )
     assert res.status_code == 201, res.text
@@ -243,12 +250,24 @@ def test_login_rate_limit_rejects_repeated_bad_attempts(client: TestClient) -> N
 
 def test_user_management_and_password_change(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
-    created = _create_user(client, admin, "maria", "Maria Petrova", "MariaPass123")
+    created = _create_user(
+        client,
+        admin,
+        "maria",
+        "Maria Petrova",
+        "MariaPass123",
+        email="maria@company.bg",
+        gsm_number="+359 88 123 4567",
+    )
     employee = _login(client, "maria", "MariaPass123")
 
     users = client.get("/users", headers=_auth(admin))
     assert users.status_code == 200
     assert len(users.json()) == 2
+    maria = next(user for user in users.json() if user["username"] == "maria")
+    assert created["email"] == "maria@company.bg"
+    assert created["gsm_number"] == "+359 88 123 4567"
+    assert maria["gsm_number"] == "+359 88 123 4567"
 
     me = client.get("/auth/me", headers=_auth(employee))
     assert me.status_code == 200
@@ -309,6 +328,26 @@ def test_admin_can_reset_password_and_audit_records_action(client: TestClient) -
 
     employee_audit = client.get(f"/users/{created['id']}/audit", headers=_auth(employee))
     assert employee_audit.status_code == 403
+
+
+def test_user_gsm_number_is_optional_and_length_limited(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+
+    no_phone = _create_user(client, admin, "no-phone", "No Phone", "UserPass123")
+    assert no_phone["gsm_number"] is None
+
+    too_long = client.post(
+        "/users",
+        json={
+            "username": "long-phone",
+            "display_name": "Long Phone",
+            "password": "UserPass123",
+            "role": "employee",
+            "gsm_number": "+" + ("1" * 40),
+        },
+        headers=_auth(admin),
+    )
+    assert too_long.status_code == 422
 
 
 def test_admin_role_change_updates_stale_tokens_and_preserves_last_admin(client: TestClient) -> None:

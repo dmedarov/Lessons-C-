@@ -40,6 +40,7 @@ def _to_user_response(row) -> UserResponse:
         role=row["role"],
         active=bool(row["active"]),
         email=row["email"] or None,
+        gsm_number=row["gsm_number"] or None,
         created_at=str(row["created_at"]),
     )
 
@@ -64,7 +65,7 @@ def _active_admin_count(conn) -> int:
 
 def _load_user(conn, user_id: int):
     row = conn.execute(
-        "SELECT id, username, display_name, role, active, email, created_at FROM users WHERE id=?",
+        "SELECT id, username, display_name, role, active, email, gsm_number, created_at FROM users WHERE id=?",
         (user_id,),
     ).fetchone()
     if not row:
@@ -76,7 +77,7 @@ def _load_user(conn, user_id: int):
 def list_users(_: AuthContext = Depends(require_admin)) -> list[UserResponse]:
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT id, username, display_name, role, active, email, created_at FROM users ORDER BY id"
+            "SELECT id, username, display_name, role, active, email, gsm_number, created_at FROM users ORDER BY id"
         ).fetchall()
     return [_to_user_response(row) for row in rows]
 
@@ -85,28 +86,30 @@ def list_users(_: AuthContext = Depends(require_admin)) -> list[UserResponse]:
 def create_user(payload: UserCreatePayload, auth: AuthContext = Depends(require_admin)) -> UserResponse:
     username = payload.username.strip().lower()
     display_name = payload.display_name.strip()
+    email = payload.email.strip() if payload.email else None
+    gsm_number = payload.gsm_number.strip() if payload.gsm_number else None
     now = datetime.now(timezone.utc).isoformat()
     with get_conn() as conn:
         try:
             if conn.backend == "postgres":
                 row = conn.execute(
                     """
-                    INSERT INTO users(username, display_name, password_hash, role, email, created_at)
-                    VALUES(?, ?, ?, ?, ?, ?)
-                    RETURNING id, username, display_name, role, active, email, created_at
+                    INSERT INTO users(username, display_name, password_hash, role, email, gsm_number, created_at)
+                    VALUES(?, ?, ?, ?, ?, ?, ?)
+                    RETURNING id, username, display_name, role, active, email, gsm_number, created_at
                     """,
-                    (username, display_name, hash_password(payload.password), payload.role, payload.email, now),
+                    (username, display_name, hash_password(payload.password), payload.role, email, gsm_number, now),
                 ).fetchone()
             else:
                 user_id = conn.execute(
                     """
-                    INSERT INTO users(username, display_name, password_hash, role, email, created_at)
-                    VALUES(?, ?, ?, ?, ?, ?)
+                    INSERT INTO users(username, display_name, password_hash, role, email, gsm_number, created_at)
+                    VALUES(?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (username, display_name, hash_password(payload.password), payload.role, payload.email, now),
+                    (username, display_name, hash_password(payload.password), payload.role, email, gsm_number, now),
                 ).lastrowid
                 row = conn.execute(
-                    "SELECT id, username, display_name, role, active, email, created_at FROM users WHERE id=?",
+                    "SELECT id, username, display_name, role, active, email, gsm_number, created_at FROM users WHERE id=?",
                     (user_id,),
                 ).fetchone()
         except Exception as exc:
@@ -248,7 +251,7 @@ def deactivate_user(user_id: int, auth: AuthContext = Depends(require_admin)) ->
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="User not found or already inactive")
         row = conn.execute(
-            "SELECT id, username, display_name, role, active, email, created_at FROM users WHERE id=?",
+            "SELECT id, username, display_name, role, active, email, gsm_number, created_at FROM users WHERE id=?",
             (user_id,),
         ).fetchone()
         _log_user_action(conn, auth.user_id, user_id, "deactivated", None)
@@ -262,7 +265,7 @@ def activate_user(user_id: int, auth: AuthContext = Depends(require_admin)) -> U
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="User not found or already active")
         row = conn.execute(
-            "SELECT id, username, display_name, role, active, email, created_at FROM users WHERE id=?",
+            "SELECT id, username, display_name, role, active, email, gsm_number, created_at FROM users WHERE id=?",
             (user_id,),
         ).fetchone()
         _log_user_action(conn, auth.user_id, user_id, "activated", None)
@@ -282,11 +285,11 @@ def handoff_admin(
     notification_ids: list[int] = []
     with get_conn() as conn, transaction(conn):
         current_admin = conn.execute(
-            "SELECT id, username, display_name, role, active, email, created_at FROM users WHERE id=?",
+            "SELECT id, username, display_name, role, active, email, gsm_number, created_at FROM users WHERE id=?",
             (auth.user_id,),
         ).fetchone()
         target = conn.execute(
-            "SELECT id, username, display_name, role, active, email, created_at FROM users WHERE id=?",
+            "SELECT id, username, display_name, role, active, email, gsm_number, created_at FROM users WHERE id=?",
             (user_id,),
         ).fetchone()
         if not target:
@@ -300,11 +303,11 @@ def handoff_admin(
             conn.execute("UPDATE users SET role='employee' WHERE id=?", (auth.user_id,))
 
         updated_previous = conn.execute(
-            "SELECT id, username, display_name, role, active, email, created_at FROM users WHERE id=?",
+            "SELECT id, username, display_name, role, active, email, gsm_number, created_at FROM users WHERE id=?",
             (auth.user_id,),
         ).fetchone()
         updated_target = conn.execute(
-            "SELECT id, username, display_name, role, active, email, created_at FROM users WHERE id=?",
+            "SELECT id, username, display_name, role, active, email, gsm_number, created_at FROM users WHERE id=?",
             (user_id,),
         ).fetchone()
 

@@ -220,6 +220,9 @@ operations assistant for internal mobility**, което е:
 - Admin-owned lifecycle: start/return endpoints and UI actions are admin-only;
   employee current-trip surfaces show context and pickup location without
   exposing lifecycle transition buttons.
+- User contact readiness: admin user creation now stores optional email and
+  GSM number for operational coordination without turning GSM into an auth
+  factor.
 - Intent-driven summary layer: employee/admin surfaces now expose contextual
   next-action buttons for free mode, active/approved trips, pending admin work,
   active trips and calm fleet state.
@@ -259,15 +262,16 @@ operations assistant for internal mobility**, което е:
   restores it into an isolated Docker project before migrations.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 121 passed,
-  targeted UI/API/production readiness pack -> 32 passed, Playwright browser
+- Latest local verification for this slice: `pytest -q` -> 123 passed,
+  targeted UI/API/production readiness pack -> 35 passed, Playwright browser
   smoke -> 1 passed with desktop/mobile screenshots, JS syntax checks and
   Python compile check. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
   was rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on
   `8001` returned ok/ready and the app container is healthy. A real
   backup/restore drill succeeded from `/tmp/fleetflow-backups/...dump` into
-  isolated project `fleetflow_restore_drill`.
+  isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
+  Alembic revision `20260420_0007`.
 
 ## Next Recommended Slices
 

@@ -14,6 +14,7 @@
 - Outbound notifications към email, Slack и Teams, когато са конфигурирани.
 - Bootstrap flow за първия `fleet_admin`, без demo users в production.
 - User management: създаване, activate/deactivate, password change и guarded admin handoff.
+- User contacts: admin може да добавя optional email и GSM номер към потребител.
 - Пагинация при списъка с резервации.
 - `health` endpoint за Docker healthcheck.
 - `health/ready` endpoint за production readiness probe към базата.
@@ -266,7 +267,7 @@ routers/
   notifications.py  # user notification inbox
   ops.py            # admin-only production readiness preflight
   reservations.py   # /reservations + suggest/quick-book/preferences + approve/reject/start/return/cancel
-  users.py          # user management + password change + admin handoff
+  users.py          # user management + contacts + password change + admin handoff
 notifications_service.py  # in-app + outbound notification delivery
 alembic/            # versioned DB migrations
 templates/index.html
@@ -301,6 +302,7 @@ docker-compose.postgres.yml
 - `GET /cars/telemetry/latest` — само `fleet_admin`; връща последните NetFleet GPS събития, ако ключът е конфигуриран.
 - `GET /cars/{id}/telemetry/latest` — admin или employee със собствена одобрена/активна резервация за тази кола.
 - `GET /users`, `POST /users`, `POST /users/{id}/activate`, `POST /users/{id}/deactivate` — само `fleet_admin`.
+- `POST /users` приема optional `email` и `gsm_number`; GSM номерът е contact поле, не auth фактор.
 - `POST /users/{id}/handoff-admin` — guarded admin handoff към друг активен user.
 - `POST /users/me/password` — логнат потребител, със задължителна текуща парола.
 - `POST /cars/{id}/blackouts`, `GET /cars/{id}/blackouts`, `POST /cars/blackouts/{id}/deactivate` — blackout management за service/maintenance.
@@ -339,6 +341,7 @@ docker-compose.postgres.yml
 22. **Production cutover check** — `make prod-check` валидира `.env` за real origin, generated secrets, matching `DATABASE_URL`, pinned PostgreSQL image, disabled demo seed и production mode.
 23. **Secret-safe readiness UI** — admin вижда blockers/warnings за live без да получава сурови secret-и, пароли или connection string.
 24. **Backup before migration** — production backup и restore drill са Make targets, а backup файловете са извън git.
+25. **User contact data** — email и GSM номер се пазят в user профила за operational coordination, без да участват в login/auth.
 
 ## Тестове
 
@@ -368,7 +371,7 @@ Admin Decision Rail, Fleet Pulse copy и mobile calendar, после запис�
 `test-results/` е игнориран от git.
 
 Последна локална проверка за request-first/admin-lifecycle/production-readiness пакета:
-`pytest -q` -> 121 passed, targeted UI/API/production readiness pack -> 32 passed,
+`pytest -q` -> 123 passed, targeted UI/API/production readiness pack -> 35 passed,
 `node --check static/app.js`, `node --check static/i18n.js`,
 `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile production_readiness.py routers/ops.py scripts/prod_check.py app.py schemas.py`,
 и `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
@@ -379,7 +382,8 @@ rebuild-нат, PostgreSQL compose мина с pin-нат `postgres:16`, `/healt
 и актуалният `fleetflow_prod_smoke-car-pool-1` е healthy на `8001`. Backup
 drill доказателството мина: backup към `/tmp/fleetflow-backups/...dump` и
 restore в изолиран `fleetflow_restore_drill` project с проверен
-`alembic_version`.
+`alembic_version`. PostgreSQL smoke stack-ът е мигриран до
+`alembic_version=20260420_0007`.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 

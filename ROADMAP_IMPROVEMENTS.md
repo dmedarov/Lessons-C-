@@ -1863,18 +1863,22 @@ If time is limited, execute items 1-4 before any new feature work.
   validates that dump in isolated Docker project `fleetflow_restore_drill`
   without touching the production volume. First real drill passed against the
   active smoke stack using `/tmp/fleetflow-backups/fleetflow-20260420T075807Z.dump`.
+- **User contact field:** Admin-created users now support optional
+  `gsm_number` across SQLite/PostgreSQL schema, Alembic revision
+  `20260420_0007`, API responses and the admin user card.
 - **Calm default started:** Read notifications are hidden from the visible
   inbox and employee reservations default to `Текущи`, hiding returned,
   rejected and cancelled records until the user explicitly chooses a history
   filter.
-- **Verification:** `pytest -q` passes with 121 tests, targeted
-  UI/API/production readiness pack passes with 32 tests, Playwright browser
+- **Verification:** `pytest -q` passes with 123 tests, targeted
+  UI/API/production readiness pack passes with 35 tests, Playwright browser
   smoke passes with 1 test and screenshots, JS syntax checks and Python compile
   check pass. `make prod-check` fails fast when `.env` is missing in a clean
   checkout. Old `fleetflow_test` containers were removed, Docker stack was
   rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on `8001`
   return ok/ready and the app container is healthy. Backup creation and
-  isolated restore drill were executed successfully.
+  isolated restore drill were executed successfully. PostgreSQL smoke is on
+  Alembic revision `20260420_0007`.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation
 

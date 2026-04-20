@@ -123,6 +123,7 @@ const els = {
   newPassword: document.getElementById("newPassword"),
   newUsername: document.getElementById("newUsername"),
   newDisplayName: document.getElementById("newDisplayName"),
+  newGsmNumber: document.getElementById("newGsmNumber"),
   newRole: document.getElementById("newRole"),
   newUserPassword: document.getElementById("newUserPassword"),
   handoffForm: document.getElementById("handoffForm"),
@@ -189,6 +190,7 @@ const fieldErrorIds = [
   "newPassword",
   "newUsername",
   "newDisplayName",
+  "newGsmNumber",
   "newUserPassword",
   "plate",
   "model",
@@ -1052,6 +1054,12 @@ function readinessStatusClass(status) {
   return "readiness-item--fail";
 }
 
+function readinessCountsText(failed, warnings) {
+  const blockerText = t(failed === 1 ? "readiness.blockers.one" : "readiness.blockers.many", { count: failed });
+  const warningText = t(warnings === 1 ? "readiness.warnings.one" : "readiness.warnings.many", { count: warnings });
+  return `${blockerText} · ${warningText}`;
+}
+
 function renderProductionReadiness() {
   if (!els.productionReadinessSummary || !els.productionReadinessList) return;
   if (state.loading.productionReadiness) {
@@ -1075,7 +1083,7 @@ function renderProductionReadiness() {
   els.productionReadinessSummary.className = `readiness-summary ${summaryClass}`;
   els.productionReadinessSummary.innerHTML = `
     <strong>${escapeHtml(t(summaryKey))}</strong>
-    <span>${escapeHtml(t("readiness.counts", { failed, warnings }))}</span>
+    <span>${escapeHtml(readinessCountsText(failed, warnings))}</span>
   `;
   els.productionReadinessList.innerHTML = data.items.map((item) => `
     <article class="readiness-item ${readinessStatusClass(item.status)}">
@@ -1378,6 +1386,7 @@ function renderUsers() {
       <div class="user-card__meta">
         <span class="status-tag ${user.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(user.active ? "status.active" : "status.inactive")}</span>
         ${user.email ? `<span class="muted">${escapeHtml(user.email)}</span>` : ""}
+        ${user.gsm_number ? `<span class="muted">${escapeHtml(t("user.gsm", { number: user.gsm_number }))}</span>` : ""}
         <span class="muted">създаден: ${formatDateTime(user.created_at)}</span>
       </div>
       <div class="car-card__actions">
@@ -2781,6 +2790,10 @@ function validateUserForm() {
     setFieldError("newUserPassword", "Началната парола трябва да е поне 8 символа.");
     valid = false;
   }
+  if (els.newGsmNumber?.value.trim() && els.newGsmNumber.value.trim().length > 32) {
+    setFieldError("newGsmNumber", "GSM номерът трябва да е до 32 символа.");
+    valid = false;
+  }
   return valid;
 }
 
@@ -3056,7 +3069,6 @@ async function handleUserCreate(event) {
 
   const releaseSubmit = setSubmitBusy(event.currentTarget);
   try {
-    const newEmail = document.getElementById("newEmail");
     await apiFetch("/users", {
       method: "POST",
       headers: authHeaders(),
@@ -3065,7 +3077,8 @@ async function handleUserCreate(event) {
         display_name: els.newDisplayName.value.trim(),
         password: els.newUserPassword.value,
         role: els.newRole.value,
-        email: newEmail?.value.trim() || null,
+        email: document.getElementById("newEmail")?.value.trim() || null,
+        gsm_number: els.newGsmNumber?.value.trim() || null,
       }),
     });
     els.userForm.reset();

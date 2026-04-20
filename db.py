@@ -18,6 +18,7 @@ SQLITE_SCHEMA = [
         role TEXT NOT NULL CHECK(role IN ('employee','fleet_admin')),
         active INTEGER NOT NULL DEFAULT 1,
         email TEXT,
+        gsm_number TEXT,
         created_at TEXT NOT NULL
     )
     """,
@@ -156,6 +157,7 @@ POSTGRES_SCHEMA = [
         role TEXT NOT NULL CHECK(role IN ('employee','fleet_admin')),
         active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
         email TEXT,
+        gsm_number TEXT,
         created_at TEXT NOT NULL
     )
     """,
@@ -418,6 +420,7 @@ def _apply_runtime_upgrades(conn: SQLiteConnectionAdapter | PostgresConnectionAd
     _ensure_column(conn, "reservations", "checked_out_at", "TEXT")
     _ensure_column(conn, "reservations", "returned_at", "TEXT")
     _ensure_column(conn, "users", "email", "TEXT")
+    _ensure_column(conn, "users", "gsm_number", "TEXT")
     _ensure_column(conn, "cars", "notes", "TEXT")
 
 
