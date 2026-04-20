@@ -157,6 +157,9 @@ Admin започва от:
 Преди да кажеш “ползваме го реално”, провери:
 
 - `make prod-check` минава без `ERROR`;
+- `make audit-prod` минава без известни pinned production dependency vulnerabilities;
+- GitHub Actions Production Gates минава с full resolver dependency audit;
+- `make release-check` минава локално преди cutover;
 - `/health/ready` връща `{"status":"ready"}`;
 - `/admin` има 0 production blockers;
 - има поне един резервен active `fleet_admin`;

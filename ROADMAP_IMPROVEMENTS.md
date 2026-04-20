@@ -1242,10 +1242,10 @@ these before exposing FleetFlow beyond a trusted internal network.
 ### 7.2 CI quality gates
 
 - **Goal:** Every push/PR runs the checks currently performed manually.
-- **Files:** `.github/workflows/tests.yml`, `requirements-dev.txt`,
-  `Dockerfile`, `README.md`
-- **Status:** Shipped in `0503e95`; monitor the first GitHub Actions run after
-  push.
+- **Files:** `.github/workflows/production-gates.yml`, `Makefile`,
+  `requirements-dev.txt`, `Dockerfile`, `README.md`
+- **Status:** Shipped on 2026-04-20 as `Production Gates`; monitor the first
+  GitHub Actions run after push.
 - **Approach:**
   1. Add a GitHub Actions workflow for Python 3.12 and 3.14.
   2. Install runtime and dev dependencies.
@@ -1254,14 +1254,18 @@ these before exposing FleetFlow beyond a trusted internal network.
   5. Run `node --check static/app.js static/i18n.js`.
   6. Run `pip-audit -r requirements.txt`.
   7. Build the production Docker image on the Python 3.14 lane.
-  8. Upload test output as artifacts only on failure.
+  8. Keep the stable local equivalent in `make release-check`; `make audit-prod`
+     uses no-resolver pinned runtime audit for local reliability, while CI runs
+     the full resolver audit.
 - **Acceptance criteria:**
   - A broken backend test blocks merge.
   - A JS syntax error blocks merge.
   - A vulnerable dependency blocks merge.
   - A broken production Docker build blocks merge.
-- **Verification:** Open a PR or push a branch and confirm checks pass/fail as
-  expected.
+- **Verification:** `make audit-prod` is clean locally for pinned
+  `requirements.txt`; direct `pip-audit -r requirements.txt` is clean when the
+  local resolver completes; open GitHub after push and confirm the workflow
+  passes/fails as expected.
 - **Depends on:** —
 - **Effort:** S
 
@@ -1954,8 +1958,12 @@ If time is limited, execute items 1-4 before any new feature work.
   hero status bar uses those values before login.
 - **Verification:** `pytest -q` passes with 135 tests,
   `pytest tests/test_ui_compliance.py -q` passes with 31 tests, Playwright
-  browser smoke passes with 1 test and screenshots, JS syntax checks and Python
-  compile check pass. `make prod-check` fails fast when `.env` is missing in a clean
+  browser smoke passes with 1 test and screenshots, `make audit-prod` reports
+  no known vulnerabilities for pinned runtime dependencies, direct
+  `pip-audit -r requirements.txt` reports no known vulnerabilities when the
+  resolver completes, `make release-check` passes, JS syntax checks and Python
+  compile check pass.
+  `make prod-check` fails fast when `.env` is missing in a clean
   checkout. Old `fleetflow_test` containers were removed, Docker stack was
   rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on `8001`
   return ok/ready and the app container is healthy. Backup creation and

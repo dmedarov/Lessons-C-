@@ -186,6 +186,9 @@ make down   # спира production/dev compose контейнерите
 make prod-check # проверява .env преди live cutover
 make prod-backup # създава PostgreSQL backup в backups/
 make prod-restore-drill BACKUP=backups/fleetflow-....dump # dry-run restore в отделен project
+make audit-prod # локален audit на pinned production runtime dependencies
+make audit-prod-full # resolver audit за production dependencies (същият подход като CI)
+make release-check # локални production gates: audit, compile, tests, JS syntax
 make test   # pytest suite
 make test-e2e # optional Playwright browser smoke
 ```
@@ -363,12 +366,16 @@ docker-compose.postgres.yml
 26. **Structured production logs** — access logs са JSON в production и съдържат request id, route, status и latency без secret values.
 27. **Explainable fleet intelligence first** — quick-book uses a thin rules/metrics layer and records `car_assignments`; snapshot tables/jobs stay future work until production usage proves the need.
 28. **Public orientation, private operations** — pre-login UI may show fleet counts and calendar occupancy with plate/model for frictionless orientation; users, trip purpose, GPS, reservation ids and lifecycle actions stay behind auth.
+29. **Production gates** — GitHub Actions пази `master` с Python 3.12/3.14 tests, JS syntax check, full production dependency audit and Docker build; `make release-check` дава стабилен локален guardrail без browser smoke.
 
 ## Тестове
 
 ```bash
 pip install -r requirements-dev.txt
 make test
+make audit-prod
+make audit-prod-full
+make release-check
 ```
 
 Browser-level UI/UX smoke тестът е отделен от бързия unit/static suite, за да
@@ -392,6 +399,9 @@ Admin Decision Rail, Reception Rail, role-aware reception calendar, Fleet Pulse 
 `test-results/` е игнориран от git.
 
 Последна локална проверка за request-first/role-separated-lifecycle/reception-calendar пакета:
+`make audit-prod` -> no known vulnerabilities for pinned runtime dependencies,
+direct `pip-audit -r requirements.txt` -> no known vulnerabilities when the resolver completes,
+`make release-check` -> passed,
 `pytest -q` -> 135 passed, `pytest tests/test_ui_compliance.py -q` -> 31 passed,
 `node --check static/app.js`, `node --check static/i18n.js`,
 `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile e2e/test_browser_smoke.py tests/test_ui_compliance.py`,

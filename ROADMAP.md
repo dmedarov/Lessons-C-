@@ -307,16 +307,19 @@ operations assistant for internal mobility**, което е:
 
 1. Browser-computed contrast checks for translucent surfaces, focus rings,
    theme-aware message alerts and Fleet Pulse/status chips.
-2. Expand Playwright scenarios beyond the initial smoke: admin approve/reject,
+2. Confirm the first GitHub Actions **Production Gates** run after push:
+   Python 3.12/3.14 tests, JS syntax, `pip-audit -r requirements.txt` and Docker
+   image build.
+3. Expand Playwright scenarios beyond the initial smoke: admin approve/reject,
    bulk reject reason validation, admin NetFleet key update, NetFleet
    configured/unconfigured states, refresh/logout and admin current-trip
    start/return.
-3. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
+4. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
    change, handoff and blackout deactivate.
-4. Add Playwright coverage for the new `/admin` production readiness panel and
+5. Add Playwright coverage for the new `/admin` production readiness panel and
    `/health/ready` probe state.
-5. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
-6. After real production usage, add materialized intelligence snapshots
+6. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
+7. After real production usage, add materialized intelligence snapshots
    (`car_status_snapshots`, `fleet_insights`) only if inline metrics become too
    slow or operators need historical trend review.
 
