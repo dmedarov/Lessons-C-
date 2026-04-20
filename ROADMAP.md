@@ -303,25 +303,78 @@ operations assistant for internal mobility**, което е:
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
   Alembic revision `20260420_0009`.
 
+## Codebase Analysis: 2026-04-20
+
+FleetFlow is now beyond "feature prototype" and should be handled as a
+production-prep operations product. The codebase has strong product direction,
+but the next improvements should reduce regression risk before adding more
+visible modules.
+
+### Architecture strengths
+
+- **Clear role model:** employee requests/cancels, `fleet_approver` decides,
+  `fleet_reception` starts/returns, `fleet_admin` configures and overrides.
+- **Production-oriented backend:** FastAPI routers, HMAC auth, refresh-token
+  rotation, live DB rebinding, Alembic migrations, readiness checks and Docker
+  production flow are in place.
+- **Premium UX foundation:** intent summary, Current Trip Hero, Admin Decision
+  Rail, Reception Rail, role-aware calendar, timeline-first reservations,
+  Fleet Pulse and scoped NetFleet pickup context are shipped.
+- **Operational safety:** audit trail, blackout windows, guarded admin handoff,
+  in-app/outbound notifications and production readiness panel already support
+  accountable use.
+- **Verification baseline:** `pytest`, UI compliance tests, JS syntax checks,
+  Playwright smoke, `make release-check`, Docker smoke and backup/restore drill
+  have all been used successfully in recent slices.
+
+### Current risks to address before broad production use
+
+- **Frontend size:** `static/app.js` is 4048 lines and `static/styles.css` is
+  3140 lines. New UX work should stop growing the monolith and start extracting
+  stable vanilla modules.
+- **Reservation router size:** `routers/reservations.py` is 960 lines and owns
+  creation, conflict checks, suggestions, lifecycle, bulk decisions, listing
+  and export. Split service logic after the next small hardening pass.
+- **Schema duality:** `db.py` still supports runtime `CREATE TABLE IF NOT
+  EXISTS` bootstrap and `_apply_runtime_upgrades()` while production also uses
+  Alembic. Keep this for dev ergonomics now, but add automated schema parity
+  checks so SQLite bootstrap, PostgreSQL bootstrap and Alembic head do not drift.
+- **Browser evidence gap:** current Playwright coverage is a valuable broad
+  smoke, but production readiness needs smaller role-specific tests that fail
+  near the broken flow: public overview/calendar, employee booking/current
+  trip, approver decisions, reception handoff/return and admin settings.
+- **External signal closure:** local audits and Docker Scout were clean, but
+  GitHub Security/Dependabot must still be inspected directly after push
+  before claiming the banner is closed.
+- **Operational docs cadence:** ROADMAP, ROADMAP_IMPROVEMENTS and README must
+  be updated after every material change and before commit/push, so future AI
+  agents inherit the true state instead of chat-only context.
+
 ## Next Recommended Slices
 
-1. Browser-computed contrast checks for translucent surfaces, focus rings,
+1. Add route/schema guard tests: route registry has no duplicate method/path,
+   SQLite/PostgreSQL bootstrap SQL parses, and Alembic head stays in sync with
+   runtime bootstrap assumptions.
+2. Confirm GitHub Actions **Production Gates** and inspect the open GitHub
+   Dependabot alert directly; local `pip-audit` and Docker Scout evidence is
+   clean, so do not chase phantom upgrades without the alert details.
+3. Split Playwright smoke into role-specific production flows: pre-login public
+   overview/calendar, employee quick-book/current-trip, approver decision rail,
+   reception handoff/return calendar and admin NetFleet/readiness.
+4. Browser-computed contrast checks for translucent surfaces, focus rings,
    theme-aware message alerts and Fleet Pulse/status chips.
-2. Confirm the first GitHub Actions **Production Gates** run after push:
-   Python 3.12/3.14 tests, JS syntax, `pip-audit -r requirements.txt` and Docker
-   image build.
-3. Expand Playwright scenarios beyond the initial smoke: admin approve/reject,
-   bulk reject reason validation, admin NetFleet key update, NetFleet
-   configured/unconfigured states, refresh/logout and admin current-trip
-   start/return.
-4. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
+5. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
    change, handoff and blackout deactivate.
-5. Add Playwright coverage for the new `/admin` production readiness panel and
-   `/health/ready` probe state.
-6. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
-7. After real production usage, add materialized intelligence snapshots
-   (`car_status_snapshots`, `fleet_insights`) only if inline metrics become too
-   slow or operators need historical trend review.
+6. Split `static/app.js` into small vanilla JS modules before the next large UI
+   package. Suggested boundaries: API/session, shell/overview, reservations
+   lifecycle, calendar, admin users/fleet/settings, notifications/dialogs.
+7. Split reservation domain logic out of `routers/reservations.py` into service
+   modules without changing endpoint contracts.
+8. Add session-management UI and refresh-token cleanup job after the role flows
+   are stable.
+9. After real production usage, add materialized intelligence snapshots
+   (`car_status_snapshots`, `fleet_insights`, `fleet_demand_snapshots`) only if
+   inline metrics become too slow or operators need historical trend review.
 
 ## References
 

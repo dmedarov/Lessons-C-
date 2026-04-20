@@ -60,15 +60,15 @@ routers/
   cars.py                    fleet CRUD + telemetry proxy/config + blackout windows
   notifications.py           user inbox
   ops.py                     admin-only production readiness preflight
-  reservations.py            full lifecycle state machine
+  reservations.py            960-line full lifecycle state machine and reservation query surface
   users.py                   user CRUD + password change + admin handoff
 templates/
   index.html                 employee surface
   admin.html                 admin surface
 static/
-  app.js                     ~2000-line SPA logic
+  app.js                     4048-line SPA logic; split before next large UI package
   i18n.js                    Bulgarian UI copy dictionary + interpolation
-  styles.css                 Design system stylesheet with responsive cockpit UI
+  styles.css                 3140-line design system stylesheet with responsive cockpit UI
 alembic/                     migration scripts
 tests/test_app.py            Core FastAPI TestClient regression cases
 e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
@@ -176,11 +176,49 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
 - The monolithic `static/app.js` should be split before the frontend grows much
-  further.
+  further; it is now 4048 lines and `static/styles.css` is 3140 lines.
+- `routers/reservations.py` is now 960 lines and carries too many concerns:
+  creation, conflict checks, lifecycle transitions, suggestions, bulk decisions,
+  listing and export. Keep endpoints stable, but extract service modules before
+  adding more reservation behavior.
+- `db.py` intentionally still supports runtime bootstrap for SQLite/dev and
+  PostgreSQL smoke, while production also uses Alembic. Add schema parity tests
+  before the next database-heavy slice so bootstrap SQL, runtime upgrades and
+  Alembic head cannot drift silently.
 - The last visible GitHub security banner pointed at the Docker base image;
   FleetFlow now builds on a Chainguard Python runtime with local Docker Scout
   `0C/0H/0M/0L`, but GitHub Security must be rechecked after push to confirm
   the alert is closed.
+
+## Codebase analysis handoff (2026-04-20)
+
+This is the latest high-level audit of code shape, risk and future direction.
+Use it before choosing the next implementation task.
+
+| Area | Strength | Risk | Next AI-agent action |
+| --- | --- | --- | --- |
+| Product model | Role-separated pool process is clear: employee, approver, reception, admin. | Extra roles/features can make the app feel like ERP. | Preserve the four-role model; add permissions only when a real pool workflow requires them. |
+| Backend API | FastAPI routers, auth rebinding, refresh rotation, readiness and audit trail are strong. | `routers/reservations.py` has too many responsibilities. | Extract reservation services in small slices without changing routes or schemas. |
+| Frontend | Intent-driven cockpit, rails, timeline and NetFleet context are already premium. | `static/app.js` is too large for safe autonomous edits. | Create module boundaries before the next large UI addition. |
+| CSS/design system | Responsive cockpit styling and compliance principles exist. | 3140-line stylesheet makes overlap/contrast regressions easy. | Add browser-computed contrast checks, then split component CSS if churn continues. |
+| Database | Alembic production path and PostgreSQL smoke exist. | Runtime bootstrap/upgrades in `db.py` can drift from migrations. | Add schema parity tests for SQLite bootstrap, PostgreSQL bootstrap and Alembic head. |
+| E2E evidence | Playwright smoke proves broad desktop/mobile viability. | One broad smoke is harder to diagnose when it fails. | Split by role: public, employee, approver, reception, admin. |
+| NetFleet | Server-side key handling and scoped employee pickup context are correct. | Raw GPS can confuse users if freshness/location text is unclear. | Add freshness labels and human pickup wording before adding maps/complex telemetry. |
+| Production | Makefile, prod checks, Docker health, backups and restore drill are in place. | GitHub alert state still needs direct external confirmation. | Inspect GitHub Security/Dependabot after push and record exact closure evidence. |
+| Intelligence | Best-car scoring and compact Fleet Pulse are explainable and light. | Premature analytics tables would add complexity before real usage data. | Defer snapshots until production data volume or operator needs prove the need. |
+| Documentation | README, ROADMAP and this handoff are active. | Chat-only decisions disappear between agents. | Update `.md` files after tests and before every commit/push. |
+
+### Code analysis conclusions
+
+- Do **not** start with another feature module. Start with guardrails: route
+  registry uniqueness, schema parity and role-specific e2e tests.
+- Do **not** add generic AI chat, heavy BI dashboards, GPS tracking workflows,
+  extra role sprawl or a settings labyrinth before live usage demands it.
+- Continue optimizing for the product target: **calm operations assistant for
+  internal mobility**. Every screen should answer: "What is my next move?"
+- Verified during this audit: the current `POST /reservations/{reservation_id}/cancel`
+  route is registered once in `routers/reservations.py`. Add a route-registry
+  test anyway so future decorator collisions are caught automatically.
 
 ### Quality bar
 
@@ -1816,6 +1854,182 @@ orientation, but requester, purpose, GPS, reservation ids and actions are not.
 
 ---
 
+## Phase 10: Production Hardening and Codebase Shape
+
+**Goal:** Make the current premium product safer to operate and easier for
+future agents to change. This phase is intentionally less glamorous than new
+features, but it is the difference between "works today" and "survives live
+usage".
+
+### 10.1 Route and schema guardrails
+
+- **Goal:** Catch duplicate routes and schema drift automatically.
+- **Files:** `app.py`, `db.py`, `tests/test_app.py` or new
+  `tests/test_schema_contracts.py`
+- **Approach:**
+  1. Add a test that builds the FastAPI app and asserts no duplicate
+     `(method, path)` route pairs exist, excluding automatically generated
+     `HEAD` if present.
+  2. Add tests that execute/parse the SQLite bootstrap schema against an empty
+     in-memory DB.
+  3. Add a PostgreSQL bootstrap smoke or SQL parse check when a live Postgres
+     URL is available; otherwise keep it as a documented optional smoke.
+  4. Add an Alembic head check so production migrations are not silently behind.
+- **Acceptance criteria:** route registry is unique, bootstrap schema test is
+  green, and the test failure points to the exact duplicate or broken statement.
+- **Verification:** `pytest tests/test_schema_contracts.py -q`, full
+  `pytest -q`, `make release-check` before push.
+- **Depends on:** current test suite.
+- **Effort:** S
+
+### 10.2 Role-specific Playwright production flows
+
+- **Goal:** Replace the single broad smoke with smaller tests that map to real
+  pool-process roles.
+- **Files:** `e2e/test_browser_smoke.py`, optional new `e2e/test_public.py`,
+  `e2e/test_employee.py`, `e2e/test_approver.py`, `e2e/test_reception.py`,
+  `e2e/test_admin.py`, `README.md`, `docs/UI_UX_COMPLIANCE_AUDIT.md`
+- **Approach:**
+  1. Keep the existing broad smoke until the split is stable.
+  2. Add public flow: pre-login overview shows real aggregate counts; public
+     calendar shows active/approved occupancy with plate/model but no requester
+     or actions.
+  3. Add employee flow: quick-book, smart prefill, Current Trip Hero and hidden
+     start/return buttons.
+  4. Add approver flow: Decision Rail, direct approve/reject, bulk reject
+     reason validation.
+  5. Add reception flow: Reception Rail, approved handoff, checked-out return
+     and role-aware calendar.
+  6. Add admin flow: NetFleet key setup/change, production readiness panel,
+     user GSM field and fleet settings.
+- **Acceptance criteria:** each role test can fail independently with its own
+  screenshot artifacts and no manual setup.
+- **Verification:** `make test-e2e` or documented Playwright command,
+  screenshots at 390 and 1440 px for changed surfaces.
+- **Depends on:** Phase 8.7 baseline.
+- **Effort:** M
+
+### 10.3 Frontend module split
+
+- **Goal:** Reduce risk in `static/app.js` before further premium UI work.
+- **Files:** `static/app.js`, new `static/modules/*.js` or equivalent
+  no-build vanilla modules, `templates/index.html`, `templates/admin.html`,
+  `README.md`
+- **Approach:**
+  1. Start with pure extraction, no behavior change.
+  2. Suggested boundaries: `api/session`, `shell/overview`, `reservations`,
+     `calendar`, `admin-users`, `admin-fleet`, `settings/netfleet`,
+     `notifications`, `dialogs`.
+  3. Keep global state shape stable for the first extraction.
+  4. Move one slice at a time and run JS syntax + browser smoke after each
+     meaningful split.
+- **Acceptance criteria:** no endpoint or UI behavior changes; source files are
+  smaller and named by responsibility; no new build step.
+- **Verification:** `node --check` on every JS file, `pytest -q`,
+  Playwright role smoke.
+- **Depends on:** 10.2 recommended first, but can start with API/dialog helpers.
+- **Effort:** L
+
+### 10.4 Reservation service extraction
+
+- **Goal:** Make reservation behavior testable without one giant router file.
+- **Files:** `routers/reservations.py`, new `reservation_services/` or
+  `services/reservations/`, `tests/test_app.py`, targeted reservation tests.
+- **Approach:**
+  1. Move pure helpers first: conflict/overlap, serialization, recipient
+     selection and scoring wrappers.
+  2. Then extract command services: create, cancel, approve/reject, start,
+     return, bulk decisions.
+  3. Keep FastAPI route function signatures and response contracts unchanged.
+  4. Add focused unit tests around extracted service functions where practical.
+- **Acceptance criteria:** `routers/reservations.py` becomes mostly route
+  wiring; existing API tests pass without fixture rewrites.
+- **Verification:** full `pytest -q`, route registry test from 10.1, manual
+  employee/approver/reception smoke.
+- **Depends on:** 10.1.
+- **Effort:** L
+
+### 10.5 Session management UI and cleanup job
+
+- **Goal:** Give operators and users visibility into refresh sessions without
+  weakening the current rotation model.
+- **Files:** `routers/auth.py`, `routers/users.py`, `security.py`, `db.py`,
+  `static/app.js`, `static/i18n.js`, `templates/admin.html`, Alembic revision.
+- **Approach:**
+  1. Add current-user endpoint for active sessions: issued time, expiry,
+     browser/user-agent summary and current session marker.
+  2. Add revoke current/all-other sessions actions.
+  3. Add admin-only session visibility for a user if operationally needed.
+  4. Add cleanup job/command for expired refresh tokens.
+- **Acceptance criteria:** user can see and revoke sessions; expired tokens do
+  not grow forever; no raw token values are ever exposed.
+- **Verification:** auth tests for list/revoke/cleanup, UI smoke, logout/
+  refresh regression.
+- **Depends on:** stable auth baseline and current refresh-token table.
+- **Effort:** M
+
+### 10.6 NetFleet pickup clarity
+
+- **Goal:** Make live vehicle location useful without turning FleetFlow into a
+  noisy tracking system.
+- **Files:** `netfleet_service.py`, `routers/cars.py`, `static/app.js`,
+  `static/i18n.js`, `static/styles.css`, tests around telemetry serialization.
+- **Approach:**
+  1. Add freshness labels: "обновено преди X мин", "стар GPS сигнал" and
+     "няма сигнал" with thresholds documented in config.
+  2. Replace coordinate-first employee copy with pickup wording:
+     "Последна позиция за ориентация" and clear last-seen time.
+  3. Keep full fleet GPS visible only to `fleet_admin`; employee remains scoped
+     to own approved/active trip.
+  4. Defer map rendering until operators prove it helps pickup more than simple
+     address/coordinates.
+- **Acceptance criteria:** users understand whether a location is fresh; no
+  raw event counts appear in product copy; scoped privacy remains intact.
+- **Verification:** NetFleet configured/unconfigured Playwright states, API
+  tests with stale/current telemetry fixtures.
+- **Depends on:** current NetFleet proxy.
+- **Effort:** M
+
+### 10.7 Materialized intelligence snapshots (deferred)
+
+- **Goal:** Add historical intelligence only after live usage proves inline
+  metrics are insufficient.
+- **Files:** future Alembic revisions, `fleet_intelligence/`, `routers/intelligence.py`,
+  `README.md`, `ROADMAP_IMPROVEMENTS.md`
+- **Approach:**
+  1. First collect production pain: slow pulse, repeated operator questions or
+     need for trend review.
+  2. If justified, add `car_status_snapshots`, `fleet_insights` and
+     `fleet_demand_snapshots`.
+  3. Add a scheduled recompute command before any always-on background worker.
+  4. Keep Fleet Pulse compact; do not build a heavy BI dashboard.
+- **Acceptance criteria:** snapshots have a clear operator question they answer;
+  UI shows concise insights, not analytics sprawl.
+- **Verification:** migration tests, recompute command test, admin pulse smoke.
+- **Depends on:** real production usage data.
+- **Effort:** L
+
+### 10.8 Production release evidence pack
+
+- **Goal:** Make go-live evidence repeatable and inspectable.
+- **Files:** `README.md`, `docs/PRODUCTION_USER_GUIDE.md`,
+  `docs/UI_UX_COMPLIANCE_AUDIT.md`, `ROADMAP.md`, `ROADMAP_IMPROVEMENTS.md`
+- **Approach:**
+  1. Record the exact commands and latest passing results for `pytest -q`,
+     `pytest tests/test_ui_compliance.py -q`, JS syntax, Playwright,
+     `make release-check`, `make prod-check`, backup and restore drill.
+  2. Record GitHub Actions and GitHub Security status after push.
+  3. Keep production secrets out of docs and screenshots.
+  4. Add a first-live checklist: domain/CORS, admin bootstrap, NetFleet key,
+     backup path, operator contacts and rollback step.
+- **Acceptance criteria:** a human can decide "ready/not ready" from docs and
+  evidence without reading chat history.
+- **Verification:** dry-run the checklist on a clean checkout.
+- **Depends on:** 7.1/7.2 confirmation and current production setup.
+- **Effort:** S
+
+---
+
 ## Cross-cutting concerns (apply to every item)
 
 - **No new dependencies** without listing them in the PR description with
@@ -1842,41 +2056,60 @@ orientation, but requester, purpose, GPS, reservation ids and actions are not.
 
 ## Suggested sequencing (from current state)
 
-1. **8.2 browser-computed contrast** - close translucent surfaces, focus rings
+1. **10.1 route/schema guardrails** - add duplicate route registry and schema
+   parity checks before more production code changes.
+2. **7.1/7.2 external production signal closure** - confirm GitHub Actions
+   Production Gates and inspect the GitHub Dependabot alert directly.
+3. **10.2 split Playwright by role** - public, employee, approver, reception
+   and admin flows with separate screenshots and failure points.
+4. **8.2 browser-computed contrast** - close translucent surfaces, focus rings
    and alert/status pair evidence.
-2. **8.7 expand Playwright flows** - admin approve/reject, bulk reject reason
-   recovery, NetFleet configured/unconfigured states, refresh/logout and admin
-   start/return.
-3. **8.3 responsive density pass** - use the new screenshots to hunt overlap,
+5. **8.3 responsive density pass** - use the new screenshots to hunt overlap,
    clipped text and weak hierarchy at 390/768/1024/1440.
-4. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
+6. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
    handoff and blackout deactivate.
-5. **5.4/5.9 production proof** - PostgreSQL migration smoke, backup/restore
+7. **5.4/5.9 production proof** - PostgreSQL migration smoke, backup/restore
    playbook and structured logs.
-6. **Confirm 7.1 on GitHub Security** - local audit and Docker remediation are
-   shipped; confirm the default branch alert closes after push.
-7. **Monitor 7.2 CI quality gates** - first Actions run should validate
-   Python 3.12/3.14, dependency audit, JS syntax and Docker build.
 8. **7.3 PostgreSQL migration smoke + backups** - required before serious
    production rollout.
-9. **7.4 Structured JSON logging** - request IDs and baseline browser headers
-   are shipped; production log structure remains open.
-10. **4.1 Split `static/app.js` into modules** - do this before large frontend
-    additions; the file is already ~2000 lines.
+9. **10.3 Split `static/app.js` into modules** - do this before large frontend
+   additions; the file is already 4048 lines.
+10. **10.4 reservation service extraction** - keep endpoints stable while
+    moving lifecycle/domain logic out of the router.
 11. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
     after the core flows stabilize.
 12. **5.0 Fleet Gantt + 5.0b monthly summary** - high-value admin planning once
    the frontend is modular enough.
-13. **3.6 Session-management UI** - list active refresh sessions per user,
+13. **10.5 Session-management UI** - list active refresh sessions per user,
    revoke current/all sessions and expose security audit history.
-14. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
+14. **10.6 NetFleet pickup clarity** - freshness labels and human pickup
+    wording before maps or telemetry-heavy features.
+15. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
     for real fleet accountability.
+16. **10.7 materialized intelligence snapshots** - only after live usage proves
+    inline metrics are too slow or historical trend review is needed.
 
 If time is limited, execute items 1-4 before any new feature work.
 
 ---
 
 ## Done
+
+### 2026-04-20 - Codebase analysis and future-development handoff
+
+- **Full roadmap audit:** `ROADMAP.md` now has a 2026-04-20 codebase analysis
+  section with architecture strengths, current production risks and updated
+  next recommended slices.
+- **Tactical handoff expanded:** this document now records actual code sizes,
+  module risks, schema parity risk, GitHub alert follow-up, role-specific e2e
+  gaps and a new Phase 10 for production hardening/codebase shape.
+- **Important correction:** the current `POST /reservations/{reservation_id}/cancel`
+  route was rechecked and is registered once. Future protection should be an
+  automated route-registry uniqueness test, not an assumed bug fix.
+- **Next implementation priority:** Phase 10.1 route/schema guardrails, then
+  GitHub Actions/Dependabot confirmation, then role-specific Playwright flows.
+- **Verification:** documentation-only change; run `git diff --check` before
+  commit/push.
 
 ### 2026-04-20 - UI/UX compliance audit and first accessibility guardrails
 
