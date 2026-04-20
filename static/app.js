@@ -114,6 +114,7 @@ const els = {
   model: document.getElementById("model"),
   carsGrid: document.getElementById("carsGrid"),
   reservationsTableBody: document.getElementById("reservationsTableBody"),
+  decisionRail: document.getElementById("decisionRail"),
   overviewStats: document.getElementById("overviewStats"),
   currentTripHero: document.getElementById("currentTripHero"),
   message: document.getElementById("message"),
@@ -1536,6 +1537,80 @@ function reservationActions(item) {
   return actions.join("");
 }
 
+function renderDecisionRail() {
+  if (!els.decisionRail) return;
+  const showRail = state.currentRole === "fleet_admin" && surface === "admin" && state.token;
+  toggleHidden(els.decisionRail, !showRail);
+  if (!showRail) {
+    els.decisionRail.innerHTML = "";
+    return;
+  }
+
+  if (state.loading.reservations) {
+    els.decisionRail.innerHTML = `
+      <div>
+        <p class="panel__eyebrow">${escapeHtml(t("decisionRail.eyebrow"))}</p>
+        <h3 id="decisionRailTitle">${escapeHtml(t("decisionRail.loadingTitle"))}</h3>
+      </div>
+      ${skeletonCards(2)}
+    `;
+    return;
+  }
+
+  const cars = carMap();
+  const pendingItems = state.reservations
+    .filter((item) => item.status === "pending")
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  const visible = pendingItems.slice(0, 3);
+  const extraCount = Math.max(pendingItems.length - visible.length, 0);
+
+  if (!pendingItems.length) {
+    els.decisionRail.innerHTML = `
+      <div>
+        <p class="panel__eyebrow">${escapeHtml(t("decisionRail.eyebrow"))}</p>
+        <h3 id="decisionRailTitle">${escapeHtml(t("decisionRail.emptyTitle"))}</h3>
+        <p class="section-copy">${escapeHtml(t("decisionRail.emptyCopy"))}</p>
+      </div>
+    `;
+    return;
+  }
+
+  els.decisionRail.innerHTML = `
+    <div class="decision-rail__header">
+      <div>
+        <p class="panel__eyebrow">${escapeHtml(t("decisionRail.eyebrow"))}</p>
+        <h3 id="decisionRailTitle">${escapeHtml(t("decisionRail.title", { count: pendingItems.length }))}</h3>
+        <p class="section-copy">${escapeHtml(t("decisionRail.copy"))}</p>
+      </div>
+      <div class="decision-rail__actions">
+        <button class="btn btn--primary" type="button" data-decision-rail-select-all>${escapeHtml(t("decisionRail.approveAll"))}</button>
+        <button class="btn btn--ghost" type="button" data-intent-action="review-pending">${escapeHtml(t("intent.action.reviewPending"))}</button>
+      </div>
+    </div>
+    <div class="decision-rail__list">
+      ${visible.map((item) => {
+        const car = cars.get(item.car_id);
+        const carLabel = car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id });
+        return `
+          <article class="decision-card" data-decision-card="${item.id}">
+            <div>
+              <strong>${escapeHtml(item.employee_name)}</strong>
+              <p>${escapeHtml(carLabel)}</p>
+              <span class="muted">${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</span>
+              ${item.purpose ? `<p class="decision-card__purpose">${escapeHtml(item.purpose)}</p>` : ""}
+            </div>
+            <div class="decision-card__actions">
+              <button class="action-btn action-btn--approve" type="button" data-reservation-action="approve" data-id="${item.id}" aria-label="${t("action.approve")} резервация #${item.id}">${t("action.approve")}</button>
+              <button class="action-btn action-btn--reject" type="button" data-reservation-action="reject" data-id="${item.id}" aria-label="${t("action.reject")} резервация #${item.id}">${t("action.reject")}</button>
+            </div>
+          </article>
+        `;
+      }).join("")}
+    </div>
+    ${extraCount ? `<p class="muted decision-rail__more">${escapeHtml(t("decisionRail.more", { count: extraCount }))}</p>` : ""}
+  `;
+}
+
 function renderReservations() {
   const cars = carMap();
   const canBulk = bulkSelectionEnabled();
@@ -1545,12 +1620,14 @@ function renderReservations() {
   if (!state.token) {
     state.selectedReservationIds.clear();
     renderBulkActionBar();
+    renderDecisionRail();
     els.reservationsTableBody.innerHTML = `<tr><td colspan="${colspan}" class="muted">Влез в системата, за да видиш operational потока.</td></tr>`;
     return;
   }
 
   if (state.loading.reservations) {
     renderBulkActionBar();
+    renderDecisionRail();
     els.reservationsTableBody.innerHTML = `${skeletonTableRow(colspan)}${skeletonTableRow(colspan)}${skeletonTableRow(colspan)}`;
     return;
   }
@@ -1558,6 +1635,7 @@ function renderReservations() {
   if (!state.reservations.length) {
     state.selectedReservationIds.clear();
     renderBulkActionBar();
+    renderDecisionRail();
     els.reservationsTableBody.innerHTML = `<tr><td colspan="${colspan}" class="muted">${state.currentRole === "fleet_admin" ? "Няма резервации за текущия изглед." : "Нямаш видими резервации за текущия изглед."}</td></tr>`;
     return;
   }
@@ -1603,6 +1681,7 @@ function renderReservations() {
     els.reservationsTableBody.appendChild(row);
   });
   renderBulkActionBar();
+  renderDecisionRail();
 }
 
 function renderCalendar() {
@@ -2253,6 +2332,7 @@ async function handleLogout() {
   updateNotificationBadge();
   renderReservations();
   renderCurrentTripHero();
+  renderDecisionRail();
   renderUsers();
   renderBlackouts();
   renderHandoffCandidates();
@@ -2923,7 +3003,13 @@ document.addEventListener("click", (event) => {
   const mobileDayShiftButton = event.target.closest("[data-mobile-day-shift]");
   const mobileBookDayButton = event.target.closest("[data-mobile-book-day]");
   const intentButton = event.target.closest("[data-intent-action]");
+  const decisionRailSelectAllButton = event.target.closest("[data-decision-rail-select-all]");
 
+  if (decisionRailSelectAllButton) {
+    setAllPendingReservationsSelected(true);
+    bulkReservationDecision("approve").catch((error) => showMessage(t("action.bulkApprove"), error.message));
+    return;
+  }
   if (intentButton) {
     handleIntentAction(intentButton).catch((error) => showMessage("Следващият ход не успя", error.message));
   }

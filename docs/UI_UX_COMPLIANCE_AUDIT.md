@@ -43,7 +43,7 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Calendar studio | `templates/index.html`, `static/app.js`, `static/styles.css` | needs evidence | Responsive 390/768/1440, keyboard reachability, color+text statuses, no overlap | Capture mobile day mode and desktop month screenshots; verify day controls. Month prev/next controls now have accessible labels on both surfaces. |
 | Reservation list/cards | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Status text, lifecycle clarity, cards at mobile, table/card labels, cancel recovery | Verify no color-only state and all actions have accessible names. Lifecycle meter has text labels; table body is `aria-live=polite`; cancel now requires a reason. |
 | Notifications | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | `aria-live`, unread badge clarity, concise copy, no noisy motion | Notification lists are now polite live regions. Verify polling update announcement with a screen reader. |
-| Admin pending queue | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Bulk selection semantics, action bar visibility, partial-failure feedback, required reject reason | Test keyboard checkbox selection, bulk approve/reject result copy and empty reject reason recovery. |
+| Admin pending queue / decision rail | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Top pending decisions first, bulk selection semantics, action bar visibility, partial-failure feedback, required reject reason | Decision rail now appears before the table with top 3 pending cards, direct row actions and bulk approve. Capture desktop/mobile screenshots and test keyboard checkbox selection plus empty reject reason recovery. |
 | Admin users | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Destructive confirmations, role-change clarity, audit timeline readability | Verify reset/deactivate/role dialog focus return and success/error copy. |
 | Admin fleet/cars | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Notes textarea labels, active/inactive text state, 44 px controls | Verify notes save path, employee visibility and mobile card spacing. |
 | Blackout management | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Dialog APG behavior, date validation, conflict errors, no overlap | Test create/edit/deactivate via keyboard and invalid dates. |
@@ -109,11 +109,15 @@ styles.
 - `pass`: current trip hero promotes an active or next approved employee trip
   above table scanning and exposes one primary lifecycle action; covered by
   `tests/test_ui_compliance.py`.
+- `pass`: admin decision rail promotes the top 3 pending decisions before the
+  table, keeps text-backed urgency and preserves 44 px direct approve/reject
+  actions; covered by `tests/test_ui_compliance.py`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
-- `evidence`: latest local handoff check ran `pytest -q` -> 87 passed,
+- `evidence`: latest local handoff check ran `pytest -q` -> 88 passed,
   `node --check static/app.js`, `node --check static/i18n.js`,
-  `git diff --check`, Docker rebuild and `/health` on `8001`.
+  `git diff --check`, Docker rebuild and `/health` on `8001`;
+  `fleetflow_test-car-pool-1` is healthy.
 
 ## PR/Handoff Checklist
 

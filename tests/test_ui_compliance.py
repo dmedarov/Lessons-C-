@@ -135,3 +135,23 @@ def test_current_trip_hero_promotes_active_or_next_trip() -> None:
     assert '"trip.hero.activeEyebrow": "Твоята кола"' in i18n_js
     assert ".current-trip-hero" in styles
     assert ".current-trip-hero__actions .btn" in styles
+
+
+def test_admin_decision_rail_promotes_pending_queue_before_table() -> None:
+    html = _read("templates/admin.html")
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+    assert 'id="decisionRail" aria-labelledby="decisionRailTitle" aria-live="polite"' in html
+    assert html.index('id="decisionRail"') < html.index('id="bulkActionBar"')
+    assert "function renderDecisionRail()" in app_js
+    assert 'const visible = pendingItems.slice(0, 3);' in app_js
+    assert 'data-decision-rail-select-all' in app_js
+    assert 'setAllPendingReservationsSelected(true);' in app_js
+    assert 'bulkReservationDecision("approve").catch' in app_js
+    assert 'data-decision-card="${item.id}"' in app_js
+    assert 't("decisionRail.eyebrow")' in app_js
+    assert '"decisionRail.approveAll": "Одобри всички"' in i18n_js
+    assert '"decisionRail.emptyCopy": "Опашката е чиста.' in i18n_js
+    assert ".decision-rail__actions .btn" in styles
+    assert ".decision-card__actions .action-btn" in styles

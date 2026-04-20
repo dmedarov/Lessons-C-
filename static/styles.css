@@ -2123,6 +2123,62 @@ select {
   min-height: 44px;
 }
 
+.decision-rail {
+  display: grid;
+  gap: var(--sp-4);
+  margin: var(--sp-4) 0;
+  padding: var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xl);
+  background: var(--surface-strong);
+}
+
+.decision-rail__header,
+.decision-card {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  align-items: flex-start;
+}
+
+.decision-rail__actions,
+.decision-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+}
+
+.decision-rail__actions .btn,
+.decision-card__actions .action-btn {
+  min-height: 44px;
+}
+
+.decision-rail__list {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.decision-card {
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+}
+
+.decision-card p {
+  margin: var(--sp-1) 0;
+}
+
+.decision-card__purpose {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.decision-rail__more {
+  margin: 0;
+}
+
 .session-summary,
 .notifications-list,
 .users-grid {
@@ -2325,8 +2381,16 @@ select {
     grid-template-columns: 1fr;
   }
 
-  .current-trip-hero__aside {
+  .decision-rail__header,
+  .decision-card {
+    flex-direction: column;
+  }
+
+  .current-trip-hero__aside,
+  .decision-rail__actions,
+  .decision-card__actions {
     justify-items: start;
+    justify-content: flex-start;
   }
 
   .hero__secondary {
@@ -2584,6 +2648,10 @@ select {
   .button-row .btn,
   .current-trip-hero__actions,
   .current-trip-hero__actions .btn,
+  .decision-rail__actions,
+  .decision-rail__actions .btn,
+  .decision-card__actions,
+  .decision-card__actions .action-btn,
   .bulk-action-bar,
   .bulk-action-bar__actions,
   .bulk-action-bar__actions .btn {

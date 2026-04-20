@@ -27,6 +27,7 @@
 - Ясни status тагове, филтри и действия в контекста на всеки запис.
 - Intent-driven summary: началният operational слой показва следващия най-важен ход според режима.
 - Current Trip Hero: активната или следваща одобрена резервация излиза като основен hero блок с един primary action.
+- Admin Decision Rail: `/admin` започва с най-спешните pending заявки, директни approve/reject действия и bulk approve, преди таблицата.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
 - Реален месечен календарен изглед за планиране и натоварване по дни.
 - Mobile day calendar mode под 768px, с предишен/следващ ден и бързо резервиране.
@@ -271,7 +272,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-Последна локална проверка за UI/current-trip пакета: `pytest -q` -> 87 passed, `node --check static/app.js`, `node --check static/i18n.js`, `git diff --check`, Docker rebuild + `/health` на `8001`.
+Последна локална проверка за UI/admin-decision-rail пакета: `pytest -q` -> 88 passed, `node --check static/app.js`, `node --check static/i18n.js`, `git diff --check`, Docker rebuild и `/health` на `8001`; `fleetflow_test-car-pool-1` е healthy.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 

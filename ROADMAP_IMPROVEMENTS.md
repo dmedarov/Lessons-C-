@@ -116,8 +116,10 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   and forms.
 - Mobile calendar day mode below 768 px with previous/next day controls and a
   "book this day" affordance.
-- Current automated coverage: 72+ `pytest` cases plus JS syntax checks and
-  dependency audit used in shipped verification.
+- Intent-driven summary, Current Trip Hero and Admin Decision Rail started as
+  the premium "calm operations assistant" layer.
+- Current automated coverage: 88 `pytest` cases plus JS syntax checks and
+  Docker smoke used in shipped verification.
 
 ### Active product gaps
 
@@ -1621,11 +1623,22 @@ the existing lifecycle handlers.
 
 ### 9.3 Admin decision rail
 
+**Status:** Started on 2026-04-20. Admin surface now renders
+`#decisionRail` before the bulk action bar/table, promotes the top 3 pending
+reservations by start time, exposes direct approve/reject actions per card and
+provides an "Одобри всички" action that selects the full pending queue before
+using the existing bulk approval flow.
+
 - **Goal:** Admin starts with the top 3 pending decisions and batch action,
   while the full table becomes secondary.
-- **Files:** `templates/admin.html`, `static/app.js`, `static/styles.css`
+- **Files:** `templates/admin.html`, `static/app.js`, `static/styles.css`,
+  `static/i18n.js`
 - **Acceptance criteria:** pending queue is visible before filters/tables;
-  urgency is text-backed, not color-only.
+  urgency is text-backed, not color-only; every card keeps 44 px action
+  targets and uses existing lifecycle handlers.
+- **Verification:** `pytest tests/test_ui_compliance.py`, full `pytest -q`,
+  `node --check static/app.js`, `node --check static/i18n.js`; still needs
+  browser screenshot evidence at desktop and 390 px.
 
 ### 9.4 Quiet intelligence
 
@@ -1637,8 +1650,8 @@ the existing lifecycle handlers.
 
 - **Already present / strengthened:** live KPI strip, contextual lifecycle
   actions, timeline meter, next free slot action and intent-driven next step.
-- **Apply next:** current trip hero, admin decision rail, Fleet Pulse strip and
-  quick booking suggestion.
+- **Apply next:** Fleet Pulse strip, one-tap booking suggestion, smart prefill
+  and timeline-first reservation view.
 - **Defer:** heavy BI dashboards, GPS/telematics, extra roles, settings
   labyrinth and generic chat assistant.
 
@@ -1733,8 +1746,12 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Phase 9.2 started:** Employee desk now promotes the active or next
   approved reservation into a Current Trip Hero with one primary action,
   moving the most important trip out of the table.
-- **Verification:** `pytest -q` passes with 87 tests, JS syntax checks,
-  `git diff --check`, Docker compose rebuild and `/health` smoke on `8001`.
+- **Phase 9.3 started:** Admin surface now promotes the top 3 pending
+  decisions into a Decision Rail before the table, with direct approve/reject
+  actions and a bulk approve path for the whole pending queue.
+- **Verification:** `pytest -q` passes with 88 tests, JS syntax checks,
+  `git diff --check`, Docker compose rebuild and `/health` smoke on `8001`;
+  `fleetflow_test-car-pool-1` is healthy.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation
 
