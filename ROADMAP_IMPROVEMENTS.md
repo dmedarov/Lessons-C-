@@ -51,6 +51,7 @@ config.py                    12-factor settings (APP_ENV, SECRET_KEY, DATABASE_U
 db.py                        SQLite + PostgreSQL adapters, schema bootstrap
 app_settings.py              DB-backed runtime settings such as NetFleet API key
 production_readiness.py      Shared prod checks for make prod-check and /ops/readiness
+logging_config.py            Text/dev and JSON/prod access log formatter
 security.py                  HMAC token sign/verify, PBKDF2 hash, auth deps
 schemas.py                   Pydantic request/response models
 notifications_service.py     In-app + SMTP/Slack/Teams dispatch
@@ -148,7 +149,8 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   accessibility regression tests before claiming "compliant" in release notes.
 - Browser-level end-to-end coverage has started, but still needs broader
   lifecycle scenarios and browser-computed contrast checks.
-- Structured JSON logging and production observability remain incomplete.
+- Production observability now has structured request logs; next hardening is
+  external alert delivery and an operator-facing log retention/export decision.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
 - The monolithic `static/app.js` should be split before the frontend grows much
@@ -1866,12 +1868,17 @@ If time is limited, execute items 1-4 before any new feature work.
 - **User contact field:** Admin-created users now support optional
   `gsm_number` across SQLite/PostgreSQL schema, Alembic revision
   `20260420_0007`, API responses and the admin user card.
+- **Phase 7.4 completed:** Production access logs are structured JSON by
+  default (`LOG_FORMAT=auto`) with request id, method, path, route, status,
+  latency and app env; dev keeps text logs. `fleetflow.access` writes a single
+  stdout JSON line per request in production without propagating duplicate
+  logger output.
 - **Calm default started:** Read notifications are hidden from the visible
   inbox and employee reservations default to `Текущи`, hiding returned,
   rejected and cancelled records until the user explicitly chooses a history
   filter.
-- **Verification:** `pytest -q` passes with 123 tests, targeted
-  UI/API/production readiness pack passes with 35 tests, Playwright browser
+- **Verification:** `pytest -q` passes with 125 tests, targeted
+  UI/API/production readiness pack passes with 34 tests, Playwright browser
   smoke passes with 1 test and screenshots, JS syntax checks and Python compile
   check pass. `make prod-check` fails fast when `.env` is missing in a clean
   checkout. Old `fleetflow_test` containers were removed, Docker stack was

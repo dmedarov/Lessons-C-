@@ -34,6 +34,7 @@ class Settings:
     netfleet_api_key: str | None
     netfleet_base_url: str
     netfleet_timeout_seconds: int
+    log_format: str
 
     @property
     def db_backend(self) -> str:
@@ -80,6 +81,7 @@ class Settings:
             netfleet_api_key=os.getenv("NETFLEET_API_KEY"),
             netfleet_base_url=os.getenv("NETFLEET_BASE_URL", "https://api.netfleet.bg:8080"),
             netfleet_timeout_seconds=int(os.getenv("NETFLEET_TIMEOUT_SECONDS", "5")),
+            log_format=os.getenv("LOG_FORMAT", "auto"),
         )
 
 

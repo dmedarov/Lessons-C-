@@ -260,10 +260,14 @@ operations assistant for internal mobility**, което е:
 - Backup/restore posture: `make prod-backup` creates a custom-format PostgreSQL
   dump under ignored `backups/`, and `make prod-restore-drill BACKUP=...`
   restores it into an isolated Docker project before migrations.
+- Structured production logs: access logs now switch to JSON in production and
+  include request id, route, status and latency without secret values. The
+  dedicated `fleetflow.access` logger writes one clean stdout JSON line per
+  request in production.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 123 passed,
-  targeted UI/API/production readiness pack -> 35 passed, Playwright browser
+- Latest local verification for this slice: `pytest -q` -> 125 passed,
+  targeted UI/API/production readiness pack -> 34 passed, Playwright browser
   smoke -> 1 passed with desktop/mobile screenshots, JS syntax checks and
   Python compile check. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
@@ -285,9 +289,7 @@ operations assistant for internal mobility**, което е:
    change, handoff and blackout deactivate.
 4. Add Playwright coverage for the new `/admin` production readiness panel and
    `/health/ready` probe state.
-5. Add structured JSON access logs with request id, route, status and latency
-   in production mode.
-6. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
+5. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
 
 ## References
 

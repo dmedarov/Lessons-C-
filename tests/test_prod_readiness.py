@@ -34,6 +34,7 @@ def test_prod_check_accepts_generated_live_ready_env(tmp_path: Path) -> None:
                 "CORS_ALLOW_ORIGINS=https://fleetflow.company.bg",
                 "DEV_SEED_DEMO_DATA=false",
                 "NETFLEET_API_KEY=",
+                "LOG_FORMAT=auto",
             ]
         )
     )
@@ -83,6 +84,7 @@ def test_production_compose_passes_runtime_settings_to_app_container() -> None:
         "LOGIN_RATE_LIMIT_ATTEMPTS",
         "BOOTSTRAP_RATE_LIMIT_ATTEMPTS",
         "NOTIFICATION_TIMEOUT_SECONDS",
+        "LOG_FORMAT",
         "SMTP_HOST",
         "SLACK_WEBHOOK_URL",
         "TEAMS_WEBHOOK_URL",

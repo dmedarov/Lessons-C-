@@ -15,6 +15,7 @@
 - Bootstrap flow за първия `fleet_admin`, без demo users в production.
 - User management: създаване, activate/deactivate, password change и guarded admin handoff.
 - User contacts: admin може да добавя optional email и GSM номер към потребител.
+- Structured access logs: production режимът логва request id, route, status и latency като JSON.
 - Пагинация при списъка с резервации.
 - `health` endpoint за Docker healthcheck.
 - `health/ready` endpoint за production readiness probe към базата.
@@ -149,6 +150,10 @@ NETFLEET_API_KEY=your-netfleet-company-api-key
 APP_PORT=8001
 ```
 
+`LOG_FORMAT=auto` пази dev логовете четими и превключва production access
+логовете към JSON. Ако искаш да форсираш формат: `LOG_FORMAT=json` или
+`LOG_FORMAT=text`.
+
 Преди live cutover пусни:
 
 ```bash
@@ -257,6 +262,7 @@ app.py              # FastAPI factory + lifespan
 app_settings.py     # DB-backed runtime settings for admin-managed secrets such as NetFleet
 config.py           # Настройки от env (SECRET_KEY, DB_PATH, DATABASE_URL, TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS, CORS/rate limits, NetFleet)
 db.py               # SQLite/PostgreSQL adapters, schema bootstrap, runtime compatibility upgrades
+logging_config.py   # request access log formatter for text/dev and JSON/prod
 netfleet_service.py # Server-side NetFleet GPS telemetry client; ключът не стига до browser-а
 production_readiness.py # shared prod checks for make prod-check and /ops/readiness
 security.py         # HMAC-подписани токени, PBKDF2 пароли, auth deps
@@ -342,6 +348,7 @@ docker-compose.postgres.yml
 23. **Secret-safe readiness UI** — admin вижда blockers/warnings за live без да получава сурови secret-и, пароли или connection string.
 24. **Backup before migration** — production backup и restore drill са Make targets, а backup файловете са извън git.
 25. **User contact data** — email и GSM номер се пазят в user профила за operational coordination, без да участват в login/auth.
+26. **Structured production logs** — access logs са JSON в production и съдържат request id, route, status и latency без secret values.
 
 ## Тестове
 
@@ -371,7 +378,7 @@ Admin Decision Rail, Fleet Pulse copy и mobile calendar, после запис�
 `test-results/` е игнориран от git.
 
 Последна локална проверка за request-first/admin-lifecycle/production-readiness пакета:
-`pytest -q` -> 123 passed, targeted UI/API/production readiness pack -> 35 passed,
+`pytest -q` -> 125 passed, targeted UI/API/production readiness pack -> 34 passed,
 `node --check static/app.js`, `node --check static/i18n.js`,
 `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile production_readiness.py routers/ops.py scripts/prod_check.py app.py schemas.py`,
 и `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`

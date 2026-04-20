@@ -58,6 +58,7 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Mobile bottom nav | `templates/index.html`, `templates/admin.html`, `static/styles.css` | needs evidence | 44 px targets, safe-area padding, no content occlusion | CSS sets `min-height: 44px` and accounts for `safe-area-inset-bottom`; screenshot 390 px bottom area and keyboard focus order still required. |
 | Theme/dark mode | `static/theme.js`, `static/styles.css` | needs evidence | NASA/WCAG contrast matrix, focus ring visibility, reduced motion | Solid text/status token pairs now covered by `tests/test_design_tokens.py`; translucent surfaces still need browser-computed contrast evidence. |
 | Production cutover | `Makefile`, `scripts/prod_check.py`, `production_readiness.py`, `routers/ops.py`, `docker-compose.postgres.yml`, `README.md`, `docs/PRODUCTION_USER_GUIDE.md` | pass | No demo seed, generated secrets, real CORS origin, matching DB URL, pinned PostgreSQL image, runtime env propagation, secret-safe admin readiness | `make prod-check` validates `.env` without starting containers; compose now pins PostgreSQL major version and passes CORS, refresh TTL, rate limits, DB password and notification settings to the app container. `/health/ready` checks DB reachability; `/ops/readiness` powers the Admin UI preflight panel without returning secret values. |
+| Structured access logs | `app.py`, `config.py`, `logging_config.py`, `docker-compose.postgres.yml`, `README.md` | pass | Production JSON logs, request correlation, no secret values | Request middleware emits access logs with request id, method, path, route, status and latency. `LOG_FORMAT=auto` keeps dev text logs and production JSON logs; `fleetflow.access` writes one stdout JSON line per request. |
 | Backup / restore drill | `Makefile`, `scripts/backup_postgres.sh`, `scripts/restore_postgres_drill.sh`, `docs/PRODUCTION_USER_GUIDE.md` | pass | Backup files outside git, custom PostgreSQL dump, restore test isolated from production volume | `make prod-backup` writes a `pg_dump --format=custom` file under ignored `backups/`; `make prod-restore-drill BACKUP=...` restores into project `fleetflow_restore_drill`, checks `alembic_version` and removes the temporary volume by default. |
 | User contact fields | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `schemas.py`, `routers/users.py`, `db.py`, `alembic/versions/20260420_0007_user_gsm_number.py` | pass | GSM is optional contact metadata, not auth; field has tel keyboard, max length guard and visible card text | Admin can enter optional GSM number when creating a user. API returns `gsm_number`, user cards show text-backed `GSM: ...`, and tests cover optional/too-long values. |
 
@@ -164,6 +165,8 @@ styles.
 - `pass`: admin user creation supports optional GSM number with API/schema/UI
   coverage and text-backed display in user cards; covered by
   `tests/test_app.py` and `tests/test_ui_compliance.py`.
+- `pass`: production access logs are structured JSON with request id, route,
+  status and latency while dev logs stay text; covered by `tests/test_app.py`.
 - `pass`: Fleet Pulse GPS count now uses matching active FleetFlow plates and
   reports `X/Y` instead of raw NetFleet event totals.
 - `pass`: initial Playwright browser smoke verifies employee one-tap booking,
@@ -174,8 +177,8 @@ styles.
   `test-results/e2e/employee-mobile.png`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
-- `evidence`: latest local handoff check ran `pytest -q` -> 123 passed,
-  targeted UI/API/production readiness pack -> 35 passed,
+- `evidence`: latest local handoff check ran `pytest -q` -> 125 passed,
+  targeted UI/API/production readiness pack -> 34 passed,
   `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
   -> 1 passed, `node --check static/app.js`,
   `node --check static/i18n.js` and Python compile check for

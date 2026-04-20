@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from time import perf_counter
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -11,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 import bootstrap_tokens
 from config import settings
 from db import get_conn, init_db
+from logging_config import build_access_log, configure_access_logger, emit_access_log
 from routers import auth as auth_router
 from routers import cars as cars_router
 from routers import notifications as notifications_router
@@ -44,17 +46,38 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    configure_access_logger()
     app = FastAPI(title="Corporate Car Pool Reservation", version="1.0.0", lifespan=lifespan)
 
     @app.middleware("http")
     async def request_context(request: Request, call_next):
+        started = perf_counter()
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
         request.state.request_id = request_id
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        for header, value in SECURITY_HEADERS.items():
-            response.headers.setdefault(header, value)
-        return response
+        status_code = 500
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            response.headers["X-Request-ID"] = request_id
+            for header, value in SECURITY_HEADERS.items():
+                response.headers.setdefault(header, value)
+            return response
+        finally:
+            route = getattr(request.scope.get("route"), "path", request.url.path)
+            emit_access_log(
+                build_access_log(
+                    request_id=request_id,
+                    method=request.method,
+                    path=request.url.path,
+                    route=route,
+                    status_code=status_code,
+                    latency_ms=round((perf_counter() - started) * 1000, 2),
+                    app_env=settings.app_env,
+                    client_host=request.client.host if request.client else None,
+                ),
+                app_env=settings.app_env,
+                log_format=settings.log_format,
+            )
 
     if settings.cors_allow_origins:
         wildcard_origins = "*" in settings.cors_allow_origins

@@ -21,6 +21,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     monkeypatch.delenv("DEV_SEED_DEMO_DATA", raising=False)
 
     import app as app_module
+    import bootstrap_tokens
     import config
     import db as db_module
     import notifications_service
@@ -32,6 +33,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     importlib.reload(db_module)
     importlib.reload(notifications_service)
     importlib.reload(rate_limit)
+    importlib.reload(bootstrap_tokens)
     importlib.reload(app_module)
 
     from routers import auth, cars, notifications, reservations, users

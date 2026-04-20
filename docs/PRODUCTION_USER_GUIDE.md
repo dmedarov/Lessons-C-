@@ -184,3 +184,21 @@ KEEP_RESTORE_DRILL=1 make prod-restore-drill BACKUP=backups/fleetflow-YYYYmmddTH
 2. `make prod-restore-drill BACKUP=<новия backup>`
 3. `make prod`
 4. провери `/health/ready`
+
+## 9. Логове и проследимост
+
+В production `LOG_FORMAT=auto` логва HTTP заявките като единичен JSON ред към
+stdout. Всеки access log
+съдържа:
+
+- `request_id`
+- `method`
+- `path`
+- `route`
+- `status_code`
+- `latency_ms`
+
+Когато потребител докладва проблем, вземи `X-Request-ID` от отговора или от
+browser/network tooling и търси същия `request_id` в логовете. Логовете не
+трябва да съдържат `SECRET_KEY`, `POSTGRES_PASSWORD`, NetFleet ключ или други
+секрети.

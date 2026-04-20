@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib
+import json
+import logging
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -20,6 +22,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     monkeypatch.delenv("DEV_SEED_DEMO_DATA", raising=False)
 
     import app as app_module
+    import bootstrap_tokens
     import config
     import db as db_module
     import notifications_service
@@ -31,6 +34,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     importlib.reload(db_module)
     importlib.reload(notifications_service)
     importlib.reload(rate_limit)
+    importlib.reload(bootstrap_tokens)
     importlib.reload(app_module)
 
     from routers import auth, cars, notifications, reservations, users
@@ -1082,6 +1086,100 @@ def test_request_id_and_security_headers(client: TestClient) -> None:
     assert res.headers["x-frame-options"] == "DENY"
     assert res.headers["referrer-policy"] == "strict-origin-when-cross-origin"
     assert res.headers["permissions-policy"] == "camera=(), microphone=(), geolocation=()"
+
+
+def test_access_log_format_is_json_in_production_and_text_in_dev() -> None:
+    from logging_config import (
+        ACCESS_LOGGER_NAME,
+        build_access_log,
+        configure_access_logger,
+        format_access_log,
+        use_json_logs,
+    )
+
+    event = build_access_log(
+        request_id="rid-123",
+        method="GET",
+        path="/health",
+        route="/health",
+        status_code=200,
+        latency_ms=12.34,
+        app_env="prod",
+        client_host="127.0.0.1",
+    )
+
+    encoded = format_access_log(event, json_logs=True)
+    decoded = json.loads(encoded)
+
+    assert use_json_logs("prod", "auto") is True
+    assert use_json_logs("dev", "auto") is False
+    assert decoded["event"] == "http_request"
+    assert decoded["request_id"] == "rid-123"
+    assert decoded["route"] == "/health"
+    assert decoded["status_code"] == 200
+    assert "SECRET_KEY" not in encoded
+    assert "POSTGRES_PASSWORD" not in encoded
+    assert format_access_log(event, json_logs=False).startswith("http_request request_id=rid-123")
+
+    logger = logging.getLogger(ACCESS_LOGGER_NAME)
+    configure_access_logger()
+    after_first_config = len(logger.handlers)
+    configure_access_logger()
+    assert logger.level == logging.INFO
+    assert logger.propagate is False
+    assert len(logger.handlers) == after_first_config
+
+
+def test_prod_request_access_log_is_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "fleet.db"))
+    monkeypatch.setenv("SECRET_KEY", "k" * 40)
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("LOG_FORMAT", "json")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("DEV_SEED_DEMO_DATA", raising=False)
+
+    import app as app_module
+    import bootstrap_tokens
+    import config
+    import db as db_module
+    import notifications_service
+    import rate_limit
+    import security
+
+    importlib.reload(config)
+    importlib.reload(security)
+    importlib.reload(db_module)
+    importlib.reload(notifications_service)
+    importlib.reload(rate_limit)
+    importlib.reload(bootstrap_tokens)
+    importlib.reload(app_module)
+
+    messages: list[str] = []
+
+    class ListHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            messages.append(record.getMessage())
+
+    access_logger = logging.getLogger("fleetflow.access")
+    handler = ListHandler()
+    access_logger.addHandler(handler)
+    with TestClient(app_module.app) as c:
+        try:
+            res = c.get("/health", headers={"X-Request-ID": "prod-log-test"})
+        finally:
+            access_logger.removeHandler(handler)
+
+    assert res.status_code == 200
+    payload = json.loads(messages[-1])
+    assert payload["event"] == "http_request"
+    assert payload["request_id"] == "prod-log-test"
+    assert payload["method"] == "GET"
+    assert payload["path"] == "/health"
+    assert payload["route"] == "/health"
+    assert payload["status_code"] == 200
+    assert payload["app_env"] == "prod"
+    assert isinstance(payload["latency_ms"], float)
+    assert "kkkk" not in messages[-1]
 
 
 def test_dev_cors_preflight_allows_local_clients(client: TestClient) -> None:
