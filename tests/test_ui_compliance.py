@@ -420,7 +420,7 @@ def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     assert 'const adminReservations = state.pulseReservations;' in app_js
     assert '"fleetPulse.title": "Оперативен пулс"' in i18n_js
     assert '"fleetPulse.busiestCar": "Най-натоварена кола"' in i18n_js
-    assert '"fleetPulse.telemetry": "Коли с GPS позиция"' in i18n_js
+    assert '"fleetPulse.telemetry": "Свеж GPS сигнал"' in i18n_js
     assert '"fleetPulse.insightsLabel": "Оперативни insight-и"' in i18n_js
     assert "function hasNewReservationSignal(previousIds)" in app_js
     assert "await loadPickupTelemetry();" in app_js
@@ -430,11 +430,18 @@ def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     assert '"pickup.title": "Къде да вземеш колата"' in i18n_js
     assert '"pickup.notConfigured": "GPS локацията още не е включена. Администратор може да добави NetFleet ключ."' in i18n_js
     assert '"pickup.unavailable": "GPS локацията временно не е налична. Провери по-късно или попитай рецепция."' in i18n_js
-    assert '"telemetry.coordinates": "{lat}, {lon}"' in i18n_js
+    assert "function isFreshTelemetry(item, maxAgeMinutes = 60)" in app_js
+    assert "function telemetryFreshnessMarkup(item)" in app_js
+    assert '&& isFreshTelemetry(item)' in app_js
+    assert '"telemetry.coordinates": "Координати: {lat}, {lon}"' in i18n_js
+    assert '"telemetry.updated": "Последно видяна: {time}"' in i18n_js
+    assert '"telemetry.freshnessStale": "Остарял сигнал: преди {minutes} мин. Потвърди с рецепция."' in i18n_js
     assert ".fleet-pulse__grid" in styles
     assert ".fleet-pulse__insight" in styles
     assert ".car-card__telemetry" in styles
     assert ".pickup-location" in styles
+    assert ".telemetry-freshness--fresh" in styles
+    assert ".telemetry-freshness--stale" in styles
     assert "grid-template-columns: repeat(5, minmax(0, 1fr));" in styles
 
 
@@ -457,6 +464,7 @@ def test_netfleet_secret_stays_out_of_browser_facing_ui() -> None:
     assert '"pickup.notConfigured": "GPS локацията още не е включена. Администратор може да добави NetFleet ключ."' in i18n_js
     assert '"pickup.unavailable": "GPS локацията временно не е налична. Провери по-късно или попитай рецепция."' in i18n_js
     assert '"fleetPulse.telemetryNotConfigured": "NetFleet ключът още не е добавен."' in i18n_js
+    assert '"telemetry.freshnessCaution": "Провери с рецепция: сигналът е от преди {minutes} мин."' in i18n_js
 
 
 def test_admin_netfleet_key_can_be_configured_without_displaying_current_secret() -> None:

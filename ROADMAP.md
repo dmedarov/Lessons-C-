@@ -265,9 +265,9 @@ operations assistant for internal mobility**, което е:
   role-scoped pending selection; the
   table remains a secondary detail view.
 - Fleet Pulse strip: `/admin` now shows a calm executive strip for active
-  trips, cars releasing within 1 hour, pending decisions, busiest car and GPS
-  telemetry availability for the active FleetFlow cars only (`X/Y`), not raw
-  NetFleet device event counts.
+  trips, cars releasing within 1 hour, pending decisions, busiest car and
+  fresh GPS telemetry availability for the active FleetFlow cars only (`X/Y`
+  from the last 60 minutes), not raw NetFleet device event counts.
 - Fleet Intelligence Seed: quick-book and `/reservations/suggest-best-car`
   now use explainable scoring across availability, recent utilization and user
   preference; `car_assignments` records the selected mode, score and reason.
@@ -286,6 +286,8 @@ operations assistant for internal mobility**, което е:
   approved/active trip. Employee notification polling now refreshes
   reservations and pickup GPS after approval/start/return/cancel lifecycle
   signals, with visible fallback copy when NetFleet is missing or unavailable.
+  GPS UI now uses human pickup wording: `Последно видяна`, freshness labels and
+  a reception confirmation prompt for stale/unknown signals.
 - Production readiness: `/health/ready` checks database reachability for
   orchestration, while admin-only `/ops/readiness` and the `/admin` panel show
   live blockers/warnings without exposing secret values. Operator instructions
@@ -341,8 +343,8 @@ visible modules.
 
 ### Current risks to address before broad production use
 
-- **Frontend size:** `static/app.js` is 4146 lines and `static/styles.css` is
-  3142 lines. New UX work should stop growing the monolith and start extracting
+- **Frontend size:** `static/app.js` is 4194 lines and `static/styles.css` is
+  3177 lines. New UX work should stop growing the monolith and start extracting
   stable vanilla modules.
 - **Reservation router size:** `routers/reservations.py` is 960 lines and owns
   creation, conflict checks, suggestions, lifecycle, bulk decisions, listing

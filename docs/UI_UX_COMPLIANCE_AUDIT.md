@@ -41,7 +41,7 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Intent summary / next action | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | pass | One primary action, clear next step, keyboard focus, 44 px targets | Role-specific Playwright flows now cover public, employee, approver, admin and reception next-action surfaces. Continue with keyboard-only evidence. |
 | Current trip hero | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | One primary action, status text, keyboard focus, mobile fit | Active/next approved employee trip is promoted above calendar/table with one "view trip" action. Start/return are admin-only lifecycle transitions. Capture desktop/mobile screenshots and verify focus after action. |
 | Status bar / fleet KPIs | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/styles.css` | pass | Live system status, text labels, no color-only meaning, 390 px fit | `public-mobile.png` covers pre-login KPI orientation and mobile fit. Continue with screen-reader order. |
-| Fleet Pulse / NetFleet telemetry | `templates/admin.html`, `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `app_settings.py`, `routers/cars.py`, `netfleet_service.py` | needs evidence | No exposed API key, employee pickup authorization, text-backed GPS status, responsive strip, coordinates do not overwhelm decisions | Fleet Pulse now uses a global reservation snapshot and optional NetFleet GPS events by plate number. The pulse shows `X/Y` active FleetFlow cars with a last position instead of raw NetFleet event counts. Employee pickup location is limited to the user's own approved/active trip. Capture configured/unconfigured screenshots and verify no key appears in browser payloads. |
+| Fleet Pulse / NetFleet telemetry | `templates/admin.html`, `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `app_settings.py`, `routers/cars.py`, `netfleet_service.py` | pass | No exposed API key, employee pickup authorization, text-backed GPS status, responsive strip, coordinates do not overwhelm decisions | Fleet Pulse now uses a global reservation snapshot and optional NetFleet GPS events by plate number. The pulse shows `X/Y` active FleetFlow cars with fresh coordinates from the last 60 minutes instead of raw NetFleet event counts. Employee pickup location is limited to the user's own approved/active trip and includes last-seen/freshness wording. Continue with configured/unconfigured screenshots. |
 | Admin NetFleet key setup | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `routers/cars.py`, `app_settings.py`, `schemas.py` | needs evidence | Password input, no current-secret echo, admin-only access, status text, explicit save feedback | Admin can add/change the key once from `/admin`; UI resets the input after save and only shows configured/source metadata. Capture keyboard path and configured/unconfigured screenshots. |
 | One-tap booking | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/reservations.py`, `e2e/test_browser_smoke.py` | pass | One primary action, conflict/blackout-safe suggestion, no hidden destructive action, clear pending feedback | Browser smoke verifies employee quick booking and captures `employee-desktop.png`; add failure/conflict screenshots next. |
 | Smart prefill | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/reservations.py`, `schemas.py` | needs evidence | User keeps review control, no invisible submit, useful defaults, manual form remains reachable | Preferences come from the user's last 10 reservations and fill car/start/end only after an explicit button press. Capture desktop/mobile screenshots and verify keyboard path. |
@@ -184,12 +184,17 @@ background and checks the high-risk cockpit combinations.
 - `pass`: production access logs are structured JSON with request id, route,
   status and latency while dev logs stay text; covered by `tests/test_app.py`.
 - `pass`: Fleet Pulse GPS count now uses matching active FleetFlow plates and
-  reports `X/Y` instead of raw NetFleet event totals.
+  reports fresh `X/Y` coordinates from the last 60 minutes instead of raw
+  NetFleet event totals.
 - `pass`: employee pickup GPS refreshes after approval/start/return/cancel
   notifications. Polling now reloads reservations and pickup telemetry for new
   reservation lifecycle signals, so "Къде да вземеш колата" appears without a
   manual page refresh. Current Trip Hero also shows explicit fallback copy when
   NetFleet is not configured or temporarily unavailable; covered by
+  `tests/test_ui_compliance.py`.
+- `pass`: GPS location copy is no longer coordinate-only. Employee pickup and
+  admin fleet cards show `Координати`, `Последно видяна` and a freshness chip;
+  stale/unknown signals tell the user to confirm with reception. Covered by
   `tests/test_ui_compliance.py`.
 - `pass`: UI date/time formatting is deterministic: `formatDateTime()` renders
   `dd.mm.yyyy, HH:MM` with 24-hour time and no AM/PM, while mobile day labels
@@ -229,6 +234,9 @@ background and checks the high-risk cockpit combinations.
   -> 8 passed, `node --check static/app.js`,
   `node --check static/i18n.js` and Python compile check for
   `e2e/test_browser_smoke.py tests/test_schema_contracts.py`.
+  NetFleet pickup clarity targeted check: `pytest tests/test_ui_compliance.py -q`
+  -> 34 passed, and full `make qa-premium` passed with 143 pytest cases and
+  8 browser checks.
   `make prod-check` fails fast when `.env` is missing in a clean checkout. Old
   `fleetflow_test` containers were removed, Docker was rebuilt with pinned
   `postgres:16`, `/health` and `/health/ready` on `8001` returned ok/ready and

@@ -408,7 +408,7 @@ def test_admin_control_surface(browser: Browser, server: str, artifact_dir: Path
     context = browser.new_context(viewport={"width": 1440, "height": 1000})
     page = context.new_page()
     _login(page, server, "/admin", "admin", "AdminPass123")
-    expect(page.locator("#fleetPulse")).to_contain_text("Коли с GPS позиция", timeout=10_000)
+    expect(page.locator("#fleetPulse")).to_contain_text("Свеж GPS сигнал", timeout=10_000)
     expect(page.locator("#fleetPulse")).not_to_contain_text("GPS сигнали")
     expect(page.locator("#netfleetPanel")).to_be_visible()
     expect(page.locator("#netfleetApiKey")).to_have_attribute("type", "password")

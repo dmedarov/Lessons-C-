@@ -2094,6 +2094,41 @@ select {
   color: var(--ink-strong);
 }
 
+.telemetry-freshness {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  min-height: 28px;
+  padding: 3px var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-strong);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.telemetry-freshness--fresh {
+  border-color: var(--success-border);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.telemetry-freshness--caution,
+.telemetry-freshness--unknown {
+  border-color: var(--warning-border);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.telemetry-freshness--stale {
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 .notes-textarea {
   width: 100%;
   resize: vertical;

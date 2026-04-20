@@ -44,8 +44,8 @@
 - Reception Rail: `/admin` показва одобрените курсове за предаване и активните курсове за връщане най-горе за `fleet_reception`/`fleet_admin`, с директни start/return действия преди таблицата.
 - Timeline-first reservations: employee/approver/reception/admin виждат lifecycle cards преди таблицата, с действия само според ролята и secondary table fallback.
 - Role-aware calendar: operational календарът за `fleet_reception` показва approved handoffs и active returns от глобалния snapshot, независимо от филтъра на таблицата.
-- Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола, `X/Y` GPS позиции и compact Fleet Intelligence insight-и.
-- NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а.
+- Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола, `X/Y` свежи GPS позиции и compact Fleet Intelligence insight-и.
+- NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а. UI показва last-seen/freshness label, за да е ясно дали локацията е надеждна за вземане на автомобила.
 - Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string.
 - Pickup location: служителят вижда къде да вземе колата само за своя одобрена/активна резервация.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
@@ -453,6 +453,11 @@ APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Активният Docker stack `fleetflow_prod_smoke` е
 healthy на `8001`.
 
+Последна локална проверка за NetFleet pickup clarity:
+`pytest tests/test_ui_compliance.py -q` -> 34 passed, `make qa-premium` ->
+passed. GPS блоковете вече показват `Последно видяна` + freshness label, а
+Fleet Pulse брои само свежи координати за активните коли от последните 60 мин.
+
 Последна локална проверка за browser-computed contrast:
 `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e/test_browser_smoke.py::test_browser_computed_contrast_guard -q`
 -> 1 passed. Guard-ът изчислява реалните CSS token стойности в Chromium,
@@ -503,6 +508,7 @@ restore в изолиран `fleetflow_restore_drill` project с провере�
 - route/schema contracts: duplicate route registry guard, SQLite bootstrap execution, SQLite/PostgreSQL schema parity and single Alembic head
 - role-specific Playwright browser evidence: public, browser-computed contrast, employee, approver, admin, mobile employee и reception flows с отделни failure points и screenshots
 - pickup GPS refresh after approval: reservation lifecycle notifications trigger reservation + pickup telemetry reload, with visible fallback copy when NetFleet is missing/unavailable
+- NetFleet pickup clarity: employee/admin GPS blocks now show `Последно видяна`, freshness state and "потвърди с рецепция" copy for stale/unknown signals; Fleet Pulse counts only active cars with fresh coordinates from the last 60 minutes
 
 ## Alembic migrations
 

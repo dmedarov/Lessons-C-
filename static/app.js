@@ -642,16 +642,62 @@ function formatDateTime(value) {
 }
 
 function formatTelemetryTime(value) {
-  if (!value) return "—";
+  const date = parseTelemetryDate(value);
+  if (!date) return value ? String(value) : "—";
+  return formatDateTime(date.toISOString());
+}
+
+function parseTelemetryDate(value) {
+  if (!value) return null;
   const raw = String(value);
-  const normalized = raw.includes("T") ? raw : `${raw.replace(" ", "T")}Z`;
+  const withDateSeparator = raw.includes("T") ? raw : raw.replace(" ", "T");
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(withDateSeparator);
+  const normalized = hasTimezone ? withDateSeparator : `${withDateSeparator}Z`;
   const date = new Date(normalized);
-  return Number.isNaN(date.getTime()) ? raw : formatDateTime(date.toISOString());
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function formatCoordinate(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric.toFixed(5) : "—";
+}
+
+function hasTelemetryCoordinates(item) {
+  return item?.latitude != null && item?.longitude != null;
+}
+
+function telemetryAgeMinutes(value) {
+  const date = parseTelemetryDate(value);
+  if (!date) return null;
+  return Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+}
+
+function telemetryFreshness(value) {
+  const minutes = telemetryAgeMinutes(value);
+  if (minutes === null) {
+    return { state: "unknown", text: t("telemetry.freshnessUnknown") };
+  }
+  if (minutes < 1) {
+    return { state: "fresh", text: t("telemetry.freshnessNow") };
+  }
+  if (minutes <= 15) {
+    return { state: "fresh", text: t("telemetry.freshnessFresh", { minutes }) };
+  }
+  if (minutes <= 60) {
+    return { state: "caution", text: t("telemetry.freshnessCaution", { minutes }) };
+  }
+  return { state: "stale", text: t("telemetry.freshnessStale", { minutes }) };
+}
+
+function isFreshTelemetry(item, maxAgeMinutes = 60) {
+  if (!hasTelemetryCoordinates(item)) return false;
+  const minutes = telemetryAgeMinutes(item.utc_time);
+  return minutes !== null && minutes <= maxAgeMinutes;
+}
+
+function telemetryFreshnessMarkup(item) {
+  const freshness = telemetryFreshness(item?.utc_time);
+  return `<span class="telemetry-freshness telemetry-freshness--${freshness.state}">${escapeHtml(freshness.text)}</span>`;
 }
 
 function formatMonthLabel(value) {
@@ -1091,7 +1137,7 @@ function renderFleetPulse() {
   }).length;
   const busiestCar = mostBookedCar(state.pulseReservations, cars);
   const fleetTelemetryCount = state.telemetry.filter((item) =>
-    activeFleetPlates.has(String(item.plate_number || "").trim().toUpperCase())
+    activeFleetPlates.has(String(item.plate_number || "").trim().toUpperCase()) && isFreshTelemetry(item)
   ).length;
   const fleetTelemetryTotal = activeFleetPlates.size || state.cars.filter((car) => car.active).length;
 
@@ -1381,7 +1427,8 @@ function renderCurrentTripHero() {
             lon: formatCoordinate(pickup.item.longitude),
           }))}</span>
           <span>${escapeHtml(t("telemetry.updated", { time: formatTelemetryTime(pickup.item.utc_time) }))}</span>
-          ${pickup.item.latitude != null && pickup.item.longitude != null ? `<a class="ghost-link ghost-link--compact" href="https://www.google.com/maps?q=${encodeURIComponent(`${pickup.item.latitude},${pickup.item.longitude}`)}" target="_blank" rel="noreferrer">${escapeHtml(t("pickup.mapLink"))}</a>` : ""}
+          ${telemetryFreshnessMarkup(pickup.item)}
+          ${hasTelemetryCoordinates(pickup.item) ? `<a class="ghost-link ghost-link--compact" href="https://www.google.com/maps?q=${encodeURIComponent(`${pickup.item.latitude},${pickup.item.longitude}`)}" target="_blank" rel="noreferrer">${escapeHtml(t("pickup.mapLink"))}</a>` : ""}
         </div>
       `
       : pickup?.configured
@@ -1597,7 +1644,8 @@ function renderCars() {
           }))}</span>
           <span>${escapeHtml(t("telemetry.speed", { speed: gps.speed ?? "—" }))}</span>
           <span>${escapeHtml(t("telemetry.updated", { time: formatTelemetryTime(gps.utc_time) }))}</span>
-          ${gps.latitude != null && gps.longitude != null ? `<a class="ghost-link ghost-link--compact" href="https://www.google.com/maps?q=${encodeURIComponent(`${gps.latitude},${gps.longitude}`)}" target="_blank" rel="noreferrer">${escapeHtml(t("telemetry.mapLink"))}</a>` : ""}
+          ${telemetryFreshnessMarkup(gps)}
+          ${hasTelemetryCoordinates(gps) ? `<a class="ghost-link ghost-link--compact" href="https://www.google.com/maps?q=${encodeURIComponent(`${gps.latitude},${gps.longitude}`)}" target="_blank" rel="noreferrer">${escapeHtml(t("telemetry.mapLink"))}</a>` : ""}
         </div>
       `
       : "";

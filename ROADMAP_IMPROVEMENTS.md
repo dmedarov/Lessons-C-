@@ -66,9 +66,9 @@ templates/
   index.html                 employee surface
   admin.html                 admin surface
 static/
-  app.js                     4146-line SPA logic; split before next large UI package
+  app.js                     4194-line SPA logic; split before next large UI package
   i18n.js                    Bulgarian UI copy dictionary + interpolation
-  styles.css                 3142-line design system stylesheet with responsive cockpit UI
+  styles.css                 3177-line design system stylesheet with responsive cockpit UI
 alembic/                     migration scripts
 tests/test_app.py            Core FastAPI TestClient regression cases
 e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
@@ -157,6 +157,8 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   employees can read pickup location only for their own approved/active trip.
   The key can be supplied by `.env` or saved once/changed from Admin UI as a
   DB-backed setting; it must never be committed or echoed back to the browser.
+  GPS cards now show last-seen/freshness wording and Fleet Pulse counts only
+  active cars with fresh coordinates from the last 60 minutes.
 - Requester GSM is now visible in authenticated reservation surfaces for the
   records the current token may already see: Decision Rail, Reception Rail,
   lifecycle cards, table rows and authenticated calendar day timeline. Public
@@ -193,7 +195,7 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
 - The monolithic `static/app.js` should be split before the frontend grows much
-  further; it is now 4146 lines and `static/styles.css` is 3142 lines.
+  further; it is now 4194 lines and `static/styles.css` is 3177 lines.
 - `routers/reservations.py` is now 960 lines and carries too many concerns:
   creation, conflict checks, lifecycle transitions, suggestions, bulk decisions,
   listing and export. Keep endpoints stable, but extract service modules before
@@ -217,10 +219,10 @@ Use it before choosing the next implementation task.
 | Product model | Role-separated pool process is clear: employee, approver, reception, admin. | Extra roles/features can make the app feel like ERP. | Preserve the four-role model; add permissions only when a real pool workflow requires them. |
 | Backend API | FastAPI routers, auth rebinding, refresh rotation, readiness and audit trail are strong. | `routers/reservations.py` has too many responsibilities. | Extract reservation services in small slices without changing routes or schemas. |
 | Frontend | Intent-driven cockpit, rails, timeline and NetFleet context are already premium. | `static/app.js` is too large for safe autonomous edits. | Create module boundaries before the next large UI addition. |
-| CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies the riskiest token pairs. | 3142-line stylesheet still makes overlap regressions easy. | Run responsive density evidence, then split component CSS if churn continues. |
+| CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies the riskiest token pairs. | 3177-line stylesheet still makes overlap regressions easy. | Run responsive density evidence, then split component CSS if churn continues. |
 | Database | Alembic production path and PostgreSQL smoke exist. | Runtime bootstrap/upgrades in `db.py` can drift from migrations. | Add schema parity tests for SQLite bootstrap, PostgreSQL bootstrap and Alembic head. |
 | E2E evidence | Playwright smoke now runs separate public, contrast, employee, approver, admin, mobile and reception checks. | More destructive-action evidence is still needed. | Add targeted recovery screenshots and keyboard-only paths. |
-| NetFleet | Server-side key handling and scoped employee pickup context are correct. | Raw GPS can confuse users if freshness/location text is unclear. | Add freshness labels and human pickup wording before adding maps/complex telemetry. |
+| NetFleet | Server-side key handling, scoped employee pickup context and freshness wording are correct. | Real operators may still want an address/geocoding layer later. | Keep GPS read-only; consider address enrichment only after live use proves it helps. |
 | Production | Makefile, prod checks, Docker health, backups and restore drill are in place. | GitHub alert state still needs direct external confirmation. | Inspect GitHub Security/Dependabot after push and record exact closure evidence. |
 | Intelligence | Best-car scoring and compact Fleet Pulse are explainable and light. | Premature analytics tables would add complexity before real usage data. | Defer snapshots until production data volume or operator needs prove the need. |
 | Documentation | README, ROADMAP and this handoff are active. | Chat-only decisions disappear between agents. | Update `.md` files after tests and before every commit/push. |
@@ -1804,9 +1806,10 @@ using the existing bulk approval flow.
 before approvals with a global reservation snapshot independent of table
 filters. It summarizes active trips, cars releasing within 1 hour, pending
 decisions, busiest car and NetFleet GPS signal availability as `X/Y` active
-FleetFlow cars with a last position, not raw NetFleet device counts. Admin
-fleet cards show last GPS coordinates/speed/time when NetFleet is configured
-by Admin UI or runtime env.
+FleetFlow cars with fresh coordinates from the last 60 minutes, not raw
+NetFleet device counts. Admin fleet cards show GPS coordinates, speed,
+last-seen time and freshness when NetFleet is configured by Admin UI or
+runtime env.
 Employee Current Trip Hero shows "Къде да вземеш колата" only for the user's
 own approved/active reservation, so location helps pickup without exposing the
 whole fleet. Employee free-mode booking now uses `/reservations/suggest` and
@@ -2002,6 +2005,11 @@ employee mobile calendar and reception handoff/calendar flows.
 
 ### 10.6 NetFleet pickup clarity
 
+**Status:** Shipped on 2026-04-20. GPS blocks now show coordinates only with
+human context: `Последно видяна`, freshness label and reception confirmation
+copy for stale/unknown signals. Fleet Pulse counts fresh active-car coordinates
+from the last 60 minutes instead of raw NetFleet events.
+
 - **Goal:** Make live vehicle location useful without turning FleetFlow into a
   noisy tracking system.
 - **Files:** `netfleet_service.py`, `routers/cars.py`, `static/app.js`,
@@ -2102,7 +2110,7 @@ employee mobile calendar and reception handoff/calendar flows.
 5. **7.3 PostgreSQL migration smoke + backups** - required before serious
    production rollout.
 6. **10.3 Split `static/app.js` into modules** - do this before large frontend
-   additions; the file is already 4146 lines.
+   additions; the file is already 4194 lines.
 7. **10.4 reservation service extraction** - keep endpoints stable while
     moving lifecycle/domain logic out of the router.
 8. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
@@ -2111,11 +2119,9 @@ employee mobile calendar and reception handoff/calendar flows.
    the frontend is modular enough.
 10. **10.5 Session-management UI** - list active refresh sessions per user,
    revoke current/all sessions and expose security audit history.
-11. **10.6 NetFleet pickup clarity** - freshness labels and human pickup
-    wording before maps or telemetry-heavy features.
-12. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
+11. **7.5 Vehicle handover checklist + 7.6 audit export** - operational polish
     for real fleet accountability.
-13. **10.7 materialized intelligence snapshots** - only after live usage proves
+12. **10.7 materialized intelligence snapshots** - only after live usage proves
     inline metrics are too slow or historical trend review is needed.
 
 If time is limited, execute items 1-4 before any new feature work.
@@ -2123,6 +2129,23 @@ If time is limited, execute items 1-4 before any new feature work.
 ---
 
 ## Done
+
+### 2026-04-20 - NetFleet pickup clarity
+
+- **Goal:** Make GPS useful for pickup orientation without making FleetFlow feel
+  like a tracking dashboard.
+- **UX:** Current Trip Hero and admin fleet cards now show `Координати`,
+  `Последно видяна` and a text-backed freshness chip. Fresh signals say how
+  many minutes ago they were seen; older/unknown signals explicitly tell the
+  user to confirm with reception.
+- **Fleet Pulse:** GPS availability now means active FleetFlow cars with
+  coordinates from the last 60 minutes, not any raw NetFleet event.
+- **Privacy:** Full fleet telemetry remains `fleet_admin` only. Employee pickup
+  telemetry remains scoped to the employee's own approved/active trip.
+- **Verification:** `node --check static/app.js`,
+  `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile e2e/test_browser_smoke.py tests/test_ui_compliance.py`,
+  `pytest tests/test_ui_compliance.py -q` -> 34 passed, `make qa-premium` ->
+  143 pytest cases and 8 browser checks passed.
 
 ### 2026-04-20 - Browser-computed contrast guard
 
