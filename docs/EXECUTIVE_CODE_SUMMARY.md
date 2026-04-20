@@ -1,0 +1,80 @@
+# FleetFlow Executive Code Summary
+
+Дата: 2026-04-21
+
+## Executive Verdict
+
+FleetFlow вече е **production-pilot ready operational mobility platform**, не
+само "car booking app". Продуктът покрива служебния pool процес end-to-end:
+служител подава заявка, одобряващ взима решение, рецепция предава/приема
+ключове и документи, а администраторът управлява флот, роли, настройки,
+readiness и NetFleet GPS интеграция. Архитектурата остава лека: FastAPI,
+PostgreSQL/SQLite adapters, Alembic migrations, vanilla JS/HTML/CSS и Docker
+production stack без тежък frontend build или отделен analytics warehouse.
+
+Production readiness score: **91/100 за контролиран вътрешен pilot**.
+Оценката не е 99/100, защото липсват външни production доказателства: реален
+домейн/CORS, live `make go-live-check`, fresh backup/restore drill срещу
+реалния deployment, проверен GitHub Dependabot alert, реален NetFleet сигнал в
+работната мрежа и първа наблюдавана седмица без high-severity flow дефекти.
+
+## Code And Product Stats
+
+| Metric | Value |
+| --- | ---: |
+| Production app/script/template/style lines | 14,296 |
+| Code lines including tests/e2e | 19,293 |
+| Tracked project lines including docs/config/workflows | 24,808 |
+| Tracked relevant project files | 78 |
+| Automated test functions | 163 |
+| FastAPI route declarations | 55 |
+| Alembic migrations | 9 |
+| Latest full local QA | `make qa-premium` passed |
+| Latest live smoke | `make smoke-live APP_URL=http://127.0.0.1:8001` passed |
+
+## What The Code Does
+
+The backend owns the business rules: auth, refresh-token rotation, bootstrap
+admin, role rebinding, reservation lifecycle, bulk approval, blackout windows,
+audit trail, notifications, NetFleet server-side proxy, production readiness
+checks and explainable Fleet Intelligence scoring. The database path is
+production-aware: Alembic migrations, PostgreSQL compose, backup helper,
+restore-drill helper and a final `make go-live-check` gate.
+
+The frontend is a single-page vanilla JS experience with role-specific
+surfaces. Employees see the next useful move, current/approved trip context,
+calendar occupancy and their own request flow. `fleet_approver` sees decision
+work first. `fleet_reception` sees handoff, active return and overdue-return
+signals first. `fleet_admin` sees Fleet Pulse, readiness, NetFleet setup,
+users, fleet configuration and override controls. Public pre-login surfaces
+show availability and calendar occupancy without requester GSM, GPS, private
+purpose or lifecycle actions.
+
+The UX direction is intentionally premium and calm: one primary action per
+surface, timeline/cards before tables, no noisy notification pile-up, no
+employee lifecycle buttons, scoped pickup location, 24-hour time, `dd.mm.yyyy`
+dates, text-backed statuses, and recovery paths for destructive actions. Recent
+hardening also distinguishes "NetFleet key missing" from "NetFleet configured
+but temporarily unavailable", showing **Няма връзка** instead of misleading
+setup copy.
+
+## Quality Evidence
+
+Local quality gates are strong. `make qa-premium` runs production dependency
+audit, Python compile, 151 pytest cases, JS syntax checks and 12 Playwright
+browser checks. Browser evidence covers public, employee, approver, reception
+and admin flows, responsive density, contrast guardrails, calendar/reception
+visibility and destructive-action recovery. The rebuilt PostgreSQL smoke stack
+is healthy on port `8001`, and live smoke checks `/health`, `/health/ready`,
+`/auth/setup-status` and `/public/overview`.
+
+## Remaining Work To 99/100
+
+To honestly score **99/100**, complete the dedicated
+`99/100 Premium Robust Production Gate` in
+`docs/PRODUCTION_READINESS_ASSESSMENT.md`: real `.env`, real CORS/domain,
+fresh backup and restore drill, live production URL rehearsal, Dependabot alert
+closure, at least two active admins, role-separated users, verified NetFleet
+connectivity, manual screen-reader smoke and one monitored production week
+without lost reservations, wrong-role actions, missing pickup location or
+misleading readiness/GPS status.

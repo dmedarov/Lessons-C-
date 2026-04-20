@@ -184,6 +184,8 @@ make prod-check
 [`docs/ROLE_USER_FLOWS.md`](docs/ROLE_USER_FLOWS.md). Тя описва какво виждат
 `employee`, `fleet_approver`, `fleet_reception` и `fleet_admin`, кои действия
 са забранени за всяка роля и кои calm/reliable flows не трябва да регресират.
+Executive code summary and stats are in
+[`docs/EXECUTIVE_CODE_SUMMARY.md`](docs/EXECUTIVE_CODE_SUMMARY.md).
 
 Текущата go-live оценка е в
 [`docs/PRODUCTION_READINESS_ASSESSMENT.md`](docs/PRODUCTION_READINESS_ASSESSMENT.md).

@@ -80,6 +80,7 @@ scripts/restore_postgres_drill.sh Isolated restore drill helper
 docs/PRODUCTION_USER_GUIDE.md Production user/operator guide
 docs/ROLE_USER_FLOWS.md       Role-by-role user flow and visibility contract
 docs/PRODUCTION_READINESS_ASSESSMENT.md Go-live readiness verdict and blockers
+docs/EXECUTIVE_CODE_SUMMARY.md One-page executive code summary and stats
 ```
 
 > ⚠️ The prior UI audit referenced `static/index.html`. The correct path is
