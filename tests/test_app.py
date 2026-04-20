@@ -530,6 +530,77 @@ def test_end_to_end_admin_two_users_workflow(client: TestClient) -> None:
     assert forbidden_cancel.status_code == 403
 
 
+def test_split_operational_roles_match_pool_process(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "approver", "Fleet Approver", "ApproverPass123", role="fleet_approver")
+    _create_user(client, admin, "reception", "Reception Desk", "ReceptionPass123", role="fleet_reception")
+    _create_user(client, admin, "driver", "Driver User", "DriverPass123")
+    approver = _login(client, "approver", "ApproverPass123")
+    reception = _login(client, "reception", "ReceptionPass123")
+    driver = _login(client, "driver", "DriverPass123")
+    car_id = _create_car(client, admin, plate="CB1200AA")
+    reservation_id = _create_reservation(client, car_id, driver)
+
+    approver_list = client.get("/reservations", headers=_auth(approver))
+    assert approver_list.status_code == 200
+    assert approver_list.json()["total"] == 1
+
+    approver_booking = client.post(
+        "/reservations",
+        json={
+            "car_id": car_id,
+            "start_time": "2099-04-19T09:00:00+00:00",
+            "end_time": "2099-04-19T11:00:00+00:00",
+            "purpose": "Approver should not book",
+        },
+        headers=_auth(approver),
+    )
+    assert approver_booking.status_code == 403
+
+    forbidden_start = client.post(
+        f"/reservations/{reservation_id}/start",
+        json={"note": "Keys handed over"},
+        headers=_auth(approver),
+    )
+    assert forbidden_start.status_code == 403
+
+    forbidden_approve = client.post(
+        f"/reservations/{reservation_id}/approve",
+        json={"reason": "Reception cannot approve"},
+        headers=_auth(reception),
+    )
+    assert forbidden_approve.status_code == 403
+
+    approved = client.post(
+        f"/reservations/{reservation_id}/approve",
+        json={"reason": "Approved by dedicated approver"},
+        headers=_auth(approver),
+    )
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["status"] == "approved"
+
+    started = client.post(
+        f"/reservations/{reservation_id}/start",
+        json={"note": "Documents and keys handed over"},
+        headers=_auth(reception),
+    )
+    assert started.status_code == 200, started.text
+    assert started.json()["status"] == "checked_out"
+
+    returned = client.post(
+        f"/reservations/{reservation_id}/return",
+        json={"note": "Keys returned to reception"},
+        headers=_auth(reception),
+    )
+    assert returned.status_code == 200, returned.text
+    assert returned.json()["status"] == "returned"
+
+    users_for_approver = client.get("/users", headers=_auth(approver))
+    users_for_reception = client.get("/users", headers=_auth(reception))
+    assert users_for_approver.status_code == 403
+    assert users_for_reception.status_code == 403
+
+
 def test_admin_reservation_list_filters_by_search_and_date_window(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
     _create_user(client, admin, "ivan", "Ivan Petrov", "IvanPass123")

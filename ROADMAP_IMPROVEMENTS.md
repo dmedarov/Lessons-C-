@@ -134,6 +134,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Calm defaults started: employee reservations default to open/current work
   and hide returned/rejected/cancelled from the main flow; read notifications
   are removed from the visible inbox instead of accumulating.
+- Role-specific pool process is now the target model: `fleet_approver` owns
+  approve/reject only, `fleet_reception` owns start/return only, `fleet_admin`
+  owns configuration and override, and employee stays request/cancel only.
 - Fleet Intelligence Seed is shipped: quick-book and explicit best-car
   suggestions use explainable scoring, admin Fleet Pulse shows compact derived
   insights, and `car_assignments` records why a car was chosen.
@@ -1647,9 +1650,9 @@ Before live use, every shipped change must preserve these flow-level checks:
 5. **Employee history/noise:** returned/rejected/cancelled rows stay out of
    the default operational flow; read notifications do not accumulate in the
    visible inbox.
-6. **Admin decision mode:** pending requests and Decision Rail appear before
-   filters/table; approve/reject/start/return remain admin-owned lifecycle
-   actions.
+6. **Decision/reception modes:** pending requests and Decision Rail appear
+   before filters/table for approvers; approved/active handoff work appears
+   first for reception. Approve/reject and start/return are separated.
 7. **Admin operations:** Fleet Pulse shows compact insight cards, not a BI
    dashboard; production readiness and NetFleet setup never reveal secrets.
 8. **Calendar/fleet:** timeline/card views come before tables; calendar is for
@@ -1686,7 +1689,7 @@ wireframe's "available now" meaning.
 **Status:** Started on 2026-04-20. Employee desk now renders
 `#currentTripHero` above the calendar when there is an active trip or next
 approved reservation, with one primary action to view the trip. Start/return
-remain admin-owned lifecycle transitions.
+belong to `fleet_reception` or `fleet_admin`, not employee.
 
 - **Goal:** Make an active or next approved trip the hero object for employee
   mode.
@@ -1760,10 +1763,11 @@ orientation, but requester, purpose, GPS, reservation ids and actions are not.
   `static/styles.css`, `fleet_intelligence/`, `routers/intelligence.py`,
   `app_settings.py`, `config.py`, `netfleet_service.py`, `routers/cars.py`,
   `routers/reservations.py`, `db.py`,
-  `alembic/versions/20260420_0008_car_assignments.py`, `.env.example`,
+  `alembic/versions/20260420_0008_car_assignments.py`,
+  `alembic/versions/20260420_0009_split_operational_roles.py`, `.env.example`,
   `docker-compose.yml`, `docker-compose.postgres.yml`
-- **Verification:** `pytest -q` -> 131 passed, targeted
-  UI/API/production readiness pack -> 41 passed, `node --check static/app.js`,
+- **Verification:** `pytest -q` -> 133 passed, targeted
+  UI/API/production readiness pack -> 43 passed, `node --check static/app.js`,
   `node --check static/i18n.js`, Python compile check and Playwright browser
   smoke pass with refreshed desktop/mobile screenshots.
 
@@ -1937,15 +1941,15 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Pre-login overview shipped:** `/public/overview` returns only aggregate
   counts for active cars, pending approvals, active trips and free cars; the
   hero status bar uses those values before login.
-- **Verification:** `pytest -q` passes with 131 tests, targeted
-  UI/API/production readiness pack passes with 41 tests, Playwright browser
+- **Verification:** `pytest -q` passes with 133 tests, targeted
+  UI/API/production readiness pack passes with 43 tests, Playwright browser
   smoke passes with 1 test and screenshots, JS syntax checks and Python compile
   check pass. `make prod-check` fails fast when `.env` is missing in a clean
   checkout. Old `fleetflow_test` containers were removed, Docker stack was
   rebuilt with pinned `postgres:16`, `/health` and `/health/ready` on `8001`
   return ok/ready and the app container is healthy. Backup creation and
   isolated restore drill were executed successfully. PostgreSQL smoke is on
-  Alembic revision `20260420_0008`.
+  Alembic revision `20260420_0009`.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation
 
@@ -2004,7 +2008,7 @@ If time is limited, execute items 1-4 before any new feature work.
 ### 2026-04-18 - Initial product hardening and production path
 
 - **Shipped:** Dockerized FastAPI app, PostgreSQL-ready configuration,
-  Alembic baseline, real auth/user management, admin-owned lifecycle start/return,
+  Alembic baseline, real auth/user management, role-aware lifecycle start/return,
   notifications, outbound SMTP/Slack/Teams hooks, service/maintenance blackout
   windows and separate `/admin` surface.
 - **Verification:** Manual Docker smoke and growing FastAPI TestClient suite.

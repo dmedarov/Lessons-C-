@@ -11,11 +11,12 @@ operations assistant for internal mobility**, което е:
 
 ## Design Principles
 
-- Една основна задача на екран: employee вижда бърз booking и собствените курсове; admin вижда флот, чакащи решения и operational visibility.
+- Една основна задача на екран: employee вижда бърз booking и собствените курсове; approver вижда само решения; reception вижда ключове/документи/start-return; admin вижда флот, настройки и full operational visibility.
 - Един primary action на surface: всичко останало е secondary или contextual.
 - Ясен status model: заявка, одобрение, активен курс, връщане и уведомяване без скрити състояния.
-- Служебен lifecycle ownership: employee заявява/отменя, admin одобрява,
-  отбелязва активен курс и приключва връщането.
+- Служебен lifecycle ownership: employee заявява/отменя, approver
+  одобрява/отказва, reception отбелязва реално предаване и връщане, admin
+  остава full-control override.
 - Кратки и стойностни нотификации: без шум, без дублиране, без чувствителни данни.
 - Migration-first backend: schema промени минават през Alembic, не през ad-hoc ръчни SQL промени.
 - Security by default: пароли с slow hash, short-lived access token-и, refresh-token rotation, rebinding към текущ user state, least-privilege UI.
@@ -88,7 +89,7 @@ operations assistant for internal mobility**, което е:
 - event routing:
   - admin получава нова заявка
   - requester получава approve/reject
-  - requester получава start/return updates, защото admin отбелязва активен курс и връщане
+  - requester получава start/return updates, защото reception отбелязва активен курс и връщане
 - outbound hooks към email/Teams/Slack
 
 ### Success metric
@@ -217,9 +218,10 @@ operations assistant for internal mobility**, което е:
 - Calm operational defaults: employee reservations default to **open/current**
   items, so returned/rejected/cancelled records stay out of the main flow until
   explicitly filtered; read notifications are hidden from the inbox.
-- Admin-owned lifecycle: start/return endpoints and UI actions are admin-only;
-  employee current-trip surfaces show context and pickup location without
-  exposing lifecycle transition buttons.
+- Split operational lifecycle: approval endpoints accept `fleet_approver` or
+  `fleet_admin`; start/return endpoints accept `fleet_reception` or
+  `fleet_admin`. Employee current-trip surfaces show context and pickup
+  location without exposing lifecycle transition buttons.
 - User contact readiness: admin user creation now stores optional email and
   GSM number for operational coordination without turning GSM into an auth
   factor.
@@ -233,13 +235,18 @@ operations assistant for internal mobility**, което е:
   typical duration from the user's last 10 reservations, then fills the manual
   form on request without hiding review.
 - Current Trip Hero: employee active or next approved trip is promoted above
-  the calendar/table with one primary action to view the trip; admin remains
+  the calendar/table with one primary action to view the trip; reception is
   responsible for start/return lifecycle transitions.
+- Role-aware surfaces: `/admin` now becomes an approver decision desk,
+  reception handoff desk, or full admin cockpit depending on role. Irrelevant
+  panels such as user management, NetFleet key and readiness stay hidden unless
+  the role is `fleet_admin`.
 - Admin Decision Rail: `/admin` now promotes the top 3 pending decisions above
   the bulk bar/table, with direct approve/reject actions and a bulk approve
-  path for the full pending queue.
-- Timeline-first reservation view: employee/admin surfaces now render lifecycle
-  cards before the table, with direct actions and admin pending selection; the
+  path for roles with approval capability.
+- Timeline-first reservation view: employee/approver/reception/admin surfaces
+  now render lifecycle cards before the table, with direct actions and
+  role-scoped pending selection; the
   table remains a secondary detail view.
 - Fleet Pulse strip: `/admin` now shows a calm executive strip for active
   trips, cars releasing within 1 hour, pending decisions, busiest car and GPS
@@ -277,8 +284,8 @@ operations assistant for internal mobility**, което е:
   request in production.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 131 passed,
-  targeted UI/API/production readiness pack -> 41 passed, Playwright browser
+- Latest local verification for this slice: `pytest -q` -> 133 passed,
+  targeted UI/API/production readiness pack -> 43 passed, Playwright browser
   smoke -> 1 passed with desktop/mobile screenshots, JS syntax checks and
   Python compile check. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
@@ -286,7 +293,7 @@ operations assistant for internal mobility**, което е:
   `8001` returned ok/ready and the app container is healthy. A real
   backup/restore drill succeeded from `/tmp/fleetflow-backups/...dump` into
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
-  Alembic revision `20260420_0008`.
+  Alembic revision `20260420_0009`.
 
 ## Next Recommended Slices
 

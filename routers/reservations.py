@@ -24,7 +24,15 @@ from schemas import (
     ReservationPreferencesResponse,
     ReservationStatus,
 )
-from security import AuthContext, get_auth_context, require_admin
+from security import (
+    AuthContext,
+    get_auth_context,
+    is_operational_role,
+    require_admin,
+    require_approver,
+    require_employee,
+    require_reception,
+)
 
 DbConn = Union[SQLiteConnectionAdapter, PostgresConnectionAdapter]
 
@@ -48,11 +56,25 @@ def _log(conn: DbConn, reservation_id: int, actor_id: int, action: str, reason: 
     )
 
 
-def _active_admin_ids(conn: DbConn) -> list[int]:
+def _active_role_ids(conn: DbConn, roles: tuple[str, ...]) -> list[int]:
+    placeholders = ",".join("?" for _ in roles)
     rows = conn.execute(
-        "SELECT id FROM users WHERE role='fleet_admin' AND active=1 ORDER BY id"
+        f"SELECT id FROM users WHERE role IN ({placeholders}) AND active=1 ORDER BY id",
+        roles,
     ).fetchall()
     return [int(row["id"]) for row in rows]
+
+
+def _active_admin_ids(conn: DbConn) -> list[int]:
+    return _active_role_ids(conn, ("fleet_admin",))
+
+
+def _active_decision_recipient_ids(conn: DbConn) -> list[int]:
+    return _active_role_ids(conn, ("fleet_admin", "fleet_approver"))
+
+
+def _active_reception_recipient_ids(conn: DbConn) -> list[int]:
+    return _active_role_ids(conn, ("fleet_admin", "fleet_reception"))
 
 
 def _presentation_status(row: Any) -> str:
@@ -297,7 +319,7 @@ def _create_reservation(
             reason_text=assignment_reason_text,
         )
 
-        admin_ids = [admin_id for admin_id in _active_admin_ids(conn) if admin_id != auth.user_id]
+        admin_ids = [admin_id for admin_id in _active_decision_recipient_ids(conn) if admin_id != auth.user_id]
         if admin_ids:
             notification_ids.extend(
                 create_notifications(
@@ -322,7 +344,7 @@ def _create_reservation(
 def create_reservation(
     payload: ReservationCreate,
     background_tasks: BackgroundTasks,
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(require_employee),
 ) -> dict[str, Any]:
     return _create_reservation(payload, background_tasks, auth)
 
@@ -355,7 +377,7 @@ def reservation_conflicts(
                 "end_time": str(row["end_time"]),
                 "status": _presentation_status(row),
             }
-            if auth.role == "fleet_admin":
+            if is_operational_role(auth.role):
                 item["employee_name"] = str(row["employee_name"])
                 item["purpose"] = row["purpose"]
             reservation_items.append(item)
@@ -368,7 +390,7 @@ def reservation_conflicts(
                 "kind": str(row["kind"]),
                 "start_time": str(row["start_time"]),
                 "end_time": str(row["end_time"]),
-                "reason": row["reason"] if auth.role == "fleet_admin" else None,
+                "reason": row["reason"] if is_operational_role(auth.role) else None,
             }
             for row in _blackout_conflict_rows(conn, car_id, start_iso, end_iso)
         ]
@@ -380,7 +402,7 @@ def reservation_conflicts(
 @router.get("/suggest")
 def suggest_reservation(
     duration_minutes: int = Query(default=120, ge=15, le=480),
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(require_employee),
 ) -> dict[str, Any]:
     with get_conn() as conn:
         return _find_suggested_slot(conn, auth.user_id, duration_minutes)
@@ -390,7 +412,7 @@ def suggest_reservation(
 def suggest_best_car_for_slot(
     start: datetime = Query(...),
     end: datetime = Query(...),
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(require_employee),
 ) -> dict[str, Any]:
     if end <= start:
         raise HTTPException(status_code=400, detail="end must be after start")
@@ -408,7 +430,7 @@ def suggest_best_car_for_slot(
 def quick_book(
     background_tasks: BackgroundTasks,
     duration_minutes: int = Query(default=120, ge=15, le=480),
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(require_employee),
 ) -> dict[str, Any]:
     with get_conn() as conn:
         suggestion = _find_suggested_slot(conn, auth.user_id, duration_minutes)
@@ -432,7 +454,7 @@ def quick_book(
 
 
 @router.get("/preferences", response_model=ReservationPreferencesResponse)
-def reservation_preferences(auth: AuthContext = Depends(get_auth_context)) -> ReservationPreferencesResponse:
+def reservation_preferences(auth: AuthContext = Depends(require_employee)) -> ReservationPreferencesResponse:
     with get_conn() as conn:
         rows = conn.execute(
             """
@@ -522,7 +544,7 @@ def approve(
     reservation_id: int,
     payload: DecisionPayload,
     background_tasks: BackgroundTasks,
-    auth: AuthContext = Depends(require_admin),
+    auth: AuthContext = Depends(require_approver),
 ) -> dict[str, Any]:
     return _decide(reservation_id, "approved", auth, payload.reason, background_tasks)
 
@@ -532,7 +554,7 @@ def reject(
     reservation_id: int,
     payload: DecisionPayload,
     background_tasks: BackgroundTasks,
-    auth: AuthContext = Depends(require_admin),
+    auth: AuthContext = Depends(require_approver),
 ) -> dict[str, Any]:
     return _decide(reservation_id, "rejected", auth, payload.reason, background_tasks)
 
@@ -618,7 +640,7 @@ def _bulk_decide(
 def bulk_approve(
     payload: BulkDecisionPayload,
     background_tasks: BackgroundTasks,
-    auth: AuthContext = Depends(require_admin),
+    auth: AuthContext = Depends(require_approver),
 ) -> BulkDecisionResponse:
     return _bulk_decide("approved", payload, auth, background_tasks)
 
@@ -627,7 +649,7 @@ def bulk_approve(
 def bulk_reject(
     payload: BulkDecisionPayload,
     background_tasks: BackgroundTasks,
-    auth: AuthContext = Depends(require_admin),
+    auth: AuthContext = Depends(require_approver),
 ) -> BulkDecisionResponse:
     return _bulk_decide("rejected", payload, auth, background_tasks)
 
@@ -644,7 +666,7 @@ def start_trip(
     reservation_id: int,
     payload: LifecycleNotePayload,
     background_tasks: BackgroundTasks,
-    auth: AuthContext = Depends(require_admin),
+    auth: AuthContext = Depends(require_reception),
 ) -> dict[str, Any]:
     now = _utcnow_iso()
     notification_ids: list[int] = []
@@ -663,9 +685,10 @@ def start_trip(
         )
         _log(conn, reservation_id, auth.user_id, "checked_out", payload.note)
 
-        targets = [admin_id for admin_id in _active_admin_ids(conn) if admin_id != auth.user_id]
-        if auth.role == "fleet_admin" and int(row["created_by_id"]) != auth.user_id:
+        targets = [user_id for user_id in _active_reception_recipient_ids(conn) if user_id != auth.user_id]
+        if int(row["created_by_id"]) != auth.user_id:
             targets.append(int(row["created_by_id"]))
+        targets = list(dict.fromkeys(targets))
         if targets:
             notification_ids.extend(
                 create_notifications(
@@ -691,7 +714,7 @@ def return_trip(
     reservation_id: int,
     payload: LifecycleNotePayload,
     background_tasks: BackgroundTasks,
-    auth: AuthContext = Depends(require_admin),
+    auth: AuthContext = Depends(require_reception),
 ) -> dict[str, Any]:
     now = _utcnow_iso()
     notification_ids: list[int] = []
@@ -710,9 +733,10 @@ def return_trip(
         )
         _log(conn, reservation_id, auth.user_id, "returned", payload.note)
 
-        targets = [admin_id for admin_id in _active_admin_ids(conn) if admin_id != auth.user_id]
-        if auth.role == "fleet_admin" and int(row["created_by_id"]) != auth.user_id:
+        targets = [user_id for user_id in _active_reception_recipient_ids(conn) if user_id != auth.user_id]
+        if int(row["created_by_id"]) != auth.user_id:
             targets.append(int(row["created_by_id"]))
+        targets = list(dict.fromkeys(targets))
         if targets:
             notification_ids.extend(
                 create_notifications(
@@ -765,7 +789,7 @@ def cancel(
             if int(row["created_by_id"]) != auth.user_id:
                 targets.append(int(row["created_by_id"]))
         else:
-            targets.extend([admin_id for admin_id in _active_admin_ids(conn) if admin_id != auth.user_id])
+            targets.extend([admin_id for admin_id in _active_decision_recipient_ids(conn) if admin_id != auth.user_id])
         if targets:
             notification_ids.extend(
                 create_notifications(
@@ -803,7 +827,7 @@ def list_reservations(
 
     clauses, params = _reservation_filter_clauses(
         car_id=car_id,
-        mine=mine or auth.role == "employee",
+        mine=mine or not is_operational_role(auth.role),
         user_id=auth.user_id,
         start=start,
         end=end,

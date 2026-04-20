@@ -61,6 +61,7 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Structured access logs | `app.py`, `config.py`, `logging_config.py`, `docker-compose.postgres.yml`, `README.md` | pass | Production JSON logs, request correlation, no secret values | Request middleware emits access logs with request id, method, path, route, status and latency. `LOG_FORMAT=auto` keeps dev text logs and production JSON logs; `fleetflow.access` writes one stdout JSON line per request. |
 | Backup / restore drill | `Makefile`, `scripts/backup_postgres.sh`, `scripts/restore_postgres_drill.sh`, `docs/PRODUCTION_USER_GUIDE.md` | pass | Backup files outside git, custom PostgreSQL dump, restore test isolated from production volume | `make prod-backup` writes a `pg_dump --format=custom` file under ignored `backups/`; `make prod-restore-drill BACKUP=...` restores into project `fleetflow_restore_drill`, checks `alembic_version` and removes the temporary volume by default. |
 | User contact fields | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `schemas.py`, `routers/users.py`, `db.py`, `alembic/versions/20260420_0007_user_gsm_number.py` | pass | GSM is optional contact metadata, not auth; field has tel keyboard, max length guard and visible card text | Admin can enter optional GSM number when creating a user. API returns `gsm_number`, user cards show text-backed `GSM: ...`, and tests cover optional/too-long values. |
+| Role-separated pool workflow | `security.py`, `routers/reservations.py`, `static/app.js`, `static/i18n.js`, `templates/admin.html`, `alembic/versions/20260420_0009_split_operational_roles.py` | pass | Least privilege, one primary task per role, no irrelevant control panels | `fleet_approver` can approve/reject but cannot start/return or manage users/settings. `fleet_reception` can start/return but cannot approve/reject or manage settings. `/admin` adapts copy, default filters and visible panels by role. |
 | Fleet Intelligence Seed | `fleet_intelligence/`, `routers/reservations.py`, `routers/intelligence.py`, `static/app.js`, `static/styles.css`, `alembic/versions/20260420_0008_car_assignments.py` | pass | One primary booking action, explainable suggestions, no heavy BI surface | Quick-book uses best-car scoring and records assignment reason/score. Admin Fleet Pulse shows compact insights below the strip. Quick-book button is full-width/wrapping so text cannot overflow its card on narrow surfaces. |
 | Pre-login operational overview | `app.py`, `static/app.js`, `templates/index.html`, `templates/admin.html` | pass | Informative first screen, public orientation without private operations | `/public/overview` powers pending/active/free counts before login. `/public/calendar` powers calendar occupancy with status, plate number and model. Requester, purpose, GPS, reservation ids and actions remain authenticated. |
 
@@ -179,8 +180,8 @@ styles.
   `test-results/e2e/employee-mobile.png`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
-- `evidence`: latest local handoff check ran `pytest -q` -> 131 passed,
-  targeted UI/API/production readiness pack -> 41 passed,
+- `evidence`: latest local handoff check ran `pytest -q` -> 133 passed,
+  targeted UI/API/production readiness pack -> 43 passed,
   `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
   -> 1 passed, `node --check static/app.js`,
   `node --check static/i18n.js` and Python compile check for
@@ -190,7 +191,7 @@ styles.
   `postgres:16`, `/health` and `/health/ready` on `8001` returned ok/ready and
   the app container is healthy. Backup creation and isolated restore drill
   succeeded using the current smoke stack. PostgreSQL smoke is migrated to
-  Alembic revision `20260420_0008`.
+  Alembic revision `20260420_0009`.
 
 ## PR/Handoff Checklist
 

@@ -16,6 +16,7 @@ function escapeHtml(value) {
 }
 
 const surface = document.body.dataset.surface || "employee";
+const operationalRoles = new Set(["fleet_admin", "fleet_approver", "fleet_reception"]);
 
 const state = {
   token: null,
@@ -181,6 +182,36 @@ const els = {
   bulkApproveBtn: document.getElementById("bulkApproveBtn"),
   bulkRejectBtn: document.getElementById("bulkRejectBtn"),
 };
+
+function isFullAdmin() {
+  return state.currentRole === "fleet_admin";
+}
+
+function canApproveReservations() {
+  return ["fleet_admin", "fleet_approver"].includes(state.currentRole);
+}
+
+function canManageTripHandoff() {
+  return ["fleet_admin", "fleet_reception"].includes(state.currentRole);
+}
+
+function isOperationalRole() {
+  return operationalRoles.has(state.currentRole);
+}
+
+function roleBadgeClass(role = state.currentRole) {
+  if (role === "fleet_admin") return "status-pill--admin";
+  if (role === "fleet_approver") return "status-pill--admin";
+  if (role === "fleet_reception") return "status-pill--muted";
+  return "status-pill--employee";
+}
+
+function defaultStatusForRole(role = state.currentRole) {
+  if (surface !== "admin") return "open";
+  if (role === "fleet_reception") return "approved";
+  if (role === "fleet_admin" || role === "fleet_approver") return "pending";
+  return "open";
+}
 
 const fieldErrorIds = [
   "bootstrapUsername",
@@ -514,6 +545,8 @@ function roleChangeDialog(user) {
         <span>${t("admin.roleLabel")}</span>
         <select name="role">
           <option value="employee" ${user.role === "employee" ? "selected" : ""}>${t("role.employee")}</option>
+          <option value="fleet_approver" ${user.role === "fleet_approver" ? "selected" : ""}>${t("role.fleet_approver")}</option>
+          <option value="fleet_reception" ${user.role === "fleet_reception" ? "selected" : ""}>${t("role.fleet_reception")}</option>
           <option value="fleet_admin" ${user.role === "fleet_admin" ? "selected" : ""}>${t("role.fleet_admin")}</option>
         </select>
       </label>
@@ -819,6 +852,12 @@ function setSession(user, token) {
   state.currentRole = user ? user.role : null;
   state.token = token;
   if (user && token) {
+    state.status = defaultStatusForRole(user.role);
+    state.scope = operationalRoles.has(user.role) ? "all" : "smart";
+    updateToolbarPressedStates(document.querySelectorAll("[data-status]"), "status");
+    updateToolbarPressedStates(document.querySelectorAll("[data-scope]"), "scope");
+  }
+  if (user && token) {
     startNotificationPolling();
   } else {
     stopNotificationPolling();
@@ -847,27 +886,28 @@ function stopNotificationPolling() {
 
 function renderShell() {
   const authenticated = Boolean(state.token && state.currentUser);
-  const adminMode = state.currentRole === "fleet_admin";
+  const fullAdmin = isFullAdmin();
+  const operationalMode = isOperationalRole();
   const adminSurface = state.surface === "admin";
 
   toggleHidden(els.setupPanel, state.hasAdmin || authenticated);
   toggleHidden(els.loginPanel, !state.hasAdmin || authenticated);
   toggleHidden(els.sessionPanel, !authenticated);
   toggleHidden(els.logoutBtn, !authenticated);
-  toggleHidden(els.reservationPanel, !authenticated);
-  toggleHidden(els.quickBookPanel, !authenticated || adminMode);
-  toggleHidden(els.smartPrefillPanel, !authenticated || adminMode || !state.reservationPreferences?.available);
+  toggleHidden(els.reservationPanel, !authenticated || operationalMode);
+  toggleHidden(els.quickBookPanel, !authenticated || operationalMode);
+  toggleHidden(els.smartPrefillPanel, !authenticated || operationalMode || !state.reservationPreferences?.available);
   toggleHidden(els.passwordPanel, !authenticated);
   toggleHidden(els.summaryDeck, !authenticated);
   toggleHidden(els.guidanceCard, authenticated);
-  toggleHidden(els.userCreatePanel, !authenticated || !adminMode || !adminSurface);
-  toggleHidden(els.carPanel, !authenticated || !adminMode || !adminSurface);
-  toggleHidden(els.netfleetForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
-  toggleHidden(els.productionReadinessPanel, !authenticated || !adminMode || !adminSurface);
-  toggleHidden(els.usersDeck, !authenticated || !adminMode || !adminSurface);
-  toggleHidden(els.handoffForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
-  toggleHidden(els.blackoutForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
-  toggleHidden(els.blackoutsList?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
+  toggleHidden(els.userCreatePanel, !authenticated || !fullAdmin || !adminSurface);
+  toggleHidden(els.carPanel, !authenticated || !fullAdmin || !adminSurface);
+  toggleHidden(els.netfleetForm?.closest(".glass-card"), !authenticated || !fullAdmin || !adminSurface);
+  toggleHidden(els.productionReadinessPanel, !authenticated || !fullAdmin || !adminSurface);
+  toggleHidden(els.usersDeck, !authenticated || !fullAdmin || !adminSurface);
+  toggleHidden(els.handoffForm?.closest(".glass-card"), !authenticated || !fullAdmin || !adminSurface);
+  toggleHidden(els.blackoutForm?.closest(".glass-card"), !authenticated || !fullAdmin || !adminSurface);
+  toggleHidden(els.blackoutsList?.closest(".glass-card"), !authenticated || !fullAdmin || !adminSurface);
 
   if (!state.hasAdmin && !authenticated) {
     els.sessionBadge.className = "status-pill status-pill--muted";
@@ -881,24 +921,30 @@ function renderShell() {
     return;
   }
 
-  const isAdmin = state.currentRole === "fleet_admin";
-  els.sessionBadge.className = `status-pill ${isAdmin ? "status-pill--admin" : "status-pill--employee"}`;
-  els.sessionBadge.textContent = `${state.currentUser.display_name} · ${t(isAdmin ? "role.fleet_admin" : "role.employee")}`;
-  els.sessionTitle.textContent = isAdmin ? t("ui.adminReady") : t("ui.employeeReady");
-  els.sessionModePill.className = `status-pill ${isAdmin ? "status-pill--admin" : "status-pill--employee"}`;
-  els.sessionModePill.textContent = t(isAdmin ? "role.fleet_admin" : "role.employee");
+  const roleClass = roleBadgeClass();
+  els.sessionBadge.className = `status-pill ${roleClass}`;
+  els.sessionBadge.textContent = `${state.currentUser.display_name} · ${t(`role.${state.currentRole}`)}`;
+  els.sessionTitle.textContent = operationalMode ? t(`ui.${state.currentRole}Ready`) : t("ui.employeeReady");
+  els.sessionModePill.className = `status-pill ${roleClass}`;
+  els.sessionModePill.textContent = t(`role.${state.currentRole}`);
   els.sessionMeta.textContent = `${state.currentUser.display_name} (${state.currentUser.username})`;
   if (els.heroCaption) {
-    els.heroCaption.textContent = isAdmin
-      ? adminSurface
-        ? "Отделната admin страница събира approvals, blackout-и, handoff и user control на едно място."
-        : "За административни действия отвори отделната Admin страница от горната навигация."
-      : "Employee режимът показва само собствените ти заявки, нотификации и следващото практично действие.";
+    if (fullAdmin) {
+      els.heroCaption.textContent = adminSurface
+        ? "Admin страницата събира настройки, потребители, флот и пълен lifecycle контрол."
+        : "За административни настройки отвори отделната Admin страница от горната навигация.";
+    } else if (state.currentRole === "fleet_approver") {
+      els.heroCaption.textContent = "Approver режимът показва чакащите заявки и решенията, без настройки и ключове.";
+    } else if (state.currentRole === "fleet_reception") {
+      els.heroCaption.textContent = "Reception режимът показва одобрените и активните курсове за ключове, документи и връщане.";
+    } else {
+      els.heroCaption.textContent = "Employee режимът показва само собствените ти заявки, нотификации и следващото практично действие.";
+    }
   }
 }
 
 function updateOverview() {
-  const overviewReservations = state.currentRole === "fleet_admin" ? state.pulseReservations : state.reservations;
+  const overviewReservations = isOperationalRole() ? state.pulseReservations : state.reservations;
   const publicOverview = !state.token ? state.publicOverview : null;
   const activeCars = publicOverview?.active_cars ?? state.cars.filter((car) => car.active).length;
   const pending = publicOverview?.pending_requests ?? overviewReservations.filter((item) => item.status === "pending").length;
@@ -940,7 +986,7 @@ function mostBookedCar(reservations, cars) {
 
 function renderFleetPulse() {
   if (!els.fleetPulse) return;
-  const showPulse = state.currentRole === "fleet_admin" && surface === "admin" && state.token;
+  const showPulse = isFullAdmin() && surface === "admin" && state.token;
   toggleHidden(els.fleetPulse, !showPulse);
   if (!showPulse) {
     els.fleetPulse.innerHTML = "";
@@ -1150,37 +1196,54 @@ function updateSummary() {
     return;
   }
 
-  const adminMode = state.currentRole === "fleet_admin";
-  if (adminMode) {
+  if (isOperationalRole()) {
     const adminReservations = state.pulseReservations;
     const pending = adminReservations.filter((item) => item.status === "pending").length;
+    const approved = adminReservations.filter((item) => item.status === "approved").length;
     const activeTrips = adminReservations.filter((item) => item.status === "checked_out").length;
     const adminSurface = state.surface === "admin";
-    els.modeHeading.textContent = adminSurface ? "Admin control surface" : "Admin on employee desk";
-    els.modeCopy.textContent = adminSurface
-      ? "Отделна admin страница за approvals, fleet control, blackout windows и continuity actions."
-      : "Това е общият desk. За потребители, handoff и blackout-и използвай отделната Admin страница.";
-    if (pending) {
+    if (isFullAdmin()) {
+      els.modeHeading.textContent = adminSurface ? "Admin control surface" : "Admin on employee desk";
+      els.modeCopy.textContent = adminSurface
+        ? "Пълен контрол за настройки, флот, потребители и lifecycle."
+        : "Това е общият desk. За потребители, handoff и blackout-и използвай отделната Admin страница.";
+    } else if (state.currentRole === "fleet_approver") {
+      els.modeHeading.textContent = "Approver workspace";
+      els.modeCopy.textContent = "Фокус само върху заявките за решение. Няма настройки, флот конфигурация или ключове.";
+    } else {
+      els.modeHeading.textContent = "Reception workspace";
+      els.modeCopy.textContent = "Фокус върху реалното предаване и връщане: ключове, документи и активни курсове.";
+    }
+    if (canApproveReservations() && pending) {
       els.nextSignalTitle.textContent = t("intent.adminDecisionTitle", { count: pending });
       els.nextSignalCopy.textContent = t("intent.adminDecisionCopy");
       setIntentActions([
         { name: "review-pending", labelKey: "intent.action.reviewPending", primary: true },
-        { name: "view-fleet", labelKey: "intent.action.viewFleet" },
+        ...(isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet" }] : []),
       ]);
       return;
     }
-    if (activeTrips) {
-      els.nextSignalTitle.textContent = t("intent.adminActiveTitle", { count: activeTrips });
-      els.nextSignalCopy.textContent = t("intent.adminActiveCopy");
+    if (canManageTripHandoff() && approved) {
+      els.nextSignalTitle.textContent = t("intent.receptionApprovedTitle", { count: approved });
+      els.nextSignalCopy.textContent = t("intent.receptionApprovedCopy");
+      setIntentActions([
+        { name: "view-handoffs", labelKey: "intent.action.viewHandoffs", primary: true },
+        ...(isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet" }] : []),
+      ]);
+      return;
+    }
+    if (canManageTripHandoff() && activeTrips) {
+      els.nextSignalTitle.textContent = t("intent.receptionActiveTitle", { count: activeTrips });
+      els.nextSignalCopy.textContent = t("intent.receptionActiveCopy");
       setIntentActions([
         { name: "view-active-trips", labelKey: "intent.action.viewActiveTrips", primary: true },
-        { name: "view-fleet", labelKey: "intent.action.viewFleet" },
+        ...(isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet" }] : []),
       ]);
       return;
     }
     els.nextSignalTitle.textContent = t("intent.adminCalmTitle");
     els.nextSignalCopy.textContent = t("intent.adminCalmCopy");
-    setIntentActions([{ name: "view-fleet", labelKey: "intent.action.viewFleet", primary: true }]);
+    setIntentActions(isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet", primary: true }] : []);
     return;
   }
 
@@ -1216,7 +1279,7 @@ function updateSummary() {
 }
 
 function currentTripCandidate() {
-  if (state.currentRole === "fleet_admin") return null;
+  if (isOperationalRole()) return null;
   const activeTrip = state.reservations.find((item) => item.status === "checked_out");
   if (activeTrip) return activeTrip;
   return [...state.reservations]
@@ -1346,7 +1409,7 @@ function renderUsers() {
   if (!els.usersGrid) return;
   els.usersGrid.innerHTML = "";
 
-  if (state.currentRole !== "fleet_admin") {
+  if (!isFullAdmin()) {
     return;
   }
 
@@ -1400,7 +1463,7 @@ function renderUsers() {
           <strong>${escapeHtml(user.display_name)}</strong>
           <p class="muted">${escapeHtml(user.username)}</p>
         </div>
-        <span class="status-pill ${user.role === "fleet_admin" ? "status-pill--admin" : "status-pill--employee"}">${t(`role.${user.role}`)}</span>
+        <span class="status-pill ${roleBadgeClass(user.role)}">${t(`role.${user.role}`)}</span>
       </div>
       <div class="user-card__meta">
         <span class="status-tag ${user.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(user.active ? "status.active" : "status.inactive")}</span>
@@ -1443,7 +1506,7 @@ function renderCars() {
     els.carsGrid.innerHTML = `
       <article class="empty-state">
         <strong>Няма автомобили за този изглед.</strong>
-        <p>${state.currentRole === "fleet_admin" ? "Регистрирай автомобил или смени филтъра." : "Изчакай fleet admin да добави наличност."}</p>
+        <p>${isFullAdmin() ? "Регистрирай автомобил или смени филтъра." : "Изчакай fleet admin да добави наличност."}</p>
       </article>
     `;
     return;
@@ -1476,9 +1539,9 @@ function renderCars() {
         <span class="status-tag ${car.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(car.active ? "status.active" : "status.inactive")}</span>
       </div>
       <p class="mini-note">${car.active ? "Наличен за нови заявки." : "Изваден от нови резервации."}</p>
-      ${state.currentRole === "fleet_admin" ? telemetryMarkup : ""}
+      ${isFullAdmin() ? telemetryMarkup : ""}
       ${
-        state.currentRole === "fleet_admin"
+        isFullAdmin()
           ? `<div class="car-card__notes">
               <textarea class="notes-textarea" data-car-notes-id="${car.id}" rows="2"
                 placeholder="${escapeHtml(t("car.notesPlaceholder"))}">${escapeHtml(car.notes || "")}</textarea>
@@ -1490,7 +1553,7 @@ function renderCars() {
       }
       <div class="car-card__actions">
         ${
-          state.currentRole === "fleet_admin"
+          isFullAdmin()
             ? `<button class="action-btn action-btn--toggle" type="button" data-toggle-car="${car.id}">
                 ${t(car.active ? "action.deactivate" : "action.activate")}
               </button>`
@@ -1611,7 +1674,7 @@ function renderBlackouts() {
   if (!els.blackoutsList) return;
   els.blackoutsList.innerHTML = "";
 
-  if (state.currentRole !== "fleet_admin") {
+  if (!isFullAdmin()) {
     els.blackoutsList.innerHTML = `
       <article class="empty-state">
         <strong>Blackout-и са видими само за admin.</strong>
@@ -1668,7 +1731,7 @@ function renderHandoffCandidates() {
 }
 
 function bulkSelectionEnabled() {
-  return surface === "admin" && state.currentRole === "fleet_admin";
+  return surface === "admin" && canApproveReservations();
 }
 
 function pendingReservationIds() {
@@ -1754,7 +1817,7 @@ function nextPreferredSlot(hour, durationMinutes) {
 
 function renderSmartPrefill() {
   if (!els.smartPrefillPanel) return;
-  const available = Boolean(state.token && state.currentRole !== "fleet_admin" && state.reservationPreferences?.available);
+  const available = Boolean(state.token && !isOperationalRole() && state.reservationPreferences?.available);
   toggleHidden(els.smartPrefillPanel, !available);
   if (!available) return;
   const prefs = state.reservationPreferences;
@@ -1803,8 +1866,8 @@ async function handleIntentAction(button) {
     document.getElementById("reservationsDeck")?.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
-  if (action === "review-pending" || action === "view-active-trips") {
-    state.status = action === "review-pending" ? "pending" : "checked_out";
+  if (action === "review-pending" || action === "view-active-trips" || action === "view-handoffs") {
+    state.status = action === "review-pending" ? "pending" : action === "view-handoffs" ? "approved" : "checked_out";
     updateToolbarPressedStates(document.querySelectorAll("[data-status]"), "status");
     await loadReservations();
     document.getElementById("reservationsDeck")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1812,7 +1875,9 @@ async function handleIntentAction(button) {
       const target =
         action === "review-pending"
           ? els.bulkSelectAll || document.querySelector('[data-reservation-action="approve"]')
-          : document.querySelector('[data-reservation-action="return"]');
+          : action === "view-handoffs"
+            ? document.querySelector('[data-reservation-action="start"]')
+            : document.querySelector('[data-reservation-action="return"]');
       target?.focus();
     }, 180);
     return;
@@ -1845,20 +1910,21 @@ function reservationContext(item) {
 
 function reservationActions(item) {
   const actions = [];
-  const canAdmin = state.currentRole === "fleet_admin";
+  const canApprove = canApproveReservations();
+  const canReception = canManageTripHandoff();
   const isOwner = state.currentUser && item.created_by_id === state.currentUser.id;
 
-  if (item.status === "pending" && canAdmin) {
+  if (item.status === "pending" && canApprove) {
     actions.push(`<button class="action-btn action-btn--approve" type="button" data-reservation-action="approve" data-id="${item.id}" aria-label="${t("action.approve")} резервация #${item.id}">${t("action.approve")}</button>`);
     actions.push(`<button class="action-btn action-btn--reject" type="button" data-reservation-action="reject" data-id="${item.id}" aria-label="${t("action.reject")} резервация #${item.id}">${t("action.reject")}</button>`);
   }
-  if (item.status === "approved" && canAdmin) {
+  if (item.status === "approved" && canReception) {
     actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="start" data-id="${item.id}" aria-label="${t("action.startTrip")} за резервация #${item.id}">${t("action.startTrip")}</button>`);
   }
-  if (item.status === "checked_out" && canAdmin) {
+  if (item.status === "checked_out" && canReception) {
     actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="return" data-id="${item.id}" aria-label="${t("action.returnCar")} за резервация #${item.id}">${t("action.returnCar")}</button>`);
   }
-  if (["pending", "approved"].includes(item.status) && (canAdmin || isOwner)) {
+  if (["pending", "approved"].includes(item.status) && (isFullAdmin() || isOwner)) {
     actions.push(`<button class="action-btn action-btn--cancel" type="button" data-reservation-action="cancel" data-id="${item.id}" aria-label="${t("action.cancel")} резервация #${item.id}">${t("action.cancel")}</button>`);
   }
   return actions.join("");
@@ -1866,9 +1932,8 @@ function reservationActions(item) {
 
 function reservationFlowEmptyMessage() {
   if (!state.token) return t("reservationFlow.loginCopy");
-  return state.currentRole === "fleet_admin"
-    ? t("reservationFlow.emptyAdmin")
-    : t("reservationFlow.emptyEmployee");
+  if (isOperationalRole()) return t(`reservationFlow.empty.${state.currentRole}`);
+  return t("reservationFlow.emptyEmployee");
 }
 
 function reservationFlowCard(item, car, canBulk) {
@@ -1974,7 +2039,7 @@ function renderReservationFlow(cars, canBulk) {
 
 function renderDecisionRail() {
   if (!els.decisionRail) return;
-  const showRail = state.currentRole === "fleet_admin" && surface === "admin" && state.token;
+  const showRail = canApproveReservations() && surface === "admin" && state.token;
   toggleHidden(els.decisionRail, !showRail);
   if (!showRail) {
     els.decisionRail.innerHTML = "";
@@ -2075,7 +2140,7 @@ function renderReservations() {
     renderBulkActionBar();
     renderDecisionRail();
     renderReservationFlow(cars, canBulk);
-    els.reservationsTableBody.innerHTML = `<tr><td colspan="${colspan}" class="muted">${state.currentRole === "fleet_admin" ? "Няма резервации за текущия изглед." : "Нямаш видими резервации за текущия изглед."}</td></tr>`;
+    els.reservationsTableBody.innerHTML = `<tr><td colspan="${colspan}" class="muted">${isFullAdmin() ? "Няма резервации за текущия изглед." : "Нямаш видими резервации за текущия изглед."}</td></tr>`;
     return;
   }
 
@@ -2299,7 +2364,7 @@ async function loadMe() {
 }
 
 async function loadCars() {
-  const query = state.currentRole === "fleet_admin" ? "?active_only=false" : "";
+  const query = isFullAdmin() ? "?active_only=false" : "";
   setLoading("cars", true);
   renderCars();
   try {
@@ -2326,7 +2391,7 @@ function reservationQueryParams() {
   if (state.status !== "all" && state.status !== "open") {
     params.set("status_filter", state.status);
   }
-  if (state.currentRole === "fleet_admin" && state.scope === "mine") {
+  if (isOperationalRole() && state.scope === "mine") {
     params.set("mine", "true");
   }
   if (state.reservationSearch.trim()) {
@@ -2406,7 +2471,7 @@ async function loadReservations() {
 }
 
 async function loadFleetPulseReservations() {
-  if (!state.token || state.currentRole !== "fleet_admin") {
+  if (!state.token || !isOperationalRole()) {
     state.pulseReservations = [];
     renderFleetPulse();
     return;
@@ -2473,7 +2538,7 @@ async function loadPublicCalendar() {
 }
 
 async function loadFleetIntelligencePulse() {
-  if (!state.token || state.currentRole !== "fleet_admin") {
+  if (!state.token || !isFullAdmin()) {
     state.intelligencePulse = null;
     renderFleetPulse();
     return;
@@ -2493,7 +2558,7 @@ async function loadFleetIntelligencePulse() {
 }
 
 async function loadTelemetry() {
-  if (!state.token || state.currentRole !== "fleet_admin") {
+  if (!state.token || !isFullAdmin()) {
     state.telemetry = [];
     state.telemetryConfigured = false;
     renderFleetPulse();
@@ -2519,7 +2584,7 @@ async function loadTelemetry() {
 }
 
 async function loadNetfleetConfig() {
-  if (!state.token || state.currentRole !== "fleet_admin") {
+  if (!state.token || !isFullAdmin()) {
     state.netfleetConfig = null;
     renderNetfleetConfig();
     return;
@@ -2539,7 +2604,7 @@ async function loadNetfleetConfig() {
 }
 
 async function loadProductionReadiness() {
-  if (!state.token || state.currentRole !== "fleet_admin") {
+  if (!state.token || !isFullAdmin()) {
     state.productionReadiness = null;
     renderProductionReadiness();
     return;
@@ -2559,7 +2624,7 @@ async function loadProductionReadiness() {
 }
 
 async function loadReservationPreferences() {
-  if (!state.token || state.currentRole === "fleet_admin") {
+  if (!state.token || isOperationalRole()) {
     state.reservationPreferences = null;
     renderSmartPrefill();
     return;
@@ -2660,7 +2725,7 @@ async function loadNotifications() {
 }
 
 async function loadUsers() {
-  if (state.currentRole !== "fleet_admin") {
+  if (!isFullAdmin()) {
     state.users = [];
     renderUsers();
     renderHandoffCandidates();
@@ -2679,7 +2744,7 @@ async function loadUsers() {
 }
 
 async function loadBlackouts() {
-  if (state.currentRole !== "fleet_admin" || !state.cars.length) {
+  if (!isFullAdmin() || !state.cars.length) {
     state.blackouts = [];
     renderBlackouts();
     return;

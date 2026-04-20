@@ -5,7 +5,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-Role = Literal["employee", "fleet_admin"]
+Role = Literal["employee", "fleet_approver", "fleet_reception", "fleet_admin"]
 ReservationStatus = Literal["pending", "approved", "checked_out", "returned", "rejected", "cancelled"]
 BlackoutKind = Literal["service", "maintenance", "inspection", "blocked"]
 ReadinessStatus = Literal["pass", "warn", "fail"]

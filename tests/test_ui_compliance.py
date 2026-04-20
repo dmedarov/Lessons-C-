@@ -124,7 +124,7 @@ def test_one_tap_booking_is_available_without_form_scanning() -> None:
     assert html.index('id="quickBookPanel"') < html.index('id="reservationForm"')
     assert "function quickBookReservation()" in app_js
     assert 'apiFetch("/reservations/quick-book"' in app_js
-    assert "toggleHidden(els.quickBookPanel, !authenticated || adminMode);" in app_js
+    assert "toggleHidden(els.quickBookPanel, !authenticated || operationalMode);" in app_js
     assert '"quickBook.createdTitle": "Бързата заявка е подадена"' in i18n_js
     assert ".quick-book .btn" in styles
     assert "overflow-wrap: anywhere;" in styles
@@ -142,7 +142,7 @@ def test_smart_prefill_keeps_manual_booking_predictive() -> None:
     assert 'apiFetch("/reservations/preferences"' in app_js
     assert "function applySmartPrefill()" in app_js
     assert "function nextPreferredSlot(hour, durationMinutes)" in app_js
-    assert "toggleHidden(els.smartPrefillPanel, !authenticated || adminMode || !state.reservationPreferences?.available);" in app_js
+    assert "toggleHidden(els.smartPrefillPanel, !authenticated || operationalMode || !state.reservationPreferences?.available);" in app_js
     assert '"smartPrefill.hint": "Обичайно: {car}, около {hour}:00, за {duration} мин."' in i18n_js
     assert ".smart-prefill .action-btn" in styles
 
@@ -192,8 +192,8 @@ def test_current_trip_hero_promotes_active_or_next_trip() -> None:
     assert 'primaryAction = active ? "return" : "start"' not in app_js
     assert 'renderCurrentTripHero();' in app_js
     assert '"trip.hero.activeEyebrow": "Твоята кола"' in i18n_js
-    assert "admin отбелязва старта" in i18n_js
-    assert "admin приключва lifecycle-а" in i18n_js
+    assert "рецепция; там отбелязват старта" in i18n_js
+    assert "рецепция приключва lifecycle-а" in i18n_js
     assert ".current-trip-hero" in styles
     assert ".current-trip-hero__actions .btn" in styles
 
@@ -226,16 +226,36 @@ def test_read_notifications_are_hidden_from_calm_default_inbox() -> None:
     assert "visibleNotifications.forEach((item) => {" in app_js
 
 
-def test_lifecycle_start_and_return_are_admin_only_in_ui() -> None:
+def test_lifecycle_permissions_are_role_separated_in_ui() -> None:
     app_js = _read("static/app.js")
     router = _read("routers/reservations.py")
 
-    assert 'if (item.status === "approved" && canAdmin)' in app_js
-    assert 'if (item.status === "checked_out" && canAdmin)' in app_js
+    assert "function canApproveReservations()" in app_js
+    assert "function canManageTripHandoff()" in app_js
+    assert 'if (item.status === "pending" && canApprove)' in app_js
+    assert 'if (item.status === "approved" && canReception)' in app_js
+    assert 'if (item.status === "checked_out" && canReception)' in app_js
     assert 'if (item.status === "approved" && (canAdmin || isOwner))' not in app_js
     assert 'if (item.status === "checked_out" && (canAdmin || isOwner))' not in app_js
     assert app_js.count('name: "reservation-transition"') == 0
-    assert 'auth: AuthContext = Depends(require_admin),' in router
+    assert 'auth: AuthContext = Depends(require_employee),' in router
+    assert 'auth: AuthContext = Depends(require_approver),' in router
+    assert 'auth: AuthContext = Depends(require_reception),' in router
+
+
+def test_role_specific_surfaces_hide_irrelevant_work() -> None:
+    html = _read("templates/admin.html")
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+
+    assert '<option value="fleet_approver">Одобряващ</option>' in html
+    assert '<option value="fleet_reception">Рецепция ключове</option>' in html
+    assert 'toggleHidden(els.reservationPanel, !authenticated || operationalMode);' in app_js
+    assert 'toggleHidden(els.userCreatePanel, !authenticated || !fullAdmin || !adminSurface);' in app_js
+    assert "state.status = defaultStatusForRole(user.role);" in app_js
+    assert '"role.fleet_approver": "Одобряващ"' in i18n_js
+    assert '"role.fleet_reception": "Рецепция ключове"' in i18n_js
+    assert '"intent.receptionApprovedTitle": "{count} курса чакат ключове"' in i18n_js
 
 
 def test_admin_decision_rail_promotes_pending_queue_before_table() -> None:
@@ -317,7 +337,7 @@ def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     assert "function renderFleetPulse()" in app_js
     assert "function mostBookedCar(reservations, cars)" in app_js
     assert "function telemetryByPlate()" in app_js
-    assert 'const overviewReservations = state.currentRole === "fleet_admin" ? state.pulseReservations : state.reservations;' in app_js
+    assert "const overviewReservations = isOperationalRole() ? state.pulseReservations : state.reservations;" in app_js
     assert 'const adminReservations = state.pulseReservations;' in app_js
     assert '"fleetPulse.title": "Оперативен пулс"' in i18n_js
     assert '"fleetPulse.busiestCar": "Най-натоварена кола"' in i18n_js

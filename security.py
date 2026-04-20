@@ -13,7 +13,8 @@ from pydantic import BaseModel
 
 from config import settings
 
-Role = Literal["employee", "fleet_admin"]
+Role = Literal["employee", "fleet_approver", "fleet_reception", "fleet_admin"]
+VALID_ROLES = {"employee", "fleet_approver", "fleet_reception", "fleet_admin"}
 
 _PBKDF2_ITERATIONS = 200_000
 _PBKDF2_ALGO = "sha256"
@@ -119,7 +120,7 @@ def verify_token(token: str) -> AuthContext:
         raise HTTPException(status_code=401, detail="Token expired")
 
     role = payload.get("r")
-    if role not in {"employee", "fleet_admin"}:
+    if role not in VALID_ROLES:
         raise HTTPException(status_code=401, detail="Invalid role in token")
 
     return AuthContext(
@@ -163,3 +164,25 @@ def require_admin(auth: AuthContext = Depends(get_auth_context)) -> AuthContext:
     if auth.role != "fleet_admin":
         raise HTTPException(status_code=403, detail="fleet_admin role is required")
     return auth
+
+
+def require_approver(auth: AuthContext = Depends(get_auth_context)) -> AuthContext:
+    if auth.role not in {"fleet_admin", "fleet_approver"}:
+        raise HTTPException(status_code=403, detail="fleet_approver role is required")
+    return auth
+
+
+def require_reception(auth: AuthContext = Depends(get_auth_context)) -> AuthContext:
+    if auth.role not in {"fleet_admin", "fleet_reception"}:
+        raise HTTPException(status_code=403, detail="fleet_reception role is required")
+    return auth
+
+
+def require_employee(auth: AuthContext = Depends(get_auth_context)) -> AuthContext:
+    if auth.role != "employee":
+        raise HTTPException(status_code=403, detail="employee role is required")
+    return auth
+
+
+def is_operational_role(role: Role) -> bool:
+    return role in {"fleet_admin", "fleet_approver", "fleet_reception"}
