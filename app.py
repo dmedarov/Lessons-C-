@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta, timezone
 from time import perf_counter
 from contextlib import asynccontextmanager
+from typing import Optional
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -35,6 +37,19 @@ def _admin_exists_on_startup() -> bool:
             "SELECT 1 FROM users WHERE role='fleet_admin' AND active=1 LIMIT 1"
         ).fetchone()
     return bool(row)
+
+
+def _public_calendar_window(start: Optional[datetime], end: Optional[datetime]) -> tuple[str, str]:
+    now = datetime.now(timezone.utc)
+    window_start = start or datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    window_end = end or window_start + timedelta(days=45)
+    if window_start.tzinfo is None:
+        window_start = window_start.replace(tzinfo=timezone.utc)
+    if window_end.tzinfo is None:
+        window_end = window_end.replace(tzinfo=timezone.utc)
+    if window_end <= window_start:
+        raise HTTPException(status_code=422, detail="end must be after start")
+    return window_start.astimezone(timezone.utc).isoformat(), window_end.astimezone(timezone.utc).isoformat()
 
 
 @asynccontextmanager
@@ -142,6 +157,51 @@ def create_app() -> FastAPI:
             "active_trips": active_trips,
             "available_cars": max(active_cars - active_trips, 0),
         }
+
+    @app.get("/public/calendar", tags=["meta"])
+    def public_calendar(start: Optional[datetime] = None, end: Optional[datetime] = None) -> dict[str, list[dict[str, str]]]:
+        window_start, window_end = _public_calendar_window(start, end)
+        with get_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                  r.start_time,
+                  r.end_time,
+                  r.status,
+                  r.checked_out_at,
+                  r.returned_at,
+                  c.plate_number,
+                  c.model
+                FROM reservations r
+                JOIN cars c ON c.id = r.car_id
+                WHERE r.start_time < ?
+                  AND r.end_time > ?
+                  AND (
+                    r.status = 'pending'
+                    OR (r.status = 'approved' AND r.returned_at IS NULL)
+                  )
+                ORDER BY r.start_time, c.plate_number
+                LIMIT 500
+                """,
+                (window_end, window_start),
+            ).fetchall()
+        items: list[dict[str, str]] = []
+        for row in rows:
+            status = (
+                "checked_out"
+                if row["status"] == "approved" and row["checked_out_at"] and not row["returned_at"]
+                else row["status"]
+            )
+            items.append(
+                {
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "status": status,
+                    "plate_number": row["plate_number"],
+                    "model": row["model"],
+                }
+            )
+        return {"items": items}
 
     return app
 

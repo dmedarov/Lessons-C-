@@ -62,7 +62,7 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Backup / restore drill | `Makefile`, `scripts/backup_postgres.sh`, `scripts/restore_postgres_drill.sh`, `docs/PRODUCTION_USER_GUIDE.md` | pass | Backup files outside git, custom PostgreSQL dump, restore test isolated from production volume | `make prod-backup` writes a `pg_dump --format=custom` file under ignored `backups/`; `make prod-restore-drill BACKUP=...` restores into project `fleetflow_restore_drill`, checks `alembic_version` and removes the temporary volume by default. |
 | User contact fields | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `schemas.py`, `routers/users.py`, `db.py`, `alembic/versions/20260420_0007_user_gsm_number.py` | pass | GSM is optional contact metadata, not auth; field has tel keyboard, max length guard and visible card text | Admin can enter optional GSM number when creating a user. API returns `gsm_number`, user cards show text-backed `GSM: ...`, and tests cover optional/too-long values. |
 | Fleet Intelligence Seed | `fleet_intelligence/`, `routers/reservations.py`, `routers/intelligence.py`, `static/app.js`, `static/styles.css`, `alembic/versions/20260420_0008_car_assignments.py` | pass | One primary booking action, explainable suggestions, no heavy BI surface | Quick-book uses best-car scoring and records assignment reason/score. Admin Fleet Pulse shows compact insights below the strip. Quick-book button is full-width/wrapping so text cannot overflow its card on narrow surfaces. |
-| Pre-login operational overview | `app.py`, `static/app.js`, `templates/index.html`, `templates/admin.html` | pass | Informative first screen, aggregate-only public data, no detailed record leakage | `/public/overview` powers pending/active/free counts before login. It returns only counts, while detailed reservations, users, telemetry and admin actions remain authenticated. |
+| Pre-login operational overview | `app.py`, `static/app.js`, `templates/index.html`, `templates/admin.html` | pass | Informative first screen, public orientation without private operations | `/public/overview` powers pending/active/free counts before login. `/public/calendar` powers calendar occupancy with status, plate number and model. Requester, purpose, GPS, reservation ids and actions remain authenticated. |
 
 ## Contrast Matrix To Automate
 
@@ -179,8 +179,8 @@ styles.
   `test-results/e2e/employee-mobile.png`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
-- `evidence`: latest local handoff check ran `pytest -q` -> 129 passed,
-  targeted UI/API/production readiness pack -> 39 passed,
+- `evidence`: latest local handoff check ran `pytest -q` -> 131 passed,
+  targeted UI/API/production readiness pack -> 41 passed,
   `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
   -> 1 passed, `node --check static/app.js`,
   `node --check static/i18n.js` and Python compile check for

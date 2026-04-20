@@ -253,6 +253,9 @@ operations assistant for internal mobility**, което е:
 - Pre-login public overview: `/public/overview` feeds the hero status bar with
   aggregate pending/active/available counts before login, while detailed
   operational records remain authenticated.
+- Pre-login public calendar: `/public/calendar` feeds month/day calendar
+  occupancy before login with status, plate number and model, while requester,
+  purpose, GPS, reservation ids and lifecycle actions remain authenticated.
 - NetFleet telemetry: server-side proxy reads latest GPS events by plate number
   from the admin-managed DB setting or `NETFLEET_API_KEY`; the key never
   reaches browser code and the UI never echoes the current secret. Admins see
@@ -274,8 +277,8 @@ operations assistant for internal mobility**, което е:
   request in production.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 129 passed,
-  targeted UI/API/production readiness pack -> 39 passed, Playwright browser
+- Latest local verification for this slice: `pytest -q` -> 131 passed,
+  targeted UI/API/production readiness pack -> 41 passed, Playwright browser
   smoke -> 1 passed with desktop/mobile screenshots, JS syntax checks and
   Python compile check. `make prod-check` fails fast when `.env` is missing in
   a clean checkout. Old `fleetflow_test` containers were removed, Docker stack

@@ -140,6 +140,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Pre-login status is now real: `/public/overview` exposes only aggregate
   counts so the first screen shows actual free cars, active trips and pending
   approvals without leaking detailed records.
+- Pre-login calendar is now real: `/public/calendar` exposes calendar
+  occupancy with status, registration number and model, while requester,
+  purpose, GPS, reservation ids and actions remain authenticated.
 - NetFleet latest GPS events are wired through an admin-only server-side proxy;
   employees can read pickup location only for their own approved/active trip.
   The key can be supplied by `.env` or saved once/changed from Admin UI as a
@@ -1745,7 +1748,9 @@ The quick-book button is now full-width and wrapping, so the Bulgarian label
 cannot overflow its container on narrow screens.
 The hero status bar now loads aggregate counts before login through
 `/public/overview`, keeping the first screen informative without exposing
-reservation rows, user names or plate-level details.
+reservation rows or user names. The calendar now loads anonymized operational
+slots through `/public/calendar`; registration number and model are visible for
+orientation, but requester, purpose, GPS, reservation ids and actions are not.
 
 - **Goal:** Predict useful defaults without "AI assistant" complexity.
 - **Initial rules:** conflict/blackout-safe quick booking, best-car scoring
@@ -1757,11 +1762,10 @@ reservation rows, user names or plate-level details.
   `routers/reservations.py`, `db.py`,
   `alembic/versions/20260420_0008_car_assignments.py`, `.env.example`,
   `docker-compose.yml`, `docker-compose.postgres.yml`
-- **Verification:** `pytest -q` -> 129 passed, targeted
-  UI/API/production readiness pack -> 39 passed, `node --check static/app.js`,
-  `node --check static/i18n.js` and Python compile check pass. Still needs
-  fresh browser screenshot evidence for the quick-book button wrap and admin
-  intelligence pulse cards.
+- **Verification:** `pytest -q` -> 131 passed, targeted
+  UI/API/production readiness pack -> 41 passed, `node --check static/app.js`,
+  `node --check static/i18n.js`, Python compile check and Playwright browser
+  smoke pass with refreshed desktop/mobile screenshots.
 
 ### 9.5 Applicability notes from premium wireframe
 
@@ -1933,8 +1937,8 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Pre-login overview shipped:** `/public/overview` returns only aggregate
   counts for active cars, pending approvals, active trips and free cars; the
   hero status bar uses those values before login.
-- **Verification:** `pytest -q` passes with 129 tests, targeted
-  UI/API/production readiness pack passes with 39 tests, Playwright browser
+- **Verification:** `pytest -q` passes with 131 tests, targeted
+  UI/API/production readiness pack passes with 41 tests, Playwright browser
   smoke passes with 1 test and screenshots, JS syntax checks and Python compile
   check pass. `make prod-check` fails fast when `.env` is missing in a clean
   checkout. Old `fleetflow_test` containers were removed, Docker stack was

@@ -167,6 +167,18 @@ def test_public_overview_feeds_pre_login_status_bar() -> None:
     assert 'kpiAvailable.querySelector(".stat-card__value").textContent = availableCars;' in app_js
 
 
+def test_public_calendar_feeds_pre_login_calendar_without_private_details() -> None:
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    assert "publicCalendar: []" in app_js
+    assert "function loadPublicCalendar()" in app_js
+    assert 'apiFetch(`/public/calendar?${publicCalendarParams().toString()}`)' in app_js
+    assert "const calendarItems = state.token ? state.reservations : state.publicCalendar;" in app_js
+    assert "const label = item.plate_number || (car ? car.plate_number" in app_js
+    assert "calendar.publicContext" in app_js
+    assert '"calendar.publicDetails": "Влез, за да видиш заявител, цел и действия."' in i18n_js
+
+
 def test_current_trip_hero_promotes_active_or_next_trip() -> None:
     html = _read("templates/index.html")
     app_js = _read("static/app.js")

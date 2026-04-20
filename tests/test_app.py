@@ -1013,6 +1013,53 @@ def test_public_overview_exposes_real_counts_without_auth(client: TestClient) ->
     }
 
 
+def test_public_calendar_exposes_anonymized_operational_slots_without_auth(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "calendar", "Calendar User", "CalendarPass123")
+    employee = _login(client, "calendar", "CalendarPass123")
+    car_id = _create_car(client, admin, plate="CB3714AA")
+    reservation_id = _create_reservation(
+        client,
+        car_id,
+        employee,
+        "2099-05-12T09:00:00+00:00",
+        "2099-05-12T11:00:00+00:00",
+        "Board visit",
+    )
+    approve = client.post(
+        f"/reservations/{reservation_id}/approve",
+        json={"reason": "Operational approval"},
+        headers=_auth(admin),
+    )
+    assert approve.status_code == 200, approve.text
+    start = client.post(
+        f"/reservations/{reservation_id}/start",
+        json={"note": "Handed over"},
+        headers=_auth(admin),
+    )
+    assert start.status_code == 200, start.text
+
+    res = client.get(
+        "/public/calendar",
+        params={
+            "start": "2099-05-01T00:00:00+00:00",
+            "end": "2099-06-01T00:00:00+00:00",
+        },
+    )
+    assert res.status_code == 200, res.text
+    item = res.json()["items"][0]
+    assert item == {
+        "start_time": "2099-05-12T09:00:00+00:00",
+        "end_time": "2099-05-12T11:00:00+00:00",
+        "status": "checked_out",
+        "plate_number": "CB3714AA",
+        "model": "Skoda Octavia",
+    }
+    assert "employee_name" not in item
+    assert "purpose" not in item
+    assert "id" not in item
+
+
 def test_reservation_suggest_skips_conflicting_car(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
     _create_user(client, admin, "busy", "Busy User", "BusyPass123")

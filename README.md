@@ -301,7 +301,8 @@ docker-compose.postgres.yml
 - `POST /auth/logout` → ревокира текущия refresh token и изчиства cookie-то.
 - `GET /auth/me` → връща текущия user context.
 - `GET /health/ready` → публичен readiness probe, който проверява DB връзката.
-- `GET /public/overview` → публични aggregate counts за hero status bar-а преди login; не връща имена, регистрационни номера, потребители или резервации.
+- `GET /public/overview` → публични aggregate counts за hero status bar-а преди login.
+- `GET /public/calendar?start=&end=` → публични календарни слотове преди login със статус, регистрационен номер и модел; не връща заявител, цел, GPS, reservation id или действия.
 - `GET /ops/readiness` → само `fleet_admin`; връща production preflight статус без secret values.
 - Всеки защитен endpoint очаква `Authorization: Bearer <token>`.
 - Токените са **HMAC-SHA256 подписани** с `SECRET_KEY`, имат `exp` и се re-bind-ват към live user state при всяка заявка.
@@ -358,7 +359,7 @@ docker-compose.postgres.yml
 25. **User contact data** — email и GSM номер се пазят в user профила за operational coordination, без да участват в login/auth.
 26. **Structured production logs** — access logs са JSON в production и съдържат request id, route, status и latency без secret values.
 27. **Explainable fleet intelligence first** — quick-book uses a thin rules/metrics layer and records `car_assignments`; snapshot tables/jobs stay future work until production usage proves the need.
-28. **Public counts, private details** — pre-login UI may show aggregate fleet counts for frictionless orientation, but detailed cars/reservations/users stay behind auth.
+28. **Public orientation, private operations** — pre-login UI may show fleet counts and calendar occupancy with plate/model for frictionless orientation; users, trip purpose, GPS, reservation ids and lifecycle actions stay behind auth.
 
 ## Тестове
 
@@ -388,7 +389,7 @@ Admin Decision Rail, Fleet Pulse copy и mobile calendar, после запис�
 `test-results/` е игнориран от git.
 
 Последна локална проверка за request-first/admin-lifecycle/production-readiness пакета:
-`pytest -q` -> 129 passed, targeted UI/API/production readiness pack -> 39 passed,
+`pytest -q` -> 131 passed, targeted UI/API/production readiness pack -> 41 passed,
 `node --check static/app.js`, `node --check static/i18n.js`,
 `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile app.py db.py routers/reservations.py routers/intelligence.py fleet_intelligence/*.py tests/test_app.py tests/test_ui_compliance.py`,
 и `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`

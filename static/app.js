@@ -34,6 +34,7 @@ const state = {
   reservations: [],
   pulseReservations: [],
   publicOverview: null,
+  publicCalendar: [],
   notifications: [],
   telemetry: [],
   telemetryConfigured: false,
@@ -50,6 +51,7 @@ const state = {
     reservations: false,
     pulseReservations: false,
     publicOverview: false,
+    publicCalendar: false,
     intelligencePulse: false,
     notifications: false,
     telemetry: false,
@@ -691,7 +693,7 @@ function lifecycleMeter(item) {
 }
 
 function calendarPill(item, car) {
-  const label = car ? car.plate_number : `Car ${item.car_id}`;
+  const label = item.plate_number || (car ? car.plate_number : `Car ${item.car_id}`);
   return `<span class="calendar-pill calendar-pill--${item.status}">${escapeHtml(label)}</span>`;
 }
 
@@ -705,7 +707,8 @@ function telemetryByPlate() {
 
 function dayMap() {
   const map = new Map();
-  state.reservations.forEach((item) => {
+  const calendarItems = state.token ? state.reservations : state.publicCalendar;
+  calendarItems.forEach((item) => {
     const key = dateKey(new Date(item.start_time));
     const list = map.get(key) || [];
     list.push(item);
@@ -2236,19 +2239,29 @@ function renderDayTimeline() {
 
   selectedItems.forEach((item) => {
     const car = cars.get(item.car_id);
+    const publicCarLabel = item.plate_number
+      ? `${item.plate_number}${item.model ? ` · ${item.model}` : ""}`
+      : null;
+    const carLabel = publicCarLabel || (car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id }));
+    const contextLine = state.token
+      ? escapeHtml(item.employee_name)
+      : escapeHtml(t("calendar.publicContext"));
+    const purposeLine = state.token
+      ? escapeHtml(item.purpose || "Без уточнена цел")
+      : escapeHtml(t("calendar.publicDetails"));
     const card = document.createElement("article");
     card.className = "timeline-item";
     card.innerHTML = `
       <div class="timeline-item__top">
         <div>
-          <strong>${escapeHtml(car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id }))}</strong>
-          <p class="muted">${escapeHtml(item.employee_name)}</p>
+          <strong>${escapeHtml(carLabel)}</strong>
+          <p class="muted">${contextLine}</p>
         </div>
         ${statusTag(item.status)}
       </div>
       <p>${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</p>
       ${lifecycleMeter(item)}
-      <p>${escapeHtml(item.purpose || "Без уточнена цел")}</p>
+      <p>${purposeLine}</p>
     `;
     els.dayTimeline.appendChild(card);
   });
@@ -2368,8 +2381,7 @@ async function loadReservations() {
   if (!state.token) {
     state.reservations = [];
     renderReservations();
-    renderCalendar();
-    renderDayTimeline();
+    await loadPublicCalendar();
     return;
   }
 
@@ -2421,6 +2433,42 @@ async function loadPublicOverview() {
   } finally {
     setLoading("publicOverview", false);
     updateOverview();
+  }
+}
+
+function publicCalendarParams() {
+  const monthStart = startOfMonth(state.calendarDate);
+  const firstDay = new Date(monthStart);
+  const weekday = (firstDay.getDay() + 6) % 7;
+  firstDay.setDate(firstDay.getDate() - weekday);
+  const lastDay = addDays(firstDay, 42);
+  const params = new URLSearchParams();
+  params.set("start", firstDay.toISOString());
+  params.set("end", lastDay.toISOString());
+  return params;
+}
+
+async function loadPublicCalendar() {
+  if (state.token) {
+    state.publicCalendar = [];
+    renderCalendar();
+    renderDayTimeline();
+    return;
+  }
+
+  setLoading("publicCalendar", true);
+  renderCalendar();
+  renderDayTimeline();
+  try {
+    const data = await apiFetch(`/public/calendar?${publicCalendarParams().toString()}`);
+    state.publicCalendar = data.items || [];
+  } catch (error) {
+    state.publicCalendar = [];
+    console.warn("Public calendar failed", error);
+  } finally {
+    setLoading("publicCalendar", false);
+    renderCalendar();
+    renderDayTimeline();
   }
 }
 
@@ -2941,7 +2989,9 @@ async function handleLogout() {
   state.notifications = [];
   state.reservations = [];
   state.pulseReservations = [];
+  state.publicCalendar = [];
   await loadPublicOverview();
+  await loadPublicCalendar();
   state.telemetry = [];
   state.telemetryConfigured = false;
   state.intelligencePulse = null;
@@ -3670,24 +3720,35 @@ bind(els.bulkSelectAll, "change", (event) => {
 bind(els.monthPrev, "click", () => {
   if (mobileCalendarMedia.matches) {
     setSelectedDate(dateKey(addDays(localDateFromKey(state.selectedDateKey), -1)));
+    if (!state.token) loadPublicCalendar().catch((error) => console.warn("Public calendar failed", error));
     return;
   }
   state.calendarDate = addMonths(state.calendarDate, -1);
-  renderCalendar();
+  if (!state.token) {
+    loadPublicCalendar().catch((error) => console.warn("Public calendar failed", error));
+  } else {
+    renderCalendar();
+  }
 });
 
 bind(els.monthNext, "click", () => {
   if (mobileCalendarMedia.matches) {
     setSelectedDate(dateKey(addDays(localDateFromKey(state.selectedDateKey), 1)));
+    if (!state.token) loadPublicCalendar().catch((error) => console.warn("Public calendar failed", error));
     return;
   }
   state.calendarDate = addMonths(state.calendarDate, 1);
-  renderCalendar();
+  if (!state.token) {
+    loadPublicCalendar().catch((error) => console.warn("Public calendar failed", error));
+  } else {
+    renderCalendar();
+  }
 });
 
 bind(els.todayFocus, "click", () => {
   state.calendarDate = startOfMonth(new Date());
   setSelectedDate(dateKey(new Date()));
+  if (!state.token) loadPublicCalendar().catch((error) => console.warn("Public calendar failed", error));
 });
 
 wireToolbar(document.querySelectorAll("[data-car-filter]"), "carFilter", loadCars);

@@ -41,6 +41,8 @@ const bg = {
   "calendar.mobileHint": "Дневен mobile изглед. Използвай стрелките за съседни дни.",
   "calendar.previousDay": "Предишен ден",
   "calendar.nextDay": "Следващ ден",
+  "calendar.publicContext": "Публична заетост преди вход",
+  "calendar.publicDetails": "Влез, за да видиш заявител, цел и действия.",
   "conflict.idleTitle": "Проверка за заетост",
   "conflict.idleBody": "Избери автомобил, начало и край, за да видиш конфликти предварително.",
   "conflict.loadingTitle": "Проверявам прозореца",
