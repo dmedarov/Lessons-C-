@@ -1252,8 +1252,17 @@ def test_health_and_ui(client: TestClient) -> None:
     assert admin_res.status_code == 200
     assert "text/html" in res.headers["content-type"]
     assert "text/html" in admin_res.headers["content-type"]
-    assert "/static/i18n.js" in res.text
-    assert "/static/i18n.js" in admin_res.text
+    assert "/static/i18n.js?v=" in res.text
+    assert "/static/i18n.js?v=" in admin_res.text
+    assert "/static/app.js?v=" in res.text
+    assert "/static/app.js?v=" in admin_res.text
+    assert "/static/styles.css?v=" in res.text
+    assert "/static/styles.css?v=" in admin_res.text
+    assert res.headers["cache-control"] == "no-cache, must-revalidate"
+    assert admin_res.headers["cache-control"] == "no-cache, must-revalidate"
+    assert client.get("/static/i18n.js").headers["cache-control"] == "no-cache, must-revalidate"
+    assert client.get("/static/app.js").headers["cache-control"] == "no-cache, must-revalidate"
+    assert client.get("/static/styles.css").headers["cache-control"] == "no-cache, must-revalidate"
     assert 'id="notificationBadge"' in res.text
     assert 'id="notificationBadge"' in admin_res.text
     assert 'id="bootstrapToken"' in res.text

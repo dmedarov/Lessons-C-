@@ -322,7 +322,7 @@ operations assistant for internal mobility**, което е:
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
   Alembic revision `20260420_0009`.
 - Latest go-live gate verification: `pytest tests/test_prod_readiness.py -q`
-  -> 7 passed, `make qa-premium` -> 149 pytest cases + 12 browser checks,
+  -> 7 passed, `make qa-premium` -> 150 pytest cases + 12 browser checks,
   and `make smoke-live APP_URL=http://127.0.0.1:8001` returned
   health/ready/active-admin/public overview from the running PostgreSQL stack.
 - Latest calm-flow verification: Playwright captures responsive density
@@ -341,6 +341,10 @@ operations assistant for internal mobility**, което е:
   uses container-width layout, so the day panel drops below the month grid when
   the calendar card itself is narrow even on a wider browser window, and empty
   selected days point to the next day with work instead of becoming a dead end.
+- Static asset cache guard: templates now use versioned `/static/*.css/js`
+  URLs and the app sends `Cache-Control: no-cache, must-revalidate` for HTML,
+  CSS and JS, preventing stale `i18n.js` from showing raw translation keys
+  after deploy.
 
 ## Go-Live Plan
 

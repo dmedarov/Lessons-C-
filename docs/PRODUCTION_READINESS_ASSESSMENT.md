@@ -41,6 +41,8 @@ UI guardrails, backup/restore discipline и browser evidence са достатъ
   да се свиват между датите.
 - Празен избран ден в календара вече предлага следващия ден със запис, вместо
   да оставя статично empty state съобщение.
+- Static assets имат versioned URLs и `no-cache` headers, така че production
+  deploy не оставя стар `i18n.js` в браузъра с raw translation keys.
 - Reception и admin получават top next signal за просрочено връщане преди
   pending approvals, защото това е по-спешен operational риск.
 
@@ -79,7 +81,7 @@ UI guardrails, backup/restore discipline и browser evidence са достатъ
 - Targeted Playwright admin destructive recovery -> 1 passed.
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
 - Full Playwright smoke -> 12 passed.
-- `make qa-premium` -> dependency audit, Python compile, 149 pytest cases,
+- `make qa-premium` -> dependency audit, Python compile, 150 pytest cases,
   JS syntax and 12 Playwright browser checks passed.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> `/health`,
   `/health/ready`, `/auth/setup-status` and `/public/overview` passed.
@@ -105,7 +107,9 @@ reliable flows:
 - calendar month grid switches to a full-width layout by container width before
   cells become cramped;
 - empty selected calendar days point to the next busy date instead of ending
-  the flow.
+  the flow;
+- HTML/CSS/JS cache headers and versioned asset URLs prevent stale i18n bundles
+  from leaking raw translation keys after deployment.
 
 The remaining UX risk before broad rollout is not a missing module; it is
 operational observation. Use the first week to collect where employees,

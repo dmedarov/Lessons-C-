@@ -463,6 +463,9 @@ FleetFlow трябва да се усеща като тих operational cockpit.
   календарен контейнер, така че day panel-ът не смалява записите до
   нечетимост на tablet/small desktop. Ако избраният ден е празен, панелът
   предлага следващия ден със запис вместо да оставя потребителя в dead end.
+- **Static assets:** HTML, CSS и JS се сервират с `no-cache` guard, а
+  templates използват versioned static URLs, за да не се показват i18n ключове
+  от стар browser cache след deploy.
 - **Public pre-login:** показва реални aggregate counts и календарна заетост
   без заявител, GSM, GPS, reservation id или lifecycle действия.
 
@@ -505,7 +508,7 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Последна premium QA проверка:
-`make qa-premium` -> passed (dependency audit, Python compile, 149 pytest
+`make qa-premium` -> passed (dependency audit, Python compile, 150 pytest
 cases, JS syntax, 12 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от

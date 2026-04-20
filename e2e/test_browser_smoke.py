@@ -442,6 +442,8 @@ def test_public_orientation_surface(browser: Browser, server: str, artifact_dir:
     expect(page.locator("#kpiActive .stat-card__value")).to_have_text("0")
     expect(page.locator("#kpiAvailable .stat-card__value")).to_have_text("5")
     expect(page.locator("#calendarStudio")).to_be_visible()
+    expect(page.locator("body")).not_to_contain_text("calendar.calmDayTitle")
+    expect(page.locator("body")).not_to_contain_text("calendar.nextBusyDay")
     page.screenshot(path=artifact_dir / "public-mobile.png", full_page=True)
 
     page.goto(f"{server}/admin", wait_until="domcontentloaded")

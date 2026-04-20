@@ -196,6 +196,9 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Final go-live command is now first-class: `make go-live-check APP_URL=...`
   requires generated production env, a fresh restore-drill evidence marker,
   local release gates and live smoke before real use.
+- Static asset deploy guard is shipped: `/`, `/admin` and `/static/*.css/js`
+  responses are `no-cache, must-revalidate`, and both templates use versioned
+  asset URLs so stale browser cache cannot leave raw i18n keys on screen.
 - Current production-readiness assessment is **90/100 for a controlled
   internal pilot** after final real `.env`, real domain/CORS, backup/restore
   drill, NetFleet verification and `make go-live-check APP_URL=<production-url>`.
@@ -2190,13 +2193,29 @@ If time is limited, execute items 1-4 before any new feature work.
   now all describe the same calm handoff flow and production status.
 - **Verification:** `tests/test_ui_compliance.py` -> 36 passed; targeted
   Playwright reception/calendar + overdue signal -> 2 passed; `make
-  qa-premium` -> dependency audit, Python compile, 149 pytest cases, JS syntax
+  qa-premium` -> dependency audit, Python compile, 150 pytest cases, JS syntax
   and 12 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed. Follow-up mid-width calendar fix was rechecked with `node --check`,
   `tests/test_ui_compliance.py` -> 36 passed, targeted Playwright reception
   calendar/overdue signal -> 2 passed, and full `make qa-premium` -> 149
   pytest cases + 12 Playwright checks.
+
+### 2026-04-21 - Static asset cache guard for i18n correctness
+
+- **Goal:** Prevent Safari/production browser cache from showing raw i18n keys
+  such as `calendar.calmDayTitle` after a deploy.
+- **Backend:** request middleware now sets `Cache-Control: no-cache,
+  must-revalidate` for `/`, `/admin` and `/static/*.css/js`.
+- **Templates:** `styles.css`, `i18n.js`, `app.js` and `theme.js` are loaded
+  with a version query string so existing browser caches fetch the current
+  bundle immediately.
+- **UX guard:** public browser smoke asserts the page does not display
+  `calendar.calmDayTitle` or `calendar.nextBusyDay`.
+- **Verification:** `node --check static/app.js`, `node --check
+  static/i18n.js`, `tests/test_ui_compliance.py` + `test_health_and_ui` -> 38
+  passed; full `make qa-premium` -> dependency audit, Python compile, 150
+  pytest cases, JS syntax and 12 Playwright browser checks.
 
 ### 2026-04-21 - Final go-live gate and docs review
 

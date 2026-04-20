@@ -30,6 +30,8 @@ SECURITY_HEADERS = {
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
 }
 
+NO_CACHE_ASSET_EXTENSIONS = (".css", ".js")
+
 
 def _admin_exists_on_startup() -> bool:
     with get_conn() as conn:
@@ -77,6 +79,11 @@ def create_app() -> FastAPI:
             response.headers["X-Request-ID"] = request_id
             for header, value in SECURITY_HEADERS.items():
                 response.headers.setdefault(header, value)
+            if request.url.path in {"/", "/admin"} or (
+                request.url.path.startswith("/static/")
+                and request.url.path.endswith(NO_CACHE_ASSET_EXTENSIONS)
+            ):
+                response.headers["Cache-Control"] = "no-cache, must-revalidate"
             return response
         finally:
             route = getattr(request.scope.get("route"), "path", request.url.path)

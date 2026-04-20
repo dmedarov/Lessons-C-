@@ -50,6 +50,20 @@ def test_mobile_rail_respects_safe_area() -> None:
     assert "bottom: max(8px, env(safe-area-inset-bottom));" in styles
 
 
+def test_static_assets_are_cache_busted_in_templates() -> None:
+    app_py = _read("app.py")
+    assert 'response.headers["Cache-Control"] = "no-cache, must-revalidate"' in app_py
+    assert "NO_CACHE_ASSET_EXTENSIONS" in app_py
+    for template in ("templates/index.html", "templates/admin.html"):
+        html = _read(template)
+        assert "/static/styles.css?v=20260421-calendar-cache" in html
+        assert "/static/i18n.js?v=20260421-calendar-cache" in html
+        assert "/static/app.js?v=20260421-calendar-cache" in html
+        assert "/static/theme.js?v=20260421-calendar-cache" in html
+        assert 'src="/static/i18n.js"' not in html
+        assert 'src="/static/app.js"' not in html
+
+
 def test_message_alerts_use_theme_classes_not_inline_colors() -> None:
     app_js = _read("static/app.js")
     styles = _read("static/styles.css")
