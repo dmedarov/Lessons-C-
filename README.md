@@ -45,7 +45,7 @@
 - Timeline-first reservations: employee/approver/reception/admin виждат lifecycle cards преди таблицата, с действия само според ролята и secondary table fallback.
 - Role-aware calendar: operational календарът за `fleet_reception` показва approved handoffs и active returns от глобалния snapshot, независимо от филтъра на таблицата.
 - Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола, `X/Y` свежи GPS позиции и compact Fleet Intelligence insight-и.
-- NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а. UI показва last-seen/freshness label, за да е ясно дали локацията е надеждна за вземане на автомобила; reception вижда локация за approved/active handoff коли.
+- NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а. UI показва last-seen/freshness label, разграничава "ключът липсва" от "NetFleet временно не отговаря" и прави ясно дали локацията е надеждна за вземане на автомобила; reception вижда локация за approved/active handoff коли.
 - Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string.
 - Pickup location: служителят вижда къде да вземе колата само за своя одобрена/активна резервация.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
@@ -187,9 +187,17 @@ make prod-check
 
 Текущата go-live оценка е в
 [`docs/PRODUCTION_READINESS_ASSESSMENT.md`](docs/PRODUCTION_READINESS_ASSESSMENT.md).
-Краткият извод: **90/100 за контролиран вътрешен pilot** след real `.env`,
+Краткият извод: **91/100 за контролиран вътрешен pilot** след real `.env`,
 fresh backup/restore drill, `make go-live-check APP_URL=<production-url>` и
 директна проверка на GitHub Dependabot alert-а.
+Пътят до честни **99/100** минава през реален production URL rehearsal,
+fresh restore-drill evidence, проверен Dependabot alert, минимум двама active
+admins, реален CORS домейн, наблюдавана NetFleet връзка и първа седмица
+операторско наблюдение без high-severity UX дефекти.
+Пълният 99/100 gate е отделен в
+[`docs/PRODUCTION_READINESS_ASSESSMENT.md`](docs/PRODUCTION_READINESS_ASSESSMENT.md)
+и tactical checklist-а в
+[`ROADMAP_IMPROVEMENTS.md`](ROADMAP_IMPROVEMENTS.md).
 
 Полезни production команди:
 

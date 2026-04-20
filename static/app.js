@@ -39,6 +39,7 @@ const state = {
   notifications: [],
   telemetry: [],
   telemetryConfigured: false,
+  telemetryError: false,
   handoffTelemetry: {},
   intelligencePulse: null,
   netfleetConfig: null,
@@ -1278,10 +1279,12 @@ function renderFleetPulse() {
     },
     {
       label: t("fleetPulse.telemetry"),
-      value: state.telemetryConfigured ? `${fleetTelemetryCount}/${fleetTelemetryTotal}` : "—",
-      detail: t(state.telemetryConfigured
-        ? (fleetTelemetryCount ? "fleetPulse.telemetryDetail" : "fleetPulse.telemetryEmpty")
-        : "fleetPulse.telemetryNotConfigured", {
+      value: state.telemetryError ? t("fleetPulse.telemetryValueUnavailable") : state.telemetryConfigured ? `${fleetTelemetryCount}/${fleetTelemetryTotal}` : "—",
+      detail: t(state.telemetryError
+        ? "fleetPulse.telemetryUnavailable"
+        : state.telemetryConfigured
+          ? (fleetTelemetryCount ? "fleetPulse.telemetryDetail" : "fleetPulse.telemetryEmpty")
+          : "fleetPulse.telemetryNotConfigured", {
           count: fleetTelemetryCount,
           total: fleetTelemetryTotal,
         }),
@@ -2939,6 +2942,7 @@ async function loadTelemetry() {
   if (!state.token || !isFullAdmin()) {
     state.telemetry = [];
     state.telemetryConfigured = false;
+    state.telemetryError = false;
     renderFleetPulse();
     renderCars();
     return;
@@ -2949,10 +2953,22 @@ async function loadTelemetry() {
   try {
     const data = await apiFetch("/cars/telemetry/latest", { headers: authHeaders() });
     state.telemetryConfigured = Boolean(data.configured);
+    state.telemetryError = false;
     state.telemetry = data.items || [];
   } catch (error) {
     state.telemetry = [];
-    state.telemetryConfigured = false;
+    let configured = state.netfleetConfig?.configured;
+    if (configured === undefined) {
+      try {
+        state.netfleetConfig = await apiFetch("/cars/telemetry/config", { headers: authHeaders() });
+        configured = state.netfleetConfig?.configured;
+        renderNetfleetConfig();
+      } catch (configError) {
+        console.warn("NetFleet config check failed after telemetry error", configError);
+      }
+    }
+    state.telemetryConfigured = Boolean(configured);
+    state.telemetryError = Boolean(configured);
     console.warn("NetFleet telemetry failed", error);
   } finally {
     setLoading("telemetry", false);
@@ -3500,6 +3516,7 @@ async function handleLogout() {
   await loadPublicCalendar();
   state.telemetry = [];
   state.telemetryConfigured = false;
+  state.telemetryError = false;
   state.handoffTelemetry = {};
   state.intelligencePulse = null;
   state.netfleetConfig = null;

@@ -7,7 +7,7 @@
 FleetFlow е готов за **контролиран вътрешен production pilot**, след като
 операторските cutover условия бъдат изпълнени върху реалния deployment.
 
-Оценка: **90/100 за контролиран pilot**.
+Оценка: **91/100 за контролиран pilot**.
 
 Оценка за unattended/full rollout: **не още**. Преди това трябва да има реален
 production URL rehearsal, преглед на GitHub Dependabot alert-а и поне няколко
@@ -16,6 +16,80 @@ production URL rehearsal, преглед на GitHub Dependabot alert-а и по
 Това не е "няма какво да се счупи" оценка. Това е: core процесите, ролите,
 UI guardrails, backup/restore discipline и browser evidence са достатъчно
 зрели за първа реална употреба с внимателен операторски cutover.
+
+## 99/100 Premium Robust Production Gate
+
+99/100 не трябва да се отбелязва само от локални тестове. Това е праг за
+реално, спокойно и устойчиво production ползване. За да се вдигне оценката от
+pilot-ready към 99/100, трябва всички точки по-долу да са доказани:
+
+1. **Production environment**
+   - real `.env` е генериран с `make setup` и няма dev/default secret-и;
+   - `APP_ENV=production`;
+   - `CORS_ALLOW_ORIGINS` съдържа реалния домейн, без wildcard/example;
+   - `DATABASE_URL` сочи към PostgreSQL с реалната генерирана парола;
+   - `DEMO_SEED` е изключен.
+
+2. **Final cutover gate**
+   - `make prod-check` е зелен;
+   - има свеж `make prod-backup`;
+   - `make prod-restore-drill BACKUP=<backup-file>` е минал успешно;
+   - `make go-live-check APP_URL=<production-url>` е зелен срещу реалния URL;
+   - Docker stack-ът е rebuild-нат и няма стари FleetFlow контейнери/volumes,
+     които обслужват стар код.
+
+3. **People and roles**
+   - има минимум двама active `fleet_admin`;
+   - има отделен `fleet_approver`, ако процесът иска отделно одобрение;
+   - има отделен `fleet_reception`, ако ключове/документи се предават на
+     рецепция;
+   - employee потребител не може да остане на `/admin`;
+   - requester GSM се вижда само в authenticated operational surfaces.
+
+4. **End-to-end role rehearsal**
+   - employee подава заявка;
+   - approver одобрява/отказва с reason recovery;
+   - reception стартира курс след ключове/документи;
+   - reception връща автомобил;
+   - admin вижда audit/notifications/readiness без secret leakage;
+   - календарите показват active/pending/approved occupancy правилно преди и
+     след login.
+
+5. **NetFleet and pickup clarity**
+   - NetFleet ключът е добавен през Admin UI или runtime env;
+   - Fleet Pulse показва fresh/stale/unavailable state коректно;
+   - employee вижда pickup location само за своя одобрена/активна заявка;
+   - reception вижда scoped location за approved/active handoff коли;
+   - ако доставчикът не отговаря, UI показва **Няма връзка**, не "липсва ключ".
+
+6. **Notification and recovery discipline**
+   - in-app notifications не се трупат като шум след прочитане;
+   - returned/rejected/cancelled записи не доминират текущия employee flow;
+   - destructive actions имат keyboard/Escape recovery evidence;
+   - invalid forms фокусират точния проблем и пазят въведения текст.
+
+7. **Security and dependency closure**
+   - GitHub Dependabot alert-ът е отворен, записан и resolved или explicitly
+     accepted;
+   - `make audit-prod`/production dependency audit е зелен или има документирано
+     решение;
+   - browser-facing assets не съдържат NetFleet API key, database URL или secret.
+
+8. **Accessibility and responsive evidence**
+   - `make qa-premium` е зелен;
+   - desktop/tablet/mobile screenshots са прегледани за overlap, density и
+     календарни записи;
+   - manual screen-reader smoke е направен за login, booking, approve/reject,
+     start/return и NetFleet unavailable copy;
+   - contrast evidence остава зелен в light/dark mode.
+
+9. **First monitored production week**
+   - има човек, който следи първите реални заявки;
+   - всички high-severity UX дефекти се фиксират преди broad rollout;
+   - няма lost reservation, wrong-role action, missing pickup location или
+     misleading readiness/NetFleet status;
+   - след първата седмица се актуализират README, ROADMAP, ROADMAP_IMPROVEMENTS
+     и този документ с реалните наблюдения.
 
 ## Green areas
 
@@ -29,6 +103,8 @@ UI guardrails, backup/restore discipline и browser evidence са достатъ
 - Pre-login surface показва полезна заетост без requester, GSM, GPS или
   lifecycle действия.
 - NetFleet ключът е server-side/admin-managed и не стига до browser assets.
+- Fleet Pulse различава неконфигуриран NetFleet от конфигуриран ключ с
+  временно недостъпен live GPS доставчик.
 - Reception и employee виждат GPS само в scoped pickup/handoff контекст.
 - Production setup е опростен: `make setup`, `make prod`, `make go-live-check`.
 - Backup/restore drill е част от финалния gate.
@@ -85,7 +161,9 @@ UI guardrails, backup/restore discipline и browser evidence са достатъ
 - Full Playwright smoke -> 12 passed.
 - `make qa-premium` -> dependency audit, Python compile, 151 pytest cases,
   JS syntax and 12 Playwright browser checks passed.
-- `make smoke-live APP_URL=http://127.0.0.1:8001` -> `/health`,
+- PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
+  containers are healthy.
+- `make smoke-live APP_URL=http://127.0.0.1:8001` after rebuild -> `/health`,
   `/health/ready`, `/auth/setup-status` and `/public/overview` passed.
 - `make prod-check` in the source checkout -> blocked as expected because
   `.env` is missing.
@@ -128,6 +206,11 @@ Go for controlled pilot when:
 - the GitHub Dependabot alert is inspected and resolved/accepted explicitly;
 - there are at least two active admins;
 - NetFleet key is configured or consciously postponed;
+
+99/100 е честна цел едва след реален production URL rehearsal, свеж
+backup/restore drill evidence, проверен GitHub Dependabot alert, минимум двама
+active admins, реален CORS домейн, потвърден NetFleet сигнал в работната мрежа
+и първа седмица наблюдение без high-severity flow дефекти.
 - reception has rehearsed start/return with one real approved reservation.
 
 No-go if:

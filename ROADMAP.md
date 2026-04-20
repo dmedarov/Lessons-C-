@@ -347,6 +347,12 @@ operations assistant for internal mobility**, което е:
   after deploy. Literal `t("...")` keys are now checked against
   `static/i18n.js`, and runtime missing-translation fallback avoids exposing
   implementation keys to users.
+- NetFleet production UX guard: Fleet Pulse now distinguishes missing API key
+  from configured-but-unavailable live GPS, and shows text-backed
+  `Няма връзка` instead of a symbol-only warning.
+- Current tracked size: 14,296 production app/script/template/style lines,
+  19,293 code lines including automated tests/e2e, and 24,808 tracked project
+  lines including docs/config/workflows.
 
 ## Go-Live Plan
 
@@ -360,7 +366,10 @@ operations assistant for internal mobility**, което е:
    `make go-live-check APP_URL=<production-url>`.
 4. Execute one real rehearsal: employee request -> approver decision ->
    reception start -> reception return -> employee notification review.
-5. After go-live, collect operator friction for one week before adding heavier
+5. Treat 99/100 production readiness as external-evidence gated: production URL
+   rehearsal, fresh restore-drill marker, checked Dependabot alert, real CORS
+   domain, at least two active admins and observed NetFleet connectivity.
+6. After go-live, collect operator friction for one week before adding heavier
    Fleet Intelligence snapshots or new modules.
 
 ## Codebase Analysis: 2026-04-20

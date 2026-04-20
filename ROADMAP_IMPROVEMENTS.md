@@ -66,7 +66,7 @@ templates/
   index.html                 employee surface
   admin.html                 admin surface
 static/
-  app.js                     4374-line SPA logic; split before next large UI package
+  app.js                     4391-line SPA logic; split before next large UI package
   i18n.js                    Bulgarian UI copy dictionary + interpolation
   styles.css                 3233-line design system stylesheet with responsive cockpit UI
 alembic/                     migration scripts
@@ -202,9 +202,13 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   Missing literal `t("...")` keys are now a UI compliance test failure, and
   runtime missing translations fall back to Bulgarian neutral copy rather than
   raw implementation keys.
-- Current production-readiness assessment is **90/100 for a controlled
+- Current production-readiness assessment is **91/100 for a controlled
   internal pilot** after final real `.env`, real domain/CORS, backup/restore
   drill, NetFleet verification and `make go-live-check APP_URL=<production-url>`.
+  The honest path to **99/100** is external-evidence gated: production URL
+  rehearsal, fresh restore-drill marker, checked Dependabot alert, real CORS
+  domain, two active admins, observed NetFleet connectivity and one monitored
+  production week without high-severity role-flow defects.
 
 ### Active product gaps
 
@@ -226,7 +230,7 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
 - The monolithic `static/app.js` should be split before the frontend grows much
-  further; it is now 4374 lines and `static/styles.css` is 3233 lines.
+  further; it is now 4391 lines and `static/styles.css` is 3233 lines.
 - `routers/reservations.py` is now 964 lines and carries too many concerns:
   creation, conflict checks, lifecycle transitions, suggestions, bulk decisions,
   listing and export. Keep endpoints stable, but extract service modules before
@@ -235,6 +239,43 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   PostgreSQL smoke, while production also uses Alembic. Add schema parity tests
   before the next database-heavy slice so bootstrap SQL, runtime upgrades and
   Alembic head cannot drift silently.
+
+### 99/100 Premium Robust Production Gate
+
+This is the exact gate for upgrading the readiness claim from controlled pilot
+to 99/100 premium robust production. Do not mark it done from local tests alone.
+
+1. **Real production environment:** generated secrets, `APP_ENV=production`,
+   PostgreSQL `DATABASE_URL` with the generated password, real domain in
+   `CORS_ALLOW_ORIGINS`, demo seed disabled.
+2. **Executable cutover proof:** `make prod-check`, fresh backup, successful
+   restore drill, `make go-live-check APP_URL=<production-url>` against the
+   real domain, and no stale FleetFlow containers serving old code.
+3. **Role safety:** at least two active admins, separate approver/reception
+   users where the business process needs them, employee `/admin` denial proven,
+   requester GSM hidden from public surfaces.
+4. **Role rehearsal:** employee request -> approver decision -> reception
+   start -> reception return -> admin audit/readiness review, with calendar and
+   next-signal surfaces checked before/after login.
+5. **NetFleet clarity:** key configured, scoped employee/reception pickup
+   location works, stale/unavailable states are understood, and configured-but-
+   unavailable provider state shows `Няма връзка`.
+6. **Noise control:** read notifications stay out of the default stream,
+   returned/rejected/cancelled records do not dominate current employee work,
+   overdue returns remain top priority for reception/admin.
+7. **Recovery evidence:** destructive actions, invalid form fields and keyboard
+   escape paths have browser evidence for employee/approver/reception/admin.
+8. **Security closure:** Dependabot alert inspected and resolved or explicitly
+   accepted; production dependency audit is green or documented.
+9. **Accessibility proof:** `make qa-premium`, manual screen-reader smoke for
+   the critical flows, reviewed desktop/tablet/mobile screenshots, light/dark
+   contrast evidence.
+10. **Monitored first week:** no lost reservation, wrong-role action, missing
+    pickup location or misleading readiness/NetFleet status; update all handoff
+    docs from real usage.
+
+Only after all ten are true should future agents change
+`docs/PRODUCTION_READINESS_ASSESSMENT.md` above 91/100.
 - The last visible GitHub security banner pointed at the Docker base image;
   FleetFlow now builds on a Chainguard Python runtime with local Docker Scout
   `0C/0H/0M/0L`, but GitHub Security must be rechecked after push to confirm
@@ -2163,6 +2204,29 @@ If time is limited, execute items 1-4 before any new feature work.
 
 ## Done
 
+### 2026-04-21 - NetFleet unavailable state and production score calibration
+
+- **Goal:** Remove ambiguity from live GPS readiness and document the honest
+  path from pilot readiness to 99/100 production confidence.
+- **UX:** Fleet Pulse now distinguishes three states: NetFleet key missing,
+  configured with fresh/stale GPS counts, and configured but temporarily
+  unavailable. The unavailable state shows text-backed `Няма връзка`, not a
+  symbol-only warning.
+- **Production assessment:** current readiness is **91/100 for a controlled
+  internal pilot**. 99/100 remains gated by real production URL rehearsal,
+  fresh backup/restore drill evidence, checked Dependabot alert, real CORS
+  domain, at least two active admins, observed NetFleet connectivity and one
+  monitored live week without high-severity flow defects.
+- **Code size snapshot:** 14,296 production app/script/template/style lines;
+  19,293 code lines with automated tests/e2e; 24,808 tracked project lines
+  including docs/config/workflows.
+- **Verification:** `node --check static/app.js`, `node --check
+  static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
+  `make qa-premium` -> dependency audit, Python compile, 151 pytest cases,
+  JS syntax and 12 Playwright browser checks passed. The local PostgreSQL smoke
+  stack was rebuilt on `APP_PORT=8001`, both containers are healthy, and
+  `make smoke-live APP_URL=http://127.0.0.1:8001` passed after rebuild.
+
 ### 2026-04-21 - Calendar range visibility and overdue return next signal
 
 - **Goal:** Close the two pre-live UX gaps where calendar records could be
@@ -2927,5 +2991,5 @@ Five independent improvements shipped as one coherent commit:
 
 ---
 
-_Last updated: 2026-04-20. When you ship an item, move it to this `## Done`
+_Last updated: 2026-04-21. When you ship an item, move it to this `## Done`
 section with the commit or PR link._

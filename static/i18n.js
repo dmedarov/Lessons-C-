@@ -241,6 +241,8 @@ const bg = {
   "fleetPulse.telemetryDetail": "{count} от {total} активни коли имат позиция от последните 60 мин.",
   "fleetPulse.telemetryEmpty": "NetFleet е включен, но активните коли нямат свеж GPS сигнал.",
   "fleetPulse.telemetryNotConfigured": "NetFleet ключът още не е добавен.",
+  "fleetPulse.telemetryValueUnavailable": "Няма връзка",
+  "fleetPulse.telemetryUnavailable": "NetFleet е конфигуриран, но live GPS временно не отговаря.",
   "fleetPulse.insightsLabel": "Оперативни insight-и",
   "netfleet.loading": "Проверявам NetFleet настройката...",
   "netfleet.notConfigured": "Не е конфигуриран. Въведи ключа еднократно, за да включиш live координатите.",

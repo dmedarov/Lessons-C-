@@ -522,7 +522,14 @@ def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     assert "await loadPickupTelemetry();" in app_js
     assert "const activeFleetPlates = new Set(" in app_js
     assert "const fleetTelemetryCount = state.telemetry.filter" in app_js
-    assert 'value: state.telemetryConfigured ? `${fleetTelemetryCount}/${fleetTelemetryTotal}` : "—"' in app_js
+    assert 'telemetryError: false' in app_js
+    assert 'value: state.telemetryError ? t("fleetPulse.telemetryValueUnavailable") : state.telemetryConfigured ? `${fleetTelemetryCount}/${fleetTelemetryTotal}` : "—"' in app_js
+    assert '? "fleetPulse.telemetryUnavailable"' in app_js
+    assert 'let configured = state.netfleetConfig?.configured;' in app_js
+    assert 'state.netfleetConfig = await apiFetch("/cars/telemetry/config", { headers: authHeaders() });' in app_js
+    assert "state.telemetryError = Boolean(configured);" in app_js
+    assert '"fleetPulse.telemetryValueUnavailable": "Няма връзка"' in i18n_js
+    assert '"fleetPulse.telemetryUnavailable": "NetFleet е конфигуриран, но live GPS временно не отговаря."' in i18n_js
     assert '"pickup.title": "Къде да вземеш колата"' in i18n_js
     assert '"pickup.notConfigured": "GPS локацията още не е включена. Администратор може да добави NetFleet ключ."' in i18n_js
     assert '"pickup.unavailable": "GPS локацията временно не е налична. Провери по-късно или попитай рецепция."' in i18n_js
