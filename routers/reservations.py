@@ -562,14 +562,12 @@ def start_trip(
     reservation_id: int,
     payload: LifecycleNotePayload,
     background_tasks: BackgroundTasks,
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(require_admin),
 ) -> dict[str, Any]:
     now = _utcnow_iso()
     notification_ids: list[int] = []
     with get_conn() as conn, transaction(conn):
         row = _load_reservation_for_transition(conn, reservation_id)
-        if auth.role != "fleet_admin" and int(row["created_by_id"]) != auth.user_id:
-            raise HTTPException(status_code=403, detail="You can start only your own reservations")
         if row["status"] != "approved":
             raise HTTPException(status_code=409, detail="Only approved reservations can be started")
         if row["returned_at"]:
@@ -611,14 +609,12 @@ def return_trip(
     reservation_id: int,
     payload: LifecycleNotePayload,
     background_tasks: BackgroundTasks,
-    auth: AuthContext = Depends(get_auth_context),
+    auth: AuthContext = Depends(require_admin),
 ) -> dict[str, Any]:
     now = _utcnow_iso()
     notification_ids: list[int] = []
     with get_conn() as conn, transaction(conn):
         row = _load_reservation_for_transition(conn, reservation_id)
-        if auth.role != "fleet_admin" and int(row["created_by_id"]) != auth.user_id:
-            raise HTTPException(status_code=403, detail="You can return only your own reservations")
         if row["status"] != "approved":
             raise HTTPException(status_code=409, detail="Only approved reservations can be returned")
         if not row["checked_out_at"]:

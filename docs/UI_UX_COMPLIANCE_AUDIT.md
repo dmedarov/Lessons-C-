@@ -39,16 +39,16 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | --- | --- | --- | --- | --- |
 | Login/setup | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Apple buttons, WCAG labels/errors, bootstrap token copy, keyboard submit | Verify labels, focus order, error recovery and 390 px layout. Field errors are now wired with `aria-invalid` + `aria-describedby`. |
 | Intent summary / next action | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | One primary action, clear next step, keyboard focus, 44 px targets | Summary deck now renders contextual next-action buttons for employee/admin modes. Capture desktop/mobile screenshots and verify no surface exposes competing primary actions. |
-| Current trip hero | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | One primary action, status text, keyboard focus, mobile fit | Active/next approved employee trip is promoted above calendar/table with `Старт` or `Върни`. Capture desktop/mobile screenshots and verify focus after action. |
+| Current trip hero | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | One primary action, status text, keyboard focus, mobile fit | Active/next approved employee trip is promoted above calendar/table with one "view trip" action. Start/return are admin-only lifecycle transitions. Capture desktop/mobile screenshots and verify focus after action. |
 | Status bar / fleet KPIs | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Live system status, text labels, no color-only meaning, 390 px fit | KPI strip now reports pending, active trips and free cars. Verify mobile wrapping and screen-reader order. |
 | Fleet Pulse / NetFleet telemetry | `templates/admin.html`, `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `app_settings.py`, `routers/cars.py`, `netfleet_service.py` | needs evidence | No exposed API key, employee pickup authorization, text-backed GPS status, responsive strip, coordinates do not overwhelm decisions | Fleet Pulse now uses a global reservation snapshot and optional NetFleet GPS events by plate number. The pulse shows `X/Y` active FleetFlow cars with a last position instead of raw NetFleet event counts. Employee pickup location is limited to the user's own approved/active trip. Capture configured/unconfigured screenshots and verify no key appears in browser payloads. |
 | Admin NetFleet key setup | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `routers/cars.py`, `app_settings.py`, `schemas.py` | needs evidence | Password input, no current-secret echo, admin-only access, status text, explicit save feedback | Admin can add/change the key once from `/admin`; UI resets the input after save and only shows configured/source metadata. Capture keyboard path and configured/unconfigured screenshots. |
 | One-tap booking | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/reservations.py`, `e2e/test_browser_smoke.py` | pass | One primary action, conflict/blackout-safe suggestion, no hidden destructive action, clear pending feedback | Browser smoke verifies employee quick booking and captures `employee-desktop.png`; add failure/conflict screenshots next. |
 | Smart prefill | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/reservations.py`, `schemas.py` | needs evidence | User keeps review control, no invisible submit, useful defaults, manual form remains reachable | Preferences come from the user's last 10 reservations and fill car/start/end only after an explicit button press. Capture desktop/mobile screenshots and verify keyboard path. |
-| Employee booking form | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Apple layout, NN/g error prevention, WCAG form semantics, conflict preview status | Test invalid date range, conflict warning, preserved input after failure. `conflictPreview` already has `role=status` + `aria-live=polite`. |
+| Employee booking form | `templates/index.html`, `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | Apple layout, NN/g error prevention, WCAG form semantics, conflict preview status | New request is now before inbox in the side rail. Test invalid date range, conflict warning, preserved input after failure. `conflictPreview` already has `role=status` + `aria-live=polite`. |
 | Calendar studio | `templates/index.html`, `static/app.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | needs evidence | Responsive 390/768/1440, keyboard reachability, color+text statuses, no overlap | Mobile day mode is covered by `employee-mobile.png`; still capture tablet/desktop month and keyboard day controls. Month prev/next controls now have accessible labels on both surfaces. |
-| Reservation timeline/cards | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Timeline before table, status text, lifecycle clarity, 44 px actions, table remains secondary, cancel recovery | Browser smoke asserts timeline cards appear before tables on employee/admin surfaces; continue with lifecycle action screenshots. |
-| Notifications | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | `aria-live`, unread badge clarity, concise copy, no noisy motion | Notification lists are now polite live regions. Verify polling update announcement with a screen reader. |
+| Reservation timeline/cards | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Timeline before table, status text, lifecycle clarity, 44 px actions, table remains secondary, cancel recovery | Employee reservations now render before calendar; browser smoke asserts timeline cards appear before tables. Continue with admin lifecycle action screenshots. |
+| Notifications | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | `aria-live`, unread badge clarity, concise copy, no noisy motion | Notification lists are polite live regions and show only unread items by default; read items are hidden with a calm note. Verify polling update announcement with a screen reader. |
 | Admin pending queue / decision rail | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | needs evidence | Top pending decisions first, bulk selection semantics, action bar visibility, partial-failure feedback, required reject reason | Desktop Decision Rail is covered by `admin-desktop.png`; still test keyboard checkbox selection, mobile and empty reject reason recovery. |
 | Admin users | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Destructive confirmations, role-change clarity, audit timeline readability | Verify reset/deactivate/role dialog focus return and success/error copy. |
 | Admin fleet/cars | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Notes textarea labels, active/inactive text state, 44 px controls | Verify notes save path, employee visibility and mobile card spacing. |
@@ -57,6 +57,7 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Toast/message system | `static/app.js`, `static/styles.css` | needs evidence | Polite live region, non-color-only severity, visible long enough | `#message` uses `role=alert`, receives focus and now uses theme-aware alert classes instead of inline light-theme colors. Verify with screen reader and dark-mode screenshots. |
 | Mobile bottom nav | `templates/index.html`, `templates/admin.html`, `static/styles.css` | needs evidence | 44 px targets, safe-area padding, no content occlusion | CSS sets `min-height: 44px` and accounts for `safe-area-inset-bottom`; screenshot 390 px bottom area and keyboard focus order still required. |
 | Theme/dark mode | `static/theme.js`, `static/styles.css` | needs evidence | NASA/WCAG contrast matrix, focus ring visibility, reduced motion | Solid text/status token pairs now covered by `tests/test_design_tokens.py`; translucent surfaces still need browser-computed contrast evidence. |
+| Production cutover | `Makefile`, `scripts/prod_check.py`, `docker-compose.postgres.yml`, `README.md` | pass | No demo seed, generated secrets, real CORS origin, matching DB URL, runtime env propagation | `make prod-check` validates `.env` without starting containers; compose now passes CORS, refresh TTL, rate limits and notification settings to the app container. |
 
 ## Contrast Matrix To Automate
 
@@ -136,6 +137,21 @@ styles.
 - `pass`: reservation timeline appears before the table on employee/admin
   surfaces, keeps lifecycle actions available and preserves admin pending
   selection; covered by `tests/test_ui_compliance.py`.
+- `pass`: employee surface is request-first rather than calendar-first:
+  skip link and nav target reservations first, reservations render before the
+  calendar, new-request controls render before inbox, and guidance cards hide
+  after login; covered by `tests/test_ui_compliance.py` and Playwright smoke.
+- `pass`: calm default surfaces hide stale history: read notifications are
+  removed from the visible inbox, and employee reservations default to current
+  open work instead of showing returned/rejected/cancelled items; covered by
+  `tests/test_ui_compliance.py`.
+- `pass`: start active trip and return car are admin-only in API and UI;
+  employee Current Trip Hero now links to the trip instead of exposing
+  lifecycle transition buttons; covered by `tests/test_app.py` and
+  `tests/test_ui_compliance.py`.
+- `pass`: `make prod-check` validates live `.env` readiness and production
+  compose forwards operational env vars to the app container; covered by
+  `tests/test_prod_readiness.py`.
 - `pass`: Fleet Pulse GPS count now uses matching active FleetFlow plates and
   reports `X/Y` instead of raw NetFleet event totals.
 - `pass`: initial Playwright browser smoke verifies employee one-tap booking,
@@ -146,13 +162,13 @@ styles.
   `test-results/e2e/employee-mobile.png`.
 - `pass`: solid light/dark foreground tokens in `tests/test_design_tokens.py`
   meet WCAG AA after the warning token adjustment.
-- `evidence`: latest local handoff check ran `pytest -q` -> 111 passed,
-  `pytest tests/test_ui_compliance.py -q` -> 21 passed,
+- `evidence`: latest local handoff check ran `pytest -q` -> 117 passed,
+  targeted UI/API/production readiness pack -> 28 passed,
   `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
   -> 1 passed, `node --check static/app.js`,
   `node --check static/i18n.js` and Python compile check for
-  `e2e/test_browser_smoke.py app_settings.py routers/cars.py
-  routers/reservations.py schemas.py netfleet_service.py db.py`. Old
+  `scripts/prod_check.py e2e/test_browser_smoke.py routers/reservations.py`.
+  `make prod-check` fails fast when `.env` is missing in a clean checkout. Old
   `fleetflow_test` containers were removed, Docker was rebuilt, Alembic started
   in PostgreSQL compose, `/health` on `8001` returned ok and the app container
   is healthy.

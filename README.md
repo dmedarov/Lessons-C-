@@ -7,7 +7,7 @@
 - Роли: `employee` и `fleet_admin` (login с парола -> short-lived bearer token + HttpOnly refresh cookie).
 - Автомобили: добавяне, активиране/деактивиране (само admin).
 - Blackout windows за service/maintenance по автомобил.
-- Резервации: request, approve / reject / cancel, active trip и return lifecycle.
+- Резервации: employee request/cancel, admin approve / reject / start active trip / return lifecycle.
 - Защита от застъпващи се резервации в рамките на една транзакция.
 - Audit log за всяко действие по резервация.
 - In-app notifications за ключови lifecycle събития.
@@ -28,7 +28,9 @@
 - Intent-driven summary: началният operational слой показва следващия най-важен ход според режима.
 - One-tap booking: employee може да подаде pending заявка за най-близката свободна активна кола без ръчно попълване.
 - Smart prefill: employee формата предлага обичайната кола, час и продължителност от последните резервации.
-- Current Trip Hero: активната или следваща одобрена резервация излиза като основен hero блок с един primary action.
+- Current Trip Hero: активната или следваща одобрена резервация излиза като основен hero блок; employee вижда статус/място за взимане, а admin управлява start/return lifecycle.
+- Employee UX priority: след login заявките/lifecycle са преди календара, формата за нова заявка е преди inbox-а, а обучителните карти се скриват, за да няма UI шум.
+- Calm default inbox/listing: employee default филтърът е **Текущи**, така че върнатите/отказаните/отменените не стоят в оперативния поток; прочетените нотификации се прибират от inbox-а.
 - Admin Decision Rail: `/admin` започва с най-спешните pending заявки, директни approve/reject действия и bulk approve, преди таблицата.
 - Timeline-first reservations: employee/admin виждат lifecycle cards преди таблицата, с директни действия и secondary table fallback.
 - Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола и `X/Y` GPS позиции само за активните коли във FleetFlow.
@@ -141,11 +143,24 @@ NETFLEET_API_KEY=your-netfleet-company-api-key
 APP_PORT=8001
 ```
 
+Преди live cutover пусни:
+
+```bash
+make prod-check
+```
+
+Тази проверка не стартира контейнери. Тя валидира, че `.env` е в production
+режим, secret-ите са генерирани, `DATABASE_URL` използва същата PostgreSQL
+парола, `DEV_SEED_DEMO_DATA=false`, а `CORS_ALLOW_ORIGINS` вече е реалният
+домейн вместо wildcard/example стойност. Празен NetFleet ключ е само warning,
+защото може да се добави по-късно от Admin UI.
+
 Полезни production команди:
 
 ```bash
 make logs   # app logs, включително bootstrap token при fresh install
 make down   # спира production/dev compose контейнерите
+make prod-check # проверява .env преди live cutover
 make test   # pytest suite
 make test-e2e # optional Playwright browser smoke
 ```
@@ -233,6 +248,7 @@ notifications_service.py  # in-app + outbound notification delivery
 alembic/            # versioned DB migrations
 templates/index.html
 static/
+scripts/prod_check.py # .env readiness guard преди live cutover
 tests/test_app.py
 e2e/test_browser_smoke.py  # optional Playwright browser smoke + screenshots
 conftest.py         # путва project root в sys.path
@@ -265,7 +281,7 @@ docker-compose.postgres.yml
 - `GET /reservations/suggest` и `POST /reservations/quick-book` — employee quick-booking за най-близката свободна активна кола през същите conflict/blackout guardrails.
 - `GET /reservations/preferences` — employee smart prefill от последните 10 собствени резервации.
 - `POST /reservations/{id}/approve`/`reject` — само `fleet_admin`.
-- `POST /reservations/{id}/start` и `POST /reservations/{id}/return` — requester или admin.
+- `POST /reservations/{id}/start` и `POST /reservations/{id}/return` — само `fleet_admin`.
 - `POST /reservations/{id}/cancel` — admin за всички, employee само за собствените си.
 - `GET /reservations` — изисква auth. Employee вижда само собствените си; admin вижда всички. Поддържа `car_id`, `status_filter`, `mine`, `limit`, `offset`.
 - `GET /notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all` — личен inbox на текущия user.
@@ -292,6 +308,8 @@ docker-compose.postgres.yml
 18. **Auth rate limiting** — in-memory brute-force guard за login и bootstrap endpoints.
 19. **Refresh-token rotation** — short-lived access tokens + HttpOnly refresh cookie, replay protection и explicit logout invalidation.
 20. **UI error prevention** — destructive reject/cancel flows пазят задължителна причина, показват inline грешка и маркират конкретното поле с `aria-invalid`.
+21. **Admin-owned lifecycle** — служителите заявяват и отменят свои заявки; само admin отбелязва активен курс и върната кола.
+22. **Production cutover check** — `make prod-check` валидира `.env` за real origin, generated secrets, matching `DATABASE_URL`, disabled demo seed и production mode.
 
 ## Тестове
 
@@ -320,9 +338,16 @@ Admin Decision Rail, Fleet Pulse copy и mobile calendar, после запис�
 `employee-desktop.png`, `admin-desktop.png` и `employee-mobile.png`.
 `test-results/` е игнориран от git.
 
-Последна локална проверка за browser-evidence пакета: `pytest -q` -> 111 passed,
-`pytest tests/test_ui_compliance.py -q` -> 21 passed, `node --check static/app.js`,
-`node --check static/i18n.js`, `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile e2e/test_browser_smoke.py app_settings.py routers/cars.py routers/reservations.py schemas.py netfleet_service.py db.py`, и `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q` -> 1 passed. Старият `fleetflow_test` stack беше премахнат с `down --remove-orphans`, Docker image-ът беше rebuild-нат, Alembic тръгна в PostgreSQL compose, `/health` на `8001` върна `{"status":"ok"}` и `fleetflow_test-car-pool-1` е healthy.
+Последна локална проверка за request-first/admin-lifecycle/calm-inbox пакета:
+`pytest -q` -> 117 passed, targeted UI/API/production readiness pack -> 28 passed,
+`node --check static/app.js`, `node --check static/i18n.js`,
+`PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile scripts/prod_check.py e2e/test_browser_smoke.py routers/reservations.py`,
+и `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
+-> 1 passed. `make prod-check` fail-fast-ва без `.env`, както трябва за clean
+repo. Старият `fleetflow_test` stack беше премахнат с `down --remove-orphans`,
+Docker image-ът беше rebuild-нат, Alembic тръгна в PostgreSQL compose,
+`/health` на `8001` върна `{"status":"ok"}` и `fleetflow_test-car-pool-1` е
+healthy.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 
@@ -331,6 +356,7 @@ Admin Decision Rail, Fleet Pulse copy и mobile calendar, после запис�
 - създаване на users от admin
 - password change
 - lifecycle start/return
+- admin-only start/return authorization and employee UI without lifecycle transition buttons
 - notifications visibility и `read-all`
 - admin handoff
 - blackout windows
@@ -363,7 +389,7 @@ alembic revision -m "describe change"
 
 - Няма UI за управление на активни sessions по устройства; logout ревокира текущия refresh token, а replay защита чисти активната refresh верига за user-а.
 - Rate limiting-ът е in-memory и е подходящ за single-container deployment; за multi-instance production го изнеси към Redis, API gateway или WAF.
-- Следващата production/UI стъпка е операторска дисциплина плюс browser evidence: PostgreSQL migration smoke, backup/restore playbook, structured JSON logs и Playwright screenshots/e2e за `/`, `/admin`, mobile calendar и reject/bulk flows.
+- Следващата production/UI стъпка е операторска дисциплина плюс browser evidence: PostgreSQL migration smoke, backup/restore playbook, structured JSON logs, `make prod-check` в release checklist и Playwright screenshots/e2e за `/`, `/admin`, mobile calendar и reject/bulk flows.
 
 ## План за развитие
 

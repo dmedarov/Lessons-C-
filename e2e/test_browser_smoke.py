@@ -127,6 +127,25 @@ def _timeline_is_before_table(page: Page) -> bool:
     )
 
 
+def _element_is_before(page: Page, first_selector: str, second_selector: str) -> bool:
+    return bool(
+        page.evaluate(
+            """
+            ([firstSelector, secondSelector]) => {
+              const first = document.querySelector(firstSelector);
+              const second = document.querySelector(secondSelector);
+              return Boolean(
+                first &&
+                second &&
+                (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
+              );
+            }
+            """,
+            [first_selector, second_selector],
+        )
+    )
+
+
 def test_premium_employee_admin_and_mobile_surfaces(
     browser: Browser,
     server: str,
@@ -136,10 +155,14 @@ def test_premium_employee_admin_and_mobile_surfaces(
     employee_page = employee.new_page()
     _login(employee_page, server, "/", "ivan", "IvanPass123")
     expect(employee_page.locator("#quickBookBtn")).to_be_visible()
+    expect(employee_page.locator('[data-status="open"]')).to_have_attribute("aria-pressed", "true")
     employee_page.locator("#quickBookBtn").click()
     expect(employee_page.locator("#messageTitle")).to_contain_text("Бързата заявка", timeout=10_000)
     expect(employee_page.locator("#reservationsTimeline .reservation-flow-card")).to_have_count(1)
+    expect(employee_page.locator("#guidanceCard")).to_be_hidden()
     assert _timeline_is_before_table(employee_page)
+    assert _element_is_before(employee_page, "#reservationsDeck", "#calendarStudio")
+    assert _element_is_before(employee_page, "#reservationPanel", "#notificationDeck")
     employee_page.screenshot(path=artifact_dir / "employee-desktop.png", full_page=True)
     employee.close()
 
@@ -152,6 +175,7 @@ def test_premium_employee_admin_and_mobile_surfaces(
     expect(admin_page.locator("#netfleetApiKey")).to_have_attribute("type", "password")
     expect(admin_page.locator("#decisionRail")).to_be_visible()
     expect(admin_page.locator("#reservationsTimeline .reservation-flow-card")).to_have_count(1)
+    expect(admin_page.locator("#guidanceCard")).to_be_hidden()
     assert _timeline_is_before_table(admin_page)
     admin_page.screenshot(path=artifact_dir / "admin-desktop.png", full_page=True)
     admin.close()

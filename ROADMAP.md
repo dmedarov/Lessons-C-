@@ -14,6 +14,8 @@ operations assistant for internal mobility**, което е:
 - Една основна задача на екран: employee вижда бърз booking и собствените курсове; admin вижда флот, чакащи решения и operational visibility.
 - Един primary action на surface: всичко останало е secondary или contextual.
 - Ясен status model: заявка, одобрение, активен курс, връщане и уведомяване без скрити състояния.
+- Служебен lifecycle ownership: employee заявява/отменя, admin одобрява,
+  отбелязва активен курс и приключва връщането.
 - Кратки и стойностни нотификации: без шум, без дублиране, без чувствителни данни.
 - Migration-first backend: schema промени минават през Alembic, не през ad-hoc ръчни SQL промени.
 - Security by default: пароли с slow hash, short-lived access token-и, refresh-token rotation, rebinding към текущ user state, least-privilege UI.
@@ -72,7 +74,7 @@ operations assistant for internal mobility**, което е:
 
 ### Success metric
 - втори служител не вижда чужди резервации
-- admin вижда global queue и lifecycle transitions
+- admin вижда global queue и управлява lifecycle transitions
 - върната резервация вече не блокира бъдещ слот при overlap проверка
 
 ## Phase 3: Calm Notification Layer
@@ -86,7 +88,7 @@ operations assistant for internal mobility**, което е:
 - event routing:
   - admin получава нова заявка
   - requester получава approve/reject
-  - admin получава start/return/cancel при employee actions
+  - requester получава start/return updates, защото admin отбелязва активен курс и връщане
 - outbound hooks към email/Teams/Slack
 
 ### Success metric
@@ -197,6 +199,8 @@ operations assistant for internal mobility**, което е:
 - admin vs employee views
 - Alembic baseline и versioned migrations за всяка schema промяна
 - Production setup: `make setup` генерира secrets, `make prod` вдига PostgreSQL + app
+- Production cutover: `make prod-check` валидира `.env` за generated secrets,
+  real CORS origin, matching DB password и disabled demo seed преди live.
 - Apple/NASA/USWDS compliance roadmap за следващите UI подобрения
 - UI error prevention: reject dialogs now require a human reason and expose
   exact-field `aria-invalid` recovery instead of silent generic fallback reasons
@@ -206,6 +210,15 @@ operations assistant for internal mobility**, което е:
   employee/admin surfaces, verifies one-tap booking, timeline-first cards,
   Admin Decision Rail, Fleet Pulse copy and mobile calendar, and writes
   handoff screenshots under `test-results/e2e`.
+- UX hierarchy review: employee requests/lifecycle now appear before the
+  calendar, the new-request panel appears before inbox, and auth-only guidance
+  cards are hidden after login to keep the cockpit calm.
+- Calm operational defaults: employee reservations default to **open/current**
+  items, so returned/rejected/cancelled records stay out of the main flow until
+  explicitly filtered; read notifications are hidden from the inbox.
+- Admin-owned lifecycle: start/return endpoints and UI actions are admin-only;
+  employee current-trip surfaces show context and pickup location without
+  exposing lifecycle transition buttons.
 - Intent-driven summary layer: employee/admin surfaces now expose contextual
   next-action buttons for free mode, active/approved trips, pending admin work,
   active trips and calm fleet state.
@@ -216,7 +229,8 @@ operations assistant for internal mobility**, което е:
   typical duration from the user's last 10 reservations, then fills the manual
   form on request without hiding review.
 - Current Trip Hero: employee active or next approved trip is promoted above
-  the calendar/table with one primary action (`Старт` or `Върни`).
+  the calendar/table with one primary action to view the trip; admin remains
+  responsible for start/return lifecycle transitions.
 - Admin Decision Rail: `/admin` now promotes the top 3 pending decisions above
   the bulk bar/table, with direct approve/reject actions and a bulk approve
   path for the full pending queue.
@@ -234,12 +248,13 @@ operations assistant for internal mobility**, което е:
   approved/active trip.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 111 passed,
-  `pytest tests/test_ui_compliance.py -q` -> 21 passed, Playwright browser
+- Latest local verification for this slice: `pytest -q` -> 117 passed,
+  targeted UI/API/production readiness pack -> 28 passed, Playwright browser
   smoke -> 1 passed with desktop/mobile screenshots, JS syntax checks and
-  Python compile check. Old `fleetflow_test` containers were removed, Docker
-  stack was rebuilt, Alembic ran in PostgreSQL compose, `/health` on `8001`
-  returned ok and the app container is healthy.
+  Python compile check. `make prod-check` fails fast when `.env` is missing in
+  a clean checkout. Old `fleetflow_test` containers were removed, Docker stack
+  was rebuilt, Alembic ran in PostgreSQL compose, `/health` on `8001` returned
+  ok and the app container is healthy.
 
 ## Next Recommended Slices
 
@@ -247,7 +262,8 @@ operations assistant for internal mobility**, което е:
    theme-aware message alerts and Fleet Pulse/status chips.
 2. Expand Playwright scenarios beyond the initial smoke: admin approve/reject,
    bulk reject reason validation, admin NetFleet key update, NetFleet
-   configured/unconfigured states, refresh/logout and current trip start/return.
+   configured/unconfigured states, refresh/logout and admin current-trip
+   start/return.
 3. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role
    change, handoff and blackout deactivate.
 4. PostgreSQL migration smoke + backup/restore playbook за production оператори.

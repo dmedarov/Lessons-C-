@@ -25,7 +25,7 @@ const state = {
   currentUser: null,
   carFilter: "active",
   scope: "smart",
-  status: surface === "admin" ? "pending" : "all",
+  status: surface === "admin" ? "pending" : "open",
   reservationSearch: "",
   reservationStartDate: "",
   reservationEndDate: "",
@@ -86,6 +86,7 @@ const els = {
   sessionModePill: document.getElementById("sessionModePill"),
   sessionMeta: document.getElementById("sessionMeta"),
   heroCaption: document.getElementById("heroCaption"),
+  guidanceCard: document.getElementById("guidanceCard"),
   reservationForm: document.getElementById("reservationForm"),
   quickBookPanel: document.getElementById("quickBookPanel"),
   quickBookBtn: document.getElementById("quickBookBtn"),
@@ -844,6 +845,7 @@ function renderShell() {
   toggleHidden(els.smartPrefillPanel, !authenticated || adminMode || !state.reservationPreferences?.available);
   toggleHidden(els.passwordPanel, !authenticated);
   toggleHidden(els.summaryDeck, !authenticated);
+  toggleHidden(els.guidanceCard, authenticated);
   toggleHidden(els.userCreatePanel, !authenticated || !adminMode || !adminSurface);
   toggleHidden(els.carPanel, !authenticated || !adminMode || !adminSurface);
   toggleHidden(els.netfleetForm?.closest(".glass-card"), !authenticated || !adminMode || !adminSurface);
@@ -1118,14 +1120,7 @@ function updateSummary() {
     els.nextSignalTitle.textContent = t("intent.employeeActiveTitle");
     els.nextSignalCopy.textContent = t("intent.employeeActiveCopy", { end: formatDateTime(activeTrip.end_time) });
     setIntentActions([
-      {
-        name: "reservation-transition",
-        labelKey: "action.returnCar",
-        primary: true,
-        reservationId: activeTrip.id,
-        reservationAction: "return",
-      },
-      { name: "focus-reservation", labelKey: "intent.action.viewTrip", reservationId: activeTrip.id },
+      { name: "focus-reservation", labelKey: "intent.action.viewTrip", primary: true, reservationId: activeTrip.id },
     ]);
     return;
   }
@@ -1133,14 +1128,7 @@ function updateSummary() {
     els.nextSignalTitle.textContent = t("intent.employeeApprovedTitle");
     els.nextSignalCopy.textContent = t("intent.employeeApprovedCopy", { start: formatDateTime(nextApproved.start_time) });
     setIntentActions([
-      {
-        name: "reservation-transition",
-        labelKey: "action.startTrip",
-        primary: true,
-        reservationId: nextApproved.id,
-        reservationAction: "start",
-      },
-      { name: "focus-reservation", labelKey: "intent.action.viewTrip", reservationId: nextApproved.id },
+      { name: "focus-reservation", labelKey: "intent.action.viewTrip", primary: true, reservationId: nextApproved.id },
     ]);
     return;
   }
@@ -1173,8 +1161,6 @@ function renderCurrentTripHero() {
   const car = carMap().get(item.car_id);
   const carLabel = car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id });
   const active = item.status === "checked_out";
-  const primaryAction = active ? "return" : "start";
-  const primaryLabel = active ? "action.returnCar" : "action.startTrip";
   const purpose = item.purpose
     ? `<p class="current-trip-hero__purpose">${escapeHtml(t("trip.hero.reason", { purpose: item.purpose }))}</p>`
     : "";
@@ -1212,8 +1198,8 @@ function renderCurrentTripHero() {
     <div class="current-trip-hero__aside">
       <span class="status-tag status-tag--${item.status}">${escapeHtml(t("trip.hero.status", { status: lifecycleLabel(item.status) }))}</span>
       <div class="current-trip-hero__actions">
-        <button class="btn btn--primary" type="button" data-reservation-action="${primaryAction}" data-id="${item.id}" data-primary-trip-action="true">
-          ${escapeHtml(t(primaryLabel))}
+        <button class="btn btn--primary" type="button" data-intent-action="focus-reservation" data-reservation-id="${item.id}" data-trip-focus-action="true">
+          ${escapeHtml(t("intent.action.viewTrip"))}
         </button>
       </div>
     </div>
@@ -1238,32 +1224,46 @@ function renderNotifications() {
     return;
   }
 
-  if (!state.notifications.length) {
+  const visibleNotifications = state.notifications.filter((item) => !item.read_at);
+  const hiddenReadCount = state.notifications.length - visibleNotifications.length;
+
+  if (!visibleNotifications.length) {
     els.notificationsList.innerHTML = `
       <article class="empty-state">
         <strong>Тихо табло.</strong>
-        <p>В момента няма нови уведомления за текущия потребител.</p>
+        <p>${
+          hiddenReadCount
+            ? "Няма нови уведомления. Прочетените са прибрани, за да не стоят като шум."
+            : "В момента няма нови уведомления за текущия потребител."
+        }</p>
       </article>
     `;
+    updateNotificationBadge();
     return;
   }
 
-  state.notifications.forEach((item) => {
+  visibleNotifications.forEach((item) => {
     const card = document.createElement("article");
     card.className = "notification-card";
     card.innerHTML = `
       <div class="notification-card__head">
         <strong>${escapeHtml(item.title)}</strong>
-        ${item.read_at ? `<span class="status-pill status-pill--muted">${t("status.read")}</span>` : `<span class="status-pill status-pill--employee">${t("status.new")}</span>`}
+        <span class="status-pill status-pill--employee">${t("status.new")}</span>
       </div>
       <p>${escapeHtml(item.body)}</p>
       <div class="notification-card__foot">
         <span class="muted">${formatDateTime(item.created_at)}</span>
-        ${item.read_at ? "" : `<button class="action-btn action-btn--toggle" type="button" data-notification-read="${item.id}">${t("action.markRead")}</button>`}
+        <button class="action-btn action-btn--toggle" type="button" data-notification-read="${item.id}">${t("action.markRead")}</button>
       </div>
     `;
     els.notificationsList.appendChild(card);
   });
+  if (hiddenReadCount) {
+    const note = document.createElement("p");
+    note.className = "muted notification-card__hidden-note";
+    note.textContent = `${hiddenReadCount} прочетени уведомления са прибрани от този изглед.`;
+    els.notificationsList.appendChild(note);
+  }
   updateNotificationBadge();
 }
 
@@ -1776,10 +1776,10 @@ function reservationActions(item) {
     actions.push(`<button class="action-btn action-btn--approve" type="button" data-reservation-action="approve" data-id="${item.id}" aria-label="${t("action.approve")} резервация #${item.id}">${t("action.approve")}</button>`);
     actions.push(`<button class="action-btn action-btn--reject" type="button" data-reservation-action="reject" data-id="${item.id}" aria-label="${t("action.reject")} резервация #${item.id}">${t("action.reject")}</button>`);
   }
-  if (item.status === "approved" && (canAdmin || isOwner)) {
+  if (item.status === "approved" && canAdmin) {
     actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="start" data-id="${item.id}" aria-label="${t("action.startTrip")} за резервация #${item.id}">${t("action.startTrip")}</button>`);
   }
-  if (item.status === "checked_out" && (canAdmin || isOwner)) {
+  if (item.status === "checked_out" && canAdmin) {
     actions.push(`<button class="action-btn action-btn--toggle" type="button" data-reservation-action="return" data-id="${item.id}" aria-label="${t("action.returnCar")} за резервация #${item.id}">${t("action.returnCar")}</button>`);
   }
   if (["pending", "approved"].includes(item.status) && (canAdmin || isOwner)) {
@@ -2237,7 +2237,7 @@ function syncReservationFiltersFromInputs() {
 function reservationQueryParams() {
   syncReservationFiltersFromInputs();
   const params = new URLSearchParams();
-  if (state.status !== "all") {
+  if (state.status !== "all" && state.status !== "open") {
     params.set("status_filter", state.status);
   }
   if (state.currentRole === "fleet_admin" && state.scope === "mine") {
@@ -2308,7 +2308,10 @@ async function loadReservations() {
   renderDayTimeline();
   try {
     const data = await apiFetch(`/reservations${suffix}`, { headers: authHeaders() });
-    state.reservations = data.items;
+    state.reservations =
+      state.status === "open"
+        ? data.items.filter((item) => !["returned", "rejected", "cancelled"].includes(item.status))
+        : data.items;
   } finally {
     setLoading("reservations", false);
     renderReservations();

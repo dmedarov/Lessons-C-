@@ -4,13 +4,14 @@ COMPOSE_PROD := docker compose -f docker-compose.postgres.yml
 COMPOSE_DEV  := docker compose
 PYTHON       := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: help setup prod dev down logs test test-e2e guard-env
+.PHONY: help setup prod prod-check dev down logs test test-e2e guard-env
 
 help:
 	@echo "FleetFlow"
 	@echo ""
 	@echo "  make setup   Create .env with generated secrets (run once)"
 	@echo "  make prod    Build and start production stack (PostgreSQL + app)"
+	@echo "  make prod-check Validate .env before live production cutover"
 	@echo "  make dev     Build and start dev stack (SQLite, demo data)"
 	@echo "  make down    Stop all containers"
 	@echo "  make logs    Tail application logs"
@@ -39,6 +40,9 @@ prod: guard-env
 	@echo ""
 	@echo "FleetFlow is up → http://localhost:$${APP_PORT:-8000}"
 	@echo "Fresh install? Run 'make logs' to find your one-time bootstrap token."
+
+prod-check: guard-env
+	$(PYTHON) scripts/prod_check.py .env
 
 dev: guard-env
 	$(COMPOSE_DEV) up --build -d

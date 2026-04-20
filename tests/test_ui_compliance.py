@@ -104,8 +104,9 @@ def test_intent_driven_summary_exposes_one_primary_next_action() -> None:
     assert 'data-primary-intent="true"' in app_js
     assert 'name: "review-pending", labelKey: "intent.action.reviewPending", primary: true' in app_js
     assert 'name: "book-now", labelKey: "intent.action.bookNow", primary: true' in app_js
+    assert 'name: "focus-reservation", labelKey: "intent.action.viewTrip", primary: true' in app_js
     assert "await quickBookReservation();" in app_js
-    assert 'name: "reservation-transition"' in app_js
+    assert 'name: "reservation-transition"' not in app_js
     assert "function handleIntentAction(button)" in app_js
     assert "function focusReservationRow(id, action = null)" in app_js
     assert '"intent.employeeFreeTitle": "Свободен режим"' in i18n_js
@@ -162,12 +163,55 @@ def test_current_trip_hero_promotes_active_or_next_trip() -> None:
     assert 'id="currentTripHero" aria-labelledby="currentTripTitle"' in html
     assert "function currentTripCandidate()" in app_js
     assert "function renderCurrentTripHero()" in app_js
-    assert 'data-primary-trip-action="true"' in app_js
-    assert 'primaryAction = active ? "return" : "start"' in app_js
+    assert 'data-trip-focus-action="true"' in app_js
+    assert 'data-intent-action="focus-reservation"' in app_js
+    assert 'primaryAction = active ? "return" : "start"' not in app_js
     assert 'renderCurrentTripHero();' in app_js
     assert '"trip.hero.activeEyebrow": "Твоята кола"' in i18n_js
+    assert "admin отбелязва старта" in i18n_js
+    assert "admin приключва lifecycle-а" in i18n_js
     assert ".current-trip-hero" in styles
     assert ".current-trip-hero__actions .btn" in styles
+
+
+def test_employee_requests_are_prioritized_before_calendar_and_inbox() -> None:
+    html = _read("templates/index.html")
+    app_js = _read("static/app.js")
+
+    assert 'status: surface === "admin" ? "pending" : "open"' in app_js
+    assert 'href="#reservationsDeck">Към основното съдържание' in html
+    assert html.index('href="#reservationsDeck">Курсове') < html.index('href="#calendarStudio">Календар')
+    assert html.index('href="#reservationsDeck">Моите заявки') < html.index('href="#reservationPanel">Нова заявка')
+    assert html.index('id="reservationPanel"') < html.index('id="notificationDeck"')
+    assert html.index('id="reservationsDeck"') < html.index('id="calendarStudio"')
+    assert html.index('id="calendarStudio"') < html.index('id="fleetDeck"')
+    assert 'data-status="open" aria-pressed="true">Текущи' in html
+    assert 'guidanceCard: document.getElementById("guidanceCard")' in app_js
+    assert "toggleHidden(els.guidanceCard, authenticated);" in app_js
+    assert 'state.status !== "all" && state.status !== "open"' in app_js
+    assert 'data.items.filter((item) => !["returned", "rejected", "cancelled"].includes(item.status))' in app_js
+
+
+def test_read_notifications_are_hidden_from_calm_default_inbox() -> None:
+    app_js = _read("static/app.js")
+
+    assert "const visibleNotifications = state.notifications.filter((item) => !item.read_at);" in app_js
+    assert "const hiddenReadCount = state.notifications.length - visibleNotifications.length;" in app_js
+    assert "Прочетените са прибрани, за да не стоят като шум." in app_js
+    assert "прочетени уведомления са прибрани от този изглед." in app_js
+    assert "visibleNotifications.forEach((item) => {" in app_js
+
+
+def test_lifecycle_start_and_return_are_admin_only_in_ui() -> None:
+    app_js = _read("static/app.js")
+    router = _read("routers/reservations.py")
+
+    assert 'if (item.status === "approved" && canAdmin)' in app_js
+    assert 'if (item.status === "checked_out" && canAdmin)' in app_js
+    assert 'if (item.status === "approved" && (canAdmin || isOwner))' not in app_js
+    assert 'if (item.status === "checked_out" && (canAdmin || isOwner))' not in app_js
+    assert app_js.count('name: "reservation-transition"') == 0
+    assert 'auth: AuthContext = Depends(require_admin),' in router
 
 
 def test_admin_decision_rail_promotes_pending_queue_before_table() -> None:

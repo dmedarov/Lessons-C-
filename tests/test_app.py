@@ -434,22 +434,36 @@ def test_end_to_end_admin_two_users_workflow(client: TestClient) -> None:
     assert employee_one_list["items"][0]["status"] == "approved"
     assert employee_two_list["total"] == 0
 
-    start_trip = client.post(
+    employee_start = client.post(
         f"/reservations/{reservation_id}/start",
         json={"note": "Keys collected from reception"},
         headers=_auth(employee_one),
     )
+    assert employee_start.status_code == 403
+
+    start_trip = client.post(
+        f"/reservations/{reservation_id}/start",
+        json={"note": "Keys collected from reception"},
+        headers=_auth(admin),
+    )
     assert start_trip.status_code == 200
     assert start_trip.json()["status"] == "checked_out"
 
-    after_start_admin_notifications = _list_notifications(client, admin, unread_only=True)
-    assert len(after_start_admin_notifications) == 2
-    assert after_start_admin_notifications[0]["kind"] == "trip_started"
+    after_start_employee_notifications = _list_notifications(client, employee_one, unread_only=True)
+    assert len(after_start_employee_notifications) == 2
+    assert after_start_employee_notifications[0]["kind"] == "trip_started"
+
+    employee_return = client.post(
+        f"/reservations/{reservation_id}/return",
+        json={"note": "Vehicle returned clean and parked"},
+        headers=_auth(employee_one),
+    )
+    assert employee_return.status_code == 403
 
     returned = client.post(
         f"/reservations/{reservation_id}/return",
         json={"note": "Vehicle returned clean and parked"},
-        headers=_auth(employee_one),
+        headers=_auth(admin),
     )
     assert returned.status_code == 200
     assert returned.json()["status"] == "returned"

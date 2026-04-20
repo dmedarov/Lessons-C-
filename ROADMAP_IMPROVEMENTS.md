@@ -68,6 +68,7 @@ static/
 alembic/                     migration scripts
 tests/test_app.py            Core FastAPI TestClient regression cases
 e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
+scripts/prod_check.py        Live cutover .env readiness guard
 ```
 
 > ⚠️ The prior UI audit referenced `static/index.html`. The correct path is
@@ -92,8 +93,8 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Real auth/user management with DB re-binding for token roles and active
   status.
 - Employee desk and dedicated `/admin` surface separated by role and UI intent.
-- Reservation lifecycle: request, approve/reject, cancel, start trip, return
-  car.
+- Reservation lifecycle: employee request/cancel, admin approve/reject, admin
+  start active trip and admin return car.
 - Service/maintenance blackout windows and conflict-aware reservation creation.
 - Live booking conflict preview in the UI.
 - In-app notifications, unread badge and polling refresh.
@@ -120,11 +121,17 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Intent-driven summary, one-tap booking, smart prefill, Current Trip Hero,
   Admin Decision Rail, timeline-first reservations and Fleet Pulse started as
   the premium "calm operations assistant" layer.
+- UX hierarchy review started: employee requests/lifecycle now sit before the
+  calendar, the new-request panel sits before inbox, and after login guidance
+  cards are hidden to reduce first-viewport noise.
+- Calm defaults started: employee reservations default to open/current work
+  and hide returned/rejected/cancelled from the main flow; read notifications
+  are removed from the visible inbox instead of accumulating.
 - NetFleet latest GPS events are wired through an admin-only server-side proxy;
   employees can read pickup location only for their own approved/active trip.
   The key can be supplied by `.env` or saved once/changed from Admin UI as a
   DB-backed setting; it must never be committed or echoed back to the browser.
-- Current automated coverage: 111 `pytest` cases plus optional Playwright
+- Current automated coverage: growing `pytest` suite plus optional Playwright
   browser smoke (`e2e/`) that captures desktop/mobile screenshots, JS syntax
   checks, Python compile checks and Docker smoke used in shipped verification.
 
@@ -982,7 +989,7 @@ Order is by estimated value; pick based on user demand.
      - Admin approve/reject -> employee inbox and timeline update.
      - Bulk reject empty-reason recovery.
      - Admin NetFleet key configured/unconfigured states with mocked payloads.
-     - Current trip start/return and logout/refresh recovery.
+     - Admin start/return and logout/refresh recovery.
   4. Add CI only after timing and artifact behavior stay stable.
 - **Effort:** M
 
@@ -1283,13 +1290,14 @@ these before exposing FleetFlow beyond a trusted internal network.
      parking location, condition note and damage flag.
   2. Store these as structured columns or a JSON text payload depending on DB
      portability tradeoffs; prefer explicit columns for core reporting fields.
-  3. Render compact forms in the start/return confirmation dialogs.
+  3. Render compact admin-only forms in the start/return confirmation dialogs.
   4. Surface condition info in admin lifecycle view and audit trail.
   5. Add validation that return odometer cannot be lower than checkout odometer
      when both exist.
 - **Acceptance criteria:**
-  - Employee can start and return with condition metadata.
-  - Admin can see condition details for active/returned trips.
+  - Admin can start and return with condition metadata.
+  - Employee can see condition details for their own approved/active/returned
+    trips without receiving transition buttons.
   - Invalid odometer sequence is rejected.
 - **Verification:** Tests for lifecycle metadata, invalid odometer and admin
   visibility; manual employee/admin smoke.
@@ -1628,15 +1636,16 @@ wireframe's "available now" meaning.
 
 **Status:** Started on 2026-04-20. Employee desk now renders
 `#currentTripHero` above the calendar when there is an active trip or next
-approved reservation, with one primary action (`Старт` or `Върни`) wired to
-the existing lifecycle handlers.
+approved reservation, with one primary action to view the trip. Start/return
+remain admin-owned lifecycle transitions.
 
 - **Goal:** Make an active or next approved trip the hero object for employee
   mode.
 - **Files:** `templates/index.html`, `static/app.js`, `static/styles.css`,
   `static/i18n.js`
-- **Acceptance criteria:** active trip shows car, time window, status and one
-  primary button (`Старт` or `Върни`) without requiring table scanning.
+- **Acceptance criteria:** active trip shows car, time window, status, pickup
+  context when available and one primary "view trip" action without requiring
+  table scanning; no employee start/return buttons.
 - **Verification:** `pytest tests/test_ui_compliance.py`, full `pytest -q`,
   manual browser check at desktop and 390 px.
 
@@ -1704,13 +1713,20 @@ detail view.
   actions, timeline-first reservation flow, timeline meter, next free slot
   action, smart prefill and intent-driven next step, plus Admin UI NetFleet key
   setup/change.
+- **UX review decision:** employee surface is now request-first, not
+  calendar-first. The order is current trip/context, reservations lifecycle,
+  calendar planning, fleet availability; the new-request control sits before
+  inbox in the side rail. Admin remains decision-first.
+- **Lifecycle ownership:** because this is a служебен pool процес, only admin
+  can approve, mark active trip and mark returned. Employee UI must never show
+  start/return transition buttons.
 - **Now evidenced:** initial Playwright smoke verifies employee one-tap booking,
   timeline-first cards, Admin Decision Rail, Fleet Pulse copy and mobile
   calendar, with screenshots for employee desktop, admin desktop and employee
   mobile.
 - **Apply next:** browser-computed contrast and broader Playwright evidence for
   admin approve/reject, bulk reject reason recovery, NetFleet configured/
-  unconfigured states, refresh/logout and current trip start/return.
+  unconfigured states, refresh/logout and admin start/return.
 - **Defer:** heavy BI dashboards, extra roles, settings labyrinth and generic
   chat assistant. GPS stays limited to read-only coordinates/availability
   context unless a specific operational flow needs more.
@@ -1746,8 +1762,8 @@ detail view.
 1. **8.2 browser-computed contrast** - close translucent surfaces, focus rings
    and alert/status pair evidence.
 2. **8.7 expand Playwright flows** - admin approve/reject, bulk reject reason
-   recovery, NetFleet configured/unconfigured states, refresh/logout and current
-   trip start/return.
+   recovery, NetFleet configured/unconfigured states, refresh/logout and admin
+   start/return.
 3. **8.3 responsive density pass** - use the new screenshots to hunt overlap,
    clipped text and weak hierarchy at 390/768/1024/1440.
 4. **8.5 destructive-action recovery sweep** - return, deactivate, role change,
@@ -1801,12 +1817,13 @@ If time is limited, execute items 1-4 before any new feature work.
   dialog validation path targets the exact invalid field rather than always
   marking the first control.
 - **Phase 9.1 started:** Summary deck now acts as an intent-driven next-action
-  layer with one primary action per mode: book now, start/return current trip,
-  review pending admin work, view active trips or inspect fleet state. Status
-  bar now reports free cars instead of merely active cars.
+  layer with one primary action per mode: book now, view current trip, review
+  pending admin work, view active trips or inspect fleet state. Status bar now
+  reports free cars instead of merely active cars.
 - **Phase 9.2 started:** Employee desk now promotes the active or next
-  approved reservation into a Current Trip Hero with one primary action,
-  moving the most important trip out of the table.
+  approved reservation into a Current Trip Hero with one primary view action,
+  moving the most important trip out of the table without giving employee
+  start/return transition control.
 - **Phase 9.3 started:** Admin surface now promotes the top 3 pending
   decisions into a Decision Rail before the table, with direct approve/reject
   actions and a bulk approve path for the whole pending queue.
@@ -1824,12 +1841,20 @@ If time is limited, execute items 1-4 before any new feature work.
   one-tap booking, timeline-first cards, Admin Decision Rail, Fleet Pulse copy
   and mobile calendar, and writes `employee-desktop.png`, `admin-desktop.png`
   and `employee-mobile.png` under `test-results/e2e`.
-- **Verification:** `pytest -q` passes with 111 tests,
-  `pytest tests/test_ui_compliance.py -q` passes with 21 tests, Playwright
-  browser smoke passes with 1 test and screenshots, JS syntax checks and Python
-  compile check pass. Old `fleetflow_test` containers were removed, Docker
-  stack was rebuilt, `/health` on `8001` returns ok and the app container is
-  healthy.
+- **UX hierarchy / production prep started:** Employee requests now render
+  before calendar, new request before inbox, guidance cards hide after login,
+  start/return are admin-only in API and UI, and `make prod-check` validates
+  live `.env` readiness without starting containers.
+- **Calm default started:** Read notifications are hidden from the visible
+  inbox and employee reservations default to `Текущи`, hiding returned,
+  rejected and cancelled records until the user explicitly chooses a history
+  filter.
+- **Verification:** `pytest -q` passes with 117 tests, targeted
+  UI/API/production readiness pack passes with 28 tests, Playwright browser
+  smoke passes with 1 test and screenshots, JS syntax checks and Python compile
+  check pass. `make prod-check` fails fast when `.env` is missing in a clean
+  checkout. Old `fleetflow_test` containers were removed, Docker stack was
+  rebuilt, `/health` on `8001` returns ok and the app container is healthy.
 
 ### 2026-04-19 - Phase 3.1 refresh-token rotation + logout invalidation
 
@@ -1888,7 +1913,7 @@ If time is limited, execute items 1-4 before any new feature work.
 ### 2026-04-18 - Initial product hardening and production path
 
 - **Shipped:** Dockerized FastAPI app, PostgreSQL-ready configuration,
-  Alembic baseline, real auth/user management, lifecycle start/return,
+  Alembic baseline, real auth/user management, admin-owned lifecycle start/return,
   notifications, outbound SMTP/Slack/Teams hooks, service/maintenance blackout
   windows and separate `/admin` surface.
 - **Verification:** Manual Docker smoke and growing FastAPI TestClient suite.
