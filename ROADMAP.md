@@ -216,9 +216,13 @@ operations assistant for internal mobility**, което е:
 - Admin Decision Rail: `/admin` now promotes the top 3 pending decisions above
   the bulk bar/table, with direct approve/reject actions and a bulk approve
   path for the full pending queue.
+- Timeline-first reservation view: employee/admin surfaces now render lifecycle
+  cards before the table, with direct actions and admin pending selection; the
+  table remains a secondary detail view.
 - Fleet Pulse strip: `/admin` now shows a calm executive strip for active
   trips, cars releasing within 1 hour, pending decisions, busiest car and GPS
-  telemetry availability.
+  telemetry availability for the active FleetFlow cars only (`X/Y`), not raw
+  NetFleet device event counts.
 - NetFleet telemetry: server-side proxy reads latest GPS events by plate number
   from the admin-managed DB setting or `NETFLEET_API_KEY`; the key never
   reaches browser code and the UI never echoes the current secret. Admins see
@@ -226,21 +230,19 @@ operations assistant for internal mobility**, което е:
   approved/active trip.
 - Status bar now reports free cars as active cars minus active trips, matching
   the cockpit wireframe's "available now" mental model.
-- Latest local verification for this slice: `pytest -q` -> 109 passed, targeted
-  NetFleet/UI/API regression pack -> 73 passed, JS syntax checks and Python
+- Latest local verification for this slice: `pytest -q` -> 110 passed, targeted
+  NetFleet/UI/API regression pack -> 74 passed, JS syntax checks and Python
   compile check. Old `fleetflow_test` containers were removed, Docker stack
-  was rebuilt from scratch after adding `app_settings.py` to the runtime image,
-  Alembic ran in PostgreSQL compose, `/health` on `8001` returned ok and the
-  app container is healthy.
+  was rebuilt, Alembic ran in PostgreSQL compose, `/health` on `8001` returned
+  ok and the app container is healthy.
 
 ## Next Recommended Slices
 
-1. Timeline-first reservation view; таблицата остава вторичен режим.
-2. Browser-level Playwright screenshots/e2e за one-tap booking, smart prefill, employee booking, admin approve/reject, bulk reject reason validation, intent actions, current trip hero, admin decision rail, fleet pulse, admin NetFleet key update, NetFleet telemetry empty/configured states, refresh/logout и mobile calendar.
-3. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
-4. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
-5. PostgreSQL migration smoke + backup/restore playbook за production оператори.
-6. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
+1. Browser-level Playwright screenshots/e2e за timeline-first reservations, one-tap booking, smart prefill, employee booking, admin approve/reject, bulk reject reason validation, intent actions, current trip hero, admin decision rail, fleet pulse, admin NetFleet key update, NetFleet telemetry empty/configured states, refresh/logout и mobile calendar.
+2. Browser-computed contrast checks for translucent surfaces, focus rings and theme-aware message alerts.
+3. Complete the Phase 8.5 error-prevention sweep for return, deactivate, role change, handoff and blackout deactivate.
+4. PostgreSQL migration smoke + backup/restore playbook за production оператори.
+5. Split на `static/app.js` в малки vanilla JS модули преди следващия голям UI пакет.
 
 ## References
 

@@ -190,6 +190,26 @@ def test_admin_decision_rail_promotes_pending_queue_before_table() -> None:
     assert ".decision-card__actions .action-btn" in styles
 
 
+def test_reservation_timeline_is_primary_before_table() -> None:
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+    for template in ("templates/index.html", "templates/admin.html"):
+        html = _read(template)
+        assert 'id="reservationsTimeline" aria-labelledby="reservationsTimelineTitle" aria-live="polite"' in html
+        assert html.index('id="reservationsTimeline"') < html.index('class="table-wrap"')
+    assert "function renderReservationFlow(cars, canBulk)" in app_js
+    assert "function reservationFlowCard(item, car, canBulk)" in app_js
+    assert 'data-reservation-card="${item.id}"' in app_js
+    assert 'data-reservation-select="${item.id}"' in app_js
+    assert 'document.querySelector(`[data-reservation-card="${id}"]`)' in app_js
+    assert "renderReservationFlow(cars, canBulk);" in app_js
+    assert '"reservationFlow.title": "Курсовете като времева линия"' in i18n_js
+    assert '"reservationFlow.copy": "Първо виж статуса, периода и следващото действие.' in i18n_js
+    assert ".reservation-flow-card__actions" in styles
+    assert ".reservation-flow-card__rail" in styles
+
+
 def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     html = _read("templates/admin.html")
     app_js = _read("static/app.js")
@@ -212,7 +232,10 @@ def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     assert 'const adminReservations = state.pulseReservations;' in app_js
     assert '"fleetPulse.title": "Оперативен пулс"' in i18n_js
     assert '"fleetPulse.busiestCar": "Най-натоварена кола"' in i18n_js
-    assert '"fleetPulse.telemetry": "GPS сигнали"' in i18n_js
+    assert '"fleetPulse.telemetry": "Коли с GPS позиция"' in i18n_js
+    assert "const activeFleetPlates = new Set(" in app_js
+    assert "const fleetTelemetryCount = state.telemetry.filter" in app_js
+    assert 'value: state.telemetryConfigured ? `${fleetTelemetryCount}/${fleetTelemetryTotal}` : "—"' in app_js
     assert '"pickup.title": "Къде да вземеш колата"' in i18n_js
     assert '"telemetry.coordinates": "{lat}, {lon}"' in i18n_js
     assert ".fleet-pulse__grid" in styles
@@ -237,7 +260,7 @@ def test_netfleet_secret_stays_out_of_browser_facing_ui() -> None:
     i18n_js = _read("static/i18n.js")
     assert 'apiFetch(`/cars/${candidate.car_id}/telemetry/latest`' in app_js
     assert '"pickup.title": "Къде да вземеш колата"' in i18n_js
-    assert '"fleetPulse.telemetryNotConfigured": "NetFleet ключът не е включен в runtime средата."' in i18n_js
+    assert '"fleetPulse.telemetryNotConfigured": "NetFleet ключът още не е добавен."' in i18n_js
 
 
 def test_admin_netfleet_key_can_be_configured_without_displaying_current_secret() -> None:

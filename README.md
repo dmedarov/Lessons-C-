@@ -30,7 +30,8 @@
 - Smart prefill: employee формата предлага обичайната кола, час и продължителност от последните резервации.
 - Current Trip Hero: активната или следваща одобрена резервация излиза като основен hero блок с един primary action.
 - Admin Decision Rail: `/admin` започва с най-спешните pending заявки, директни approve/reject действия и bulk approve, преди таблицата.
-- Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола и GPS сигнал.
+- Timeline-first reservations: employee/admin виждат lifecycle cards преди таблицата, с директни действия и secondary table fallback.
+- Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола и `X/Y` GPS позиции само за активните коли във FleetFlow.
 - NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а.
 - Pickup location: служителят вижда къде да вземе колата само за своя одобрена/активна резервация.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
@@ -297,7 +298,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-Последна локална проверка за one-tap/smart-prefill/admin NetFleet пакета: `pytest -q` -> 109 passed, `node --check static/app.js`, `node --check static/i18n.js`, `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile app_settings.py routers/cars.py routers/reservations.py schemas.py netfleet_service.py db.py` и `pytest tests/test_netfleet_service.py tests/test_ui_compliance.py tests/test_app.py -q` -> 73 passed. Старият `fleetflow_test` stack беше премахнат с `down --remove-orphans`, Docker image-ът беше rebuild-нат от нула след `Dockerfile` fix-а за `app_settings.py`, Alembic тръгна в PostgreSQL compose, `/health` на `8001` върна `{"status":"ok"}` и `fleetflow_test-car-pool-1` е healthy.
+Последна локална проверка за timeline-first/GPS copy пакета: `pytest -q` -> 110 passed, `node --check static/app.js`, `node --check static/i18n.js`, `PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache .venv/bin/python -m py_compile app_settings.py routers/cars.py routers/reservations.py schemas.py netfleet_service.py db.py` и `pytest tests/test_netfleet_service.py tests/test_ui_compliance.py tests/test_app.py -q` -> 74 passed. Старият `fleetflow_test` stack беше премахнат с `down --remove-orphans`, Docker image-ът беше rebuild-нат, Alembic тръгна в PostgreSQL compose, `/health` на `8001` върна `{"status":"ok"}` и `fleetflow_test-car-pool-1` е healthy.
 
 Покриват: login, 401/403 матрица, workflow на одобрение, overlap, cancel permissions, deactivate, видимост на списъка per role.
 
@@ -318,6 +319,7 @@ pytest -q
 - NetFleet service normalization/unconfigured states и frontend guardrail, че `NETFLEET_API_KEY` не изтича към browser-facing файлове
 - admin-managed NetFleet key flow: status, add/change, admin-only access и server-side usage without returning the secret
 - one-tap booking suggestion/create flow и smart prefill preferences за обичайна кола/час/продължителност
+- timeline-first reservation cards before the secondary table, including lifecycle actions and admin pending selection
 
 ## Alembic migrations
 

@@ -134,6 +134,7 @@ const els = {
   model: document.getElementById("model"),
   carsGrid: document.getElementById("carsGrid"),
   reservationsTableBody: document.getElementById("reservationsTableBody"),
+  reservationsTimeline: document.getElementById("reservationsTimeline"),
   decisionRail: document.getElementById("decisionRail"),
   fleetPulse: document.getElementById("fleetPulse"),
   overviewStats: document.getElementById("overviewStats"),
@@ -944,6 +945,12 @@ function renderFleetPulse() {
   const now = new Date();
   const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
   const cars = carMap();
+  const activeFleetPlates = new Set(
+    state.cars
+      .filter((car) => car.active)
+      .map((car) => String(car.plate_number || "").trim().toUpperCase())
+      .filter(Boolean)
+  );
   const activeTrips = state.pulseReservations.filter((item) => item.status === "checked_out");
   const pending = state.pulseReservations.filter((item) => item.status === "pending").length;
   const releasingSoon = activeTrips.filter((item) => {
@@ -951,7 +958,10 @@ function renderFleetPulse() {
     return end > now && end <= oneHourFromNow;
   }).length;
   const busiestCar = mostBookedCar(state.pulseReservations, cars);
-  const telemetryCount = state.telemetry.length;
+  const fleetTelemetryCount = state.telemetry.filter((item) =>
+    activeFleetPlates.has(String(item.plate_number || "").trim().toUpperCase())
+  ).length;
+  const fleetTelemetryTotal = activeFleetPlates.size || state.cars.filter((car) => car.active).length;
 
   const items = [
     {
@@ -978,10 +988,13 @@ function renderFleetPulse() {
     },
     {
       label: t("fleetPulse.telemetry"),
-      value: state.telemetryConfigured ? telemetryCount : "—",
+      value: state.telemetryConfigured ? `${fleetTelemetryCount}/${fleetTelemetryTotal}` : "—",
       detail: t(state.telemetryConfigured
-        ? (telemetryCount ? "fleetPulse.telemetryDetail" : "fleetPulse.telemetryEmpty")
-        : "fleetPulse.telemetryNotConfigured"),
+        ? (fleetTelemetryCount ? "fleetPulse.telemetryDetail" : "fleetPulse.telemetryEmpty")
+        : "fleetPulse.telemetryNotConfigured", {
+          count: fleetTelemetryCount,
+          total: fleetTelemetryTotal,
+        }),
     },
   ];
 
@@ -1640,7 +1653,7 @@ function setAllPendingReservationsSelected(selected) {
 }
 
 function focusReservationRow(id, action = null) {
-  const row = document.querySelector(`[data-reservation-row="${id}"]`);
+  const row = document.querySelector(`[data-reservation-card="${id}"]`) || document.querySelector(`[data-reservation-row="${id}"]`);
   if (!row) return;
   row.scrollIntoView({ behavior: "smooth", block: "center" });
   row.tabIndex = -1;
@@ -1775,6 +1788,114 @@ function reservationActions(item) {
   return actions.join("");
 }
 
+function reservationFlowEmptyMessage() {
+  if (!state.token) return t("reservationFlow.loginCopy");
+  return state.currentRole === "fleet_admin"
+    ? t("reservationFlow.emptyAdmin")
+    : t("reservationFlow.emptyEmployee");
+}
+
+function reservationFlowCard(item, car, canBulk) {
+  const selectable = canBulk && item.status === "pending";
+  const context = reservationContext(item) || `<span class="muted">${escapeHtml(t("reservationFlow.noContext"))}</span>`;
+  const actions = reservationActions(item);
+  const carLabel = car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id });
+  return `
+    <article class="reservation-flow-card" data-reservation-card="${item.id}" data-reservation-status="${item.status}">
+      <div class="reservation-flow-card__rail" aria-hidden="true"></div>
+      <div class="reservation-flow-card__body">
+        <div class="reservation-flow-card__top">
+          <div class="reservation-flow-card__identity">
+            ${selectable ? `
+              <input
+                class="reservation-flow-card__select"
+                type="checkbox"
+                data-reservation-select="${item.id}"
+                aria-label="Избери резервация #${item.id}"
+                ${state.selectedReservationIds.has(item.id) ? "checked" : ""}
+              />
+            ` : ""}
+            <div>
+              <p class="panel__eyebrow">${escapeHtml(t("reservationFlow.itemEyebrow", { id: item.id }))}</p>
+              <h3>${escapeHtml(carLabel)}</h3>
+              <p class="reservation-flow-card__meta">${escapeHtml(item.employee_name)} · ${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</p>
+            </div>
+          </div>
+          ${statusTag(item.status)}
+        </div>
+        <div class="reservation-flow-card__lifecycle">
+          ${lifecycleMeter(item)}
+        </div>
+        <div class="reservation-flow-card__context">
+          ${context}
+        </div>
+        <div class="reservation-flow-card__actions">
+          ${actions || `<span class="muted">${escapeHtml(t("reservationFlow.noAction"))}</span>`}
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderReservationFlow(cars, canBulk) {
+  if (!els.reservationsTimeline) return;
+
+  if (!state.token) {
+    els.reservationsTimeline.innerHTML = `
+      <div class="reservation-flow__header">
+        <div>
+          <p class="panel__eyebrow">${escapeHtml(t("reservationFlow.eyebrow"))}</p>
+          <h3 id="reservationsTimelineTitle">${escapeHtml(t("reservationFlow.title"))}</h3>
+          <p class="section-copy">${escapeHtml(reservationFlowEmptyMessage())}</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  if (state.loading.reservations) {
+    els.reservationsTimeline.innerHTML = `
+      <div class="reservation-flow__header">
+        <div>
+          <p class="panel__eyebrow">${escapeHtml(t("reservationFlow.eyebrow"))}</p>
+          <h3 id="reservationsTimelineTitle">${escapeHtml(t("reservationFlow.loadingTitle"))}</h3>
+          <p class="section-copy">${escapeHtml(t("reservationFlow.loadingCopy"))}</p>
+        </div>
+      </div>
+      <div class="reservation-flow__list">${skeletonCards(3)}</div>
+    `;
+    return;
+  }
+
+  if (!state.reservations.length) {
+    els.reservationsTimeline.innerHTML = `
+      <div class="reservation-flow__header">
+        <div>
+          <p class="panel__eyebrow">${escapeHtml(t("reservationFlow.eyebrow"))}</p>
+          <h3 id="reservationsTimelineTitle">${escapeHtml(t("reservationFlow.emptyTitle"))}</h3>
+          <p class="section-copy">${escapeHtml(reservationFlowEmptyMessage())}</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const sorted = [...state.reservations].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  els.reservationsTimeline.innerHTML = `
+    <div class="reservation-flow__header">
+      <div>
+        <p class="panel__eyebrow">${escapeHtml(t("reservationFlow.eyebrow"))}</p>
+        <h3 id="reservationsTimelineTitle">${escapeHtml(t("reservationFlow.title"))}</h3>
+        <p class="section-copy">${escapeHtml(t("reservationFlow.copy"))}</p>
+      </div>
+      <span class="status-pill status-pill--muted">${escapeHtml(pluralRecord(sorted.length))}</span>
+    </div>
+    <div class="reservation-flow__list">
+      ${sorted.map((item) => reservationFlowCard(item, cars.get(item.car_id), canBulk)).join("")}
+    </div>
+  `;
+}
+
 function renderDecisionRail() {
   if (!els.decisionRail) return;
   const showRail = state.currentRole === "fleet_admin" && surface === "admin" && state.token;
@@ -1854,11 +1975,13 @@ function renderReservations() {
   const canBulk = bulkSelectionEnabled();
   const colspan = canBulk ? 8 : 7;
   els.reservationsTableBody.innerHTML = "";
+  renderReservationFlow(cars, canBulk);
 
   if (!state.token) {
     state.selectedReservationIds.clear();
     renderBulkActionBar();
     renderDecisionRail();
+    renderReservationFlow(cars, canBulk);
     els.reservationsTableBody.innerHTML = `<tr><td colspan="${colspan}" class="muted">Влез в системата, за да видиш operational потока.</td></tr>`;
     return;
   }
@@ -1866,6 +1989,7 @@ function renderReservations() {
   if (state.loading.reservations) {
     renderBulkActionBar();
     renderDecisionRail();
+    renderReservationFlow(cars, canBulk);
     els.reservationsTableBody.innerHTML = `${skeletonTableRow(colspan)}${skeletonTableRow(colspan)}${skeletonTableRow(colspan)}`;
     return;
   }
@@ -1874,11 +1998,13 @@ function renderReservations() {
     state.selectedReservationIds.clear();
     renderBulkActionBar();
     renderDecisionRail();
+    renderReservationFlow(cars, canBulk);
     els.reservationsTableBody.innerHTML = `<tr><td colspan="${colspan}" class="muted">${state.currentRole === "fleet_admin" ? "Няма резервации за текущия изглед." : "Нямаш видими резервации за текущия изглед."}</td></tr>`;
     return;
   }
 
   syncBulkSelection();
+  renderReservationFlow(cars, canBulk);
   state.reservations.forEach((item) => {
     const car = cars.get(item.car_id);
     const selectable = canBulk && item.status === "pending";
