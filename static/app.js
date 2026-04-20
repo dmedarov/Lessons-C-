@@ -820,12 +820,16 @@ function lifecycleMeter(item) {
   `;
 }
 
-function calendarPill(item, car) {
+function calendarPill(item, car, options = {}) {
+  const compact = Boolean(options.compact);
   const label = item.plate_number || (car ? car.plate_number : `Car ${item.car_id}`);
   const segment = item.calendar_segment;
-  const segmentText = segment?.range && segment.kind ? ` · ${t(`calendar.range${segment.kind}`)}` : "";
+  const segmentText = segment?.range && segment.kind ? t(`calendar.range${segment.kind}`) : "";
   const segmentClass = segment?.range ? ` calendar-pill--range calendar-pill--range-${segment.kind.toLowerCase()}` : "";
-  return `<span class="calendar-pill calendar-pill--${item.status}${segmentClass}">${escapeHtml(`${label}${segmentText}`)}</span>`;
+  const compactClass = compact ? " calendar-pill--compact" : "";
+  const visibleLabel = compact || !segmentText ? label : `${label} · ${segmentText}`;
+  const accessibleLabel = segmentText ? `${label} · ${segmentText}` : label;
+  return `<span class="calendar-pill calendar-pill--${item.status}${segmentClass}${compactClass}" title="${escapeHtml(accessibleLabel)}" aria-label="${escapeHtml(accessibleLabel)}"><span class="calendar-pill__label">${escapeHtml(visibleLabel)}</span></span>`;
 }
 
 function carMap() {
@@ -2610,13 +2614,19 @@ function renderCalendar() {
       </div>
       <div class="calendar-day__list">
         ${visibleItems
-          .map((item) => calendarPill(item, cars.get(item.car_id)))
+          .map((item) => calendarPill(item, cars.get(item.car_id), { compact: true }))
           .join("")}
         ${hiddenCount ? `<span class="calendar-more">+${hiddenCount} още</span>` : ""}
       </div>
     `;
     els.calendarGrid.appendChild(button);
   }
+}
+
+function nextBusyDateKey(fromKey) {
+  const days = dayMap();
+  const keys = [...days.keys()].sort();
+  return keys.find((key) => key > fromKey) || "";
 }
 
 function renderDayTimeline() {
@@ -2626,11 +2636,18 @@ function renderDayTimeline() {
   els.dayTimeline.innerHTML = "";
 
   if (!selectedItems.length) {
+    const nextKey = nextBusyDateKey(state.selectedDateKey);
+    const nextBusyMarkup = nextKey
+      ? `
+        <p>${escapeHtml(t("calendar.nextBusyDay", { date: formatDayLabel(nextKey) }))}</p>
+        <button class="btn btn--secondary" type="button" data-date-key="${nextKey}">${escapeHtml(t("calendar.viewNextBusyDay"))}</button>
+      `
+      : `<p>${escapeHtml(t("calendar.noEventsDetail"))}</p>`;
     els.selectedDateMeta.textContent = t("calendar.noEvents");
     els.dayTimeline.innerHTML = `
       <article class="empty-state">
-        <strong>Спокоен ден.</strong>
-        <p>Няма заявки или курсове в избрания ден.</p>
+        <strong>${escapeHtml(t("calendar.calmDayTitle"))}</strong>
+        ${nextBusyMarkup}
       </article>
     `;
     return;

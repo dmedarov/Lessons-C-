@@ -66,9 +66,9 @@ templates/
   index.html                 employee surface
   admin.html                 admin surface
 static/
-  app.js                     4357-line SPA logic; split before next large UI package
+  app.js                     4374-line SPA logic; split before next large UI package
   i18n.js                    Bulgarian UI copy dictionary + interpolation
-  styles.css                 3209-line design system stylesheet with responsive cockpit UI
+  styles.css                 3233-line design system stylesheet with responsive cockpit UI
 alembic/                     migration scripts
 tests/test_app.py            Core FastAPI TestClient regression cases
 e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
@@ -151,6 +151,11 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Multi-day calendar records now render on every covered date, tagged as
   start/continue/end, sorted before single-day records and constrained inside
   their day cells so long reservations do not disappear under the next date.
+  The calendar layout now reacts to the card/container width, not only the
+  browser viewport, so the selected-day panel drops below the grid before month
+  cells become too narrow to read.
+  Empty selected days now show the next busy date action, preserving the "never
+  leave the user without a next move" product rule.
 - Overdue returns are now the top next signal for both `fleet_reception` and
   `fleet_admin`: once a checked-out course is past its approved end time, the
   cockpit promotes `чака връщане` before normal approvals or table browsing.
@@ -215,7 +220,7 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
 - The monolithic `static/app.js` should be split before the frontend grows much
-  further; it is now 4357 lines and `static/styles.css` is 3209 lines.
+  further; it is now 4374 lines and `static/styles.css` is 3233 lines.
 - `routers/reservations.py` is now 964 lines and carries too many concerns:
   creation, conflict checks, lifecycle transitions, suggestions, bulk decisions,
   listing and export. Keep endpoints stable, but extract service modules before
@@ -239,7 +244,7 @@ Use it before choosing the next implementation task.
 | Product model | Role-separated pool process is clear: employee, approver, reception, admin. | Extra roles/features can make the app feel like ERP. | Preserve the four-role model; add permissions only when a real pool workflow requires them. |
 | Backend API | FastAPI routers, auth rebinding, refresh rotation, readiness and audit trail are strong. | `routers/reservations.py` has too many responsibilities. | Extract reservation services in small slices without changing routes or schemas. |
 | Frontend | Intent-driven cockpit, rails, timeline and NetFleet context are already premium. | `static/app.js` is too large for safe autonomous edits. | Create module boundaries before the next large UI addition. |
-| CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies risky token pairs and density on key role surfaces. | 3209-line stylesheet still makes overlap regressions easy. | Keep density evidence green, then split component CSS if churn continues. |
+| CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies risky token pairs and density on key role surfaces. | 3233-line stylesheet still makes overlap regressions easy. | Keep density evidence green, then split component CSS if churn continues. |
 | Database | Alembic production path and PostgreSQL smoke exist. | Runtime bootstrap/upgrades in `db.py` can drift from migrations. | Add schema parity tests for SQLite bootstrap, PostgreSQL bootstrap and Alembic head. |
 | E2E evidence | Playwright smoke now runs separate public, contrast, employee, approver, admin, mobile, reception, overdue-return, responsive density and destructive recovery checks. | Manual screen-reader and real production URL evidence are still external. | Add configured/unconfigured NetFleet screenshots and record real cutover smoke. |
 | NetFleet | Server-side key handling, scoped employee/reception pickup context and freshness wording are correct. | Real operators may still want an address/geocoding layer later. | Keep GPS read-only; consider address enrichment only after live use proves it helps. |
@@ -2132,7 +2137,7 @@ from the last 60 minutes instead of raw NetFleet events.
    flow, employee pickup location after approval and reception handoff location
    with the real key configured, plus the calm fallback when it is absent.
 5. **10.3 Split `static/app.js` into modules** - do this before large frontend
-   additions; the file is already 4357 lines.
+   additions; the file is already 4374 lines.
 6. **10.4 reservation service extraction** - keep endpoints stable while
     moving lifecycle/domain logic out of the router.
 7. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
@@ -2158,10 +2163,20 @@ If time is limited, execute items 1-4 before any new feature work.
   visually lost under later dates and overdue returns were not promoted clearly
   enough for reception/admin.
 - **Calendar UX:** range reservations are repeated on every covered calendar
-  date with explicit `начало`, `продължава` and `край` labels. Range pills sort
-  at the top of each day and are constrained by `min-width: 0`, `max-width:
-  100%` and hidden cell overflow so they stay inside the date box instead of
-  sliding under the next day.
+  date with explicit `начало`, `продължава` and `край` labels. Month cells use
+  compact plate markers with full accessible labels, range pills sort at the
+  top of each day and are constrained by `min-width: 0`, `max-width: 100%` and
+  hidden cell overflow so they stay inside the date box instead of sliding
+  under the next day.
+- **Responsive calendar fix:** the calendar card now has a container-width
+  breakpoint at 920 px, so the selected-day panel moves below the month grid
+  when the actual card is narrow even if the browser viewport is wider. This
+  directly addresses the cramped mid-width state where records became visually
+  too small.
+- **Empty-day recovery:** when a selected day has no records but a later day
+  does, the day panel shows `Следващият запис е на ...` with one button to jump
+  there. This follows the premium flow rule: do not leave a blank state without
+  the next useful move.
 - **Reception/admin signal:** `checked_out` reservations whose end time is in
   the past now become the first next signal for both `fleet_reception` and
   `fleet_admin`, with copy `чака връщане`, a danger status pill and
@@ -2178,7 +2193,10 @@ If time is limited, execute items 1-4 before any new feature work.
   qa-premium` -> dependency audit, Python compile, 149 pytest cases, JS syntax
   and 12 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
-  passed.
+  passed. Follow-up mid-width calendar fix was rechecked with `node --check`,
+  `tests/test_ui_compliance.py` -> 36 passed, targeted Playwright reception
+  calendar/overdue signal -> 2 passed, and full `make qa-premium` -> 149
+  pytest cases + 12 Playwright checks.
 
 ### 2026-04-21 - Final go-live gate and docs review
 

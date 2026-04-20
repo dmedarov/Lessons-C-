@@ -36,6 +36,11 @@ UI guardrails, backup/restore discipline и browser evidence са достатъ
   keyboard recovery screenshots.
 - Всички календарни изгледи показват multi-day записи на всяка засегната дата
   като начало/продължава/край, със записи от диапазони най-горе в деня.
+- Month calendar layout-ът вече реагира на ширината на самия календарен card:
+  при тесен card day panel-ът пада отдолу и записите остават четими вместо
+  да се свиват между датите.
+- Празен избран ден в календара вече предлага следващия ден със запис, вместо
+  да оставя статично empty state съобщение.
 - Reception и admin получават top next signal за просрочено връщане преди
   pending approvals, защото това е по-спешен operational риск.
 
@@ -96,7 +101,11 @@ reliable flows:
 - admin/reception overdue return next signal is visible before less urgent
   work;
 - calendar range records stay visible on every covered day without overflowing
-  neighboring date cells.
+  neighboring date cells;
+- calendar month grid switches to a full-width layout by container width before
+  cells become cramped;
+- empty selected calendar days point to the next busy date instead of ending
+  the flow.
 
 The remaining UX risk before broad rollout is not a missing module; it is
 operational observation. Use the first week to collect where employees,

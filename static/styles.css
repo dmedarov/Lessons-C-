@@ -1578,6 +1578,7 @@ select {
    ----------------------------------------------------------------------------- */
 .studio-card {
   padding: var(--sp-6);
+  container-type: inline-size;
 }
 
 .calendar-toolbar {
@@ -1765,6 +1766,22 @@ select {
   text-overflow: ellipsis;
 }
 
+.calendar-pill__label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-pill--compact {
+  min-height: 26px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  box-shadow: inset 3px 0 0 currentColor;
+}
+
 .calendar-pill--pending {
   background: var(--warning-soft);
   color: var(--warning);
@@ -1805,6 +1822,7 @@ select {
 
 .calendar-pill--range-middle {
   border-radius: 8px;
+  border-inline-style: dashed;
 }
 
 .calendar-pill--range-end {
@@ -2762,6 +2780,12 @@ select {
 
   .hero__secondary {
     grid-template-columns: repeat(2, minmax(280px, 1fr));
+  }
+}
+
+@container (max-width: 920px) {
+  .calendar-layout {
+    grid-template-columns: 1fr;
   }
 }
 

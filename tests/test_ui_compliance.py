@@ -370,11 +370,20 @@ def test_calendar_expands_multi_day_items_and_keeps_range_pills_visible() -> Non
     assert "function sortCalendarItems(items)" in app_js
     assert "item.calendar_segment?.range ? 0 : 1" in app_js
     assert "const visibleItems = items.slice(0, 4);" in app_js
+    assert 'calendarPill(item, cars.get(item.car_id), { compact: true })' in app_js
+    assert 'aria-label="${escapeHtml(accessibleLabel)}"' in app_js
+    assert "function nextBusyDateKey(fromKey)" in app_js
+    assert 'data-date-key="${nextKey}"' in app_js
+    assert '"calendar.nextBusyDay": "Следващият запис е на {date}."' in i18n_js
+    assert '"calendar.viewNextBusyDay": "Виж този ден"' in i18n_js
     assert '"calendar.rangeStart": "начало"' in i18n_js
     assert '"calendar.rangeMiddle": "продължава"' in i18n_js
     assert '"calendar.rangeEnd": "край"' in i18n_js
     assert ".calendar-pill--range" in styles
+    assert ".calendar-pill--compact" in styles
     assert ".calendar-day__list" in styles
+    assert "container-type: inline-size;" in styles
+    assert "@container (max-width: 920px)" in styles
     assert "width: 100%;" in styles
     assert "min-width: 0;" in styles
     assert "overflow: hidden;" in styles

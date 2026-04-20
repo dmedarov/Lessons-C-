@@ -576,12 +576,12 @@ def test_employee_mobile_calendar_surface(browser: Browser, server: str, artifac
 
 def test_reception_handoff_calendar_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
     _seed_reception_work(server)
-    base_start = (datetime.now().astimezone() + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
 
     reception = browser.new_context(viewport={"width": 1440, "height": 1000})
     reception_page = reception.new_page()
     _login(reception_page, server, "/admin", "reception", "ReceptionPass123")
-    reception_page.evaluate("dateKey => setSelectedDate(dateKey)", base_start.date().isoformat())
+    expect(reception_page.locator("#dayTimeline")).to_contain_text("Следващият запис", timeout=10_000)
+    reception_page.get_by_role("button", name="Виж този ден").click()
     expect(reception_page.locator('[data-status="approved"]')).to_have_attribute("aria-pressed", "true")
     expect(reception_page.locator("#receptionRail")).to_be_visible(timeout=10_000)
     expect(reception_page.locator("#receptionRail")).to_contain_text("Започни курс")
@@ -591,6 +591,10 @@ def test_reception_handoff_calendar_surface(browser: Browser, server: str, artif
     expect(reception_page.locator("#dayTimeline")).to_contain_text("Одобрена", timeout=10_000)
     expect(reception_page.locator("#dayTimeline")).to_contain_text("Активен курс")
     expect(reception_page.locator("#usersDeck")).to_be_hidden()
+    board_box = reception_page.locator(".calendar-board").bounding_box()
+    panel_box = reception_page.locator(".day-panel").bounding_box()
+    assert board_box and panel_box
+    assert panel_box["y"] > board_box["y"] + board_box["height"] - 1
     reception_page.screenshot(path=artifact_dir / "reception-desktop.png", full_page=True)
     reception.close()
 

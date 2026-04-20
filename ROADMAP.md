@@ -337,7 +337,10 @@ operations assistant for internal mobility**, което е:
 - Calendar and reception/admin signal update: multi-day records now appear on
   every covered calendar date as start/continue/end, range records are sorted
   at the top of each day, and overdue returns are the first next signal for
-  both reception and admin before lower-risk approval work.
+  both reception and admin before lower-risk approval work. The calendar also
+  uses container-width layout, so the day panel drops below the month grid when
+  the calendar card itself is narrow even on a wider browser window, and empty
+  selected days point to the next day with work instead of becoming a dead end.
 
 ## Go-Live Plan
 
@@ -380,8 +383,8 @@ visible modules.
 
 ### Current risks to address before broad production use
 
-- **Frontend size:** `static/app.js` is 4357 lines and `static/styles.css` is
-  3209 lines. New UX work should stop growing the monolith and start extracting
+- **Frontend size:** `static/app.js` is 4374 lines and `static/styles.css` is
+  3233 lines. New UX work should stop growing the monolith and start extracting
   stable vanilla modules.
 - **Reservation router size:** `routers/reservations.py` is 964 lines and owns
   creation, conflict checks, suggestions, lifecycle, bulk decisions, listing
