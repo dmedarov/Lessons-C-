@@ -391,6 +391,20 @@ def test_reception_rail_promotes_key_handoff_before_table() -> None:
     assert '"receptionRail.copy": "Първо предай или приеми ключове и документи.' in i18n_js
 
 
+def test_bulk_selection_stays_synchronized_between_timeline_and_table() -> None:
+    app_js = Path("static/app.js").read_text()
+    styles = Path("static/styles.css").read_text()
+    e2e = Path("e2e/test_browser_smoke.py").read_text()
+
+    assert "function syncReservationSelectionControls(id)" in app_js
+    assert 'document.querySelectorAll(`[data-reservation-select="${id}"]`)' in app_js
+    assert 'document.querySelectorAll(`[data-reservation-card="${id}"], [data-reservation-row="${id}"]`)' in app_js
+    assert 'row.classList.toggle("is-selected", state.selectedReservationIds.has(item.id));' in app_js
+    assert ".reservation-flow-card.is-selected" in styles
+    assert '.select-cell input[type="checkbox"]:focus-visible' in styles
+    assert "approver-keyboard-bulk-selection.png" in e2e
+
+
 def test_reception_calendar_uses_operational_snapshot_not_table_filter() -> None:
     app_js = _read("static/app.js")
 

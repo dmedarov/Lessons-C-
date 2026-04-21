@@ -138,7 +138,7 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 
 Latest verification:
 
-- `make qa-premium` -> passed: dependency audit, Python compile, 160 pytest
+- `make qa-premium` -> passed: dependency audit, Python compile, 161 pytest
   cases, JS syntax and 13 Playwright browser checks.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> passed:
   `/health`, `/health/ready`, `/auth/setup-status` and `/public/overview`.
@@ -151,6 +151,8 @@ Latest verification:
 
 - Не добавяй повече от един primary action на surface.
 - Не показвай таблица като първи избор, ако rail/card/timeline върши работата.
+- При approver bulk decisions timeline card и table row selection трябва да
+  останат синхронизирани, включително при keyboard-only Space activation.
 - Не показвай role controls на роля, която няма право да ги използва.
 - Не връщай read notifications, returned, rejected или cancelled записи в
   основния оперативен поток.

@@ -590,6 +590,17 @@ def test_approver_decision_surface(browser: Browser, server: str, artifact_dir: 
     expect(page.locator("#usersDeck")).to_be_hidden()
     expect(page.locator("#netfleetPanel")).to_be_hidden()
     expect(page.locator("#receptionRail")).to_be_hidden()
+    flow_checkbox = page.locator("#reservationsTimeline [data-reservation-select]").first
+    table_checkbox = page.locator("#reservationsTableBody [data-reservation-select]").first
+    expect(flow_checkbox).to_be_visible()
+    flow_checkbox.focus()
+    page.keyboard.press("Space")
+    expect(flow_checkbox).to_be_checked()
+    expect(table_checkbox).to_be_checked()
+    expect(page.locator("#bulkActionBar")).to_be_visible()
+    expect(page.locator("#bulkSelectedCount")).to_contain_text("1 избрани")
+    expect(page.locator("#reservationsTimeline .reservation-flow-card.is-selected")).to_have_count(1)
+    page.screenshot(path=artifact_dir / "approver-keyboard-bulk-selection.png", full_page=True)
     page.screenshot(path=artifact_dir / "approver-desktop.png", full_page=True)
     context.close()
 

@@ -2036,12 +2036,23 @@ function renderBulkActionBar() {
   });
 }
 
+function syncReservationSelectionControls(id) {
+  const selected = state.selectedReservationIds.has(id);
+  document.querySelectorAll(`[data-reservation-select="${id}"]`).forEach((control) => {
+    control.checked = selected;
+  });
+  document.querySelectorAll(`[data-reservation-card="${id}"], [data-reservation-row="${id}"]`).forEach((surfaceEl) => {
+    surfaceEl.classList.toggle("is-selected", selected);
+  });
+}
+
 function setReservationSelected(id, selected) {
   if (selected) {
     state.selectedReservationIds.add(id);
   } else {
     state.selectedReservationIds.delete(id);
   }
+  syncReservationSelectionControls(id);
   renderBulkActionBar();
 }
 
@@ -2208,11 +2219,12 @@ function reservationFlowEmptyMessage() {
 
 function reservationFlowCard(item, car, canBulk) {
   const selectable = canBulk && item.status === "pending";
+  const selected = state.selectedReservationIds.has(item.id);
   const context = reservationContext(item) || `<span class="muted">${escapeHtml(t("reservationFlow.noContext"))}</span>`;
   const actions = reservationActions(item);
   const carLabel = car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id });
   return `
-    <article class="reservation-flow-card" data-reservation-card="${item.id}" data-reservation-status="${item.status}">
+    <article class="reservation-flow-card ${selected ? "is-selected" : ""}" data-reservation-card="${item.id}" data-reservation-status="${item.status}">
       <div class="reservation-flow-card__rail" aria-hidden="true"></div>
       <div class="reservation-flow-card__body">
         <div class="reservation-flow-card__top">
@@ -2532,6 +2544,7 @@ function renderReservations() {
     const row = document.createElement("tr");
     row.dataset.reservationRow = String(item.id);
     row.dataset.reservationStatus = item.status;
+    row.classList.toggle("is-selected", state.selectedReservationIds.has(item.id));
     row.innerHTML = `
       ${
         canBulk

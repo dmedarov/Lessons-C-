@@ -210,7 +210,8 @@ operations assistant for internal mobility**, което е:
   audit trail while keeping backward-compatible no-body API calls.
 - Browser-level evidence started: optional Playwright smoke now runs
   role-specific public, employee, employee-admin-deny, approver, admin, mobile
-  and reception flows, plus responsive density and destructive recovery checks
+  and reception flows, plus responsive density, approver keyboard bulk-selection
+  and destructive recovery checks
   with separate screenshots under `test-results/e2e`.
 - UX hierarchy review: employee requests/lifecycle now appear before the
   calendar, the new-request panel appears before inbox, and auth-only guidance
@@ -327,20 +328,22 @@ operations assistant for internal mobility**, което е:
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
   Alembic revision `20260420_0009`.
 - Latest go-live gate verification: `pytest tests/test_prod_readiness.py -q`
-  -> 7 passed, `make qa-premium` -> 160 pytest cases + 13 browser checks,
+  -> 7 passed, `make qa-premium` -> 161 pytest cases + 13 browser checks,
   and `make smoke-live APP_URL=http://127.0.0.1:8001` returned
   health/ready/active-admin/public overview from the running PostgreSQL stack.
   The latest rebuilt Docker artifact was pushed to `dmedarov/fleetflow:latest`
-  as digest `sha256:93da80aebc2169d5384ca183ec9e749ccdb5c2af9435ef0925bf2ca4b18c93d1`.
+  as digest `sha256:dade72cb77568b8d7c2932f8e42cfdac262aa6bc7394aff3c053efd5386b509d`.
 - Latest calm-flow verification: Playwright captures responsive density
   evidence for public/employee/approver/reception/admin viewports and
   destructive-action recovery screenshots for reject required-reason, return
   confirmation, user deactivate, role change, admin handoff and blackout
-  deactivate. The dialog system uses custom validation (`novalidate`) so errors
-  are Bulgarian, focused and `aria-invalid` instead of browser-native
-  validation bubbles. Role-by-role user flows are documented in
-  `docs/ROLE_USER_FLOWS.md`; production readiness is summarized in
-  `docs/PRODUCTION_READINESS_ASSESSMENT.md`.
+  deactivate. Approver keyboard bulk-selection now has browser evidence:
+  Space on a timeline checkbox synchronizes the duplicate table checkbox,
+  selected card/row state and bulk action bar. The dialog system uses custom
+  validation (`novalidate`) so errors are Bulgarian, focused and
+  `aria-invalid` instead of browser-native validation bubbles. Role-by-role
+  user flows are documented in `docs/ROLE_USER_FLOWS.md`; production readiness
+  is summarized in `docs/PRODUCTION_READINESS_ASSESSMENT.md`.
 - Calendar and reception/admin signal update: multi-day records now appear on
   every covered calendar date as start/continue/end, range records are sorted
   at the top of each day, and overdue returns are the first next signal for
@@ -357,8 +360,8 @@ operations assistant for internal mobility**, което е:
 - NetFleet production UX guard: Fleet Pulse now distinguishes missing API key
   from configured-but-unavailable live GPS, and shows text-backed
   `Няма връзка` instead of a symbol-only warning.
-- Current tracked size: 14,358 production app/script/template/style lines,
-  19,552 code lines including automated tests/e2e, and 25,376 tracked project
+- Current tracked size: 14,387 production app/script/template/style lines,
+  19,606 code lines including automated tests/e2e, and 25,756 tracked project
   lines including docs/config/workflows.
 
 ## Go-Live Plan
@@ -437,9 +440,10 @@ visible modules.
   tests for public overview/calendar, employee booking/current trip, approver
   decisions, reception handoff/return, admin settings, browser-computed
   light/dark contrast, responsive density and destructive recovery, including
-  deeper keyboard coverage for user deactivate, role change, admin handoff,
-  blackout deactivate, reception calendar and admin/reception overdue return
-  signal. Remaining evidence gap is manual screen-reader confirmation and
+  deeper keyboard coverage for approver bulk selection, user deactivate, role
+  change, admin handoff, blackout deactivate, reception calendar and
+  admin/reception overdue return signal. Remaining evidence gap is manual
+  screen-reader confirmation and
   configured/unconfigured NetFleet screenshots.
 - **External signal closure:** local audits and Docker Scout were clean, but
   GitHub Security/Dependabot must still be inspected directly after push

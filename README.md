@@ -438,7 +438,8 @@ role flow, за да няма скрита зависимост между сц�
 pre-login orientation, browser-computed light/dark contrast guard, employee
 quick-booking, employee admin-deny redirect, approver Decision Rail, admin
 control surface, employee mobile calendar, reception handoff/calendar,
-responsive density evidence и destructive-action keyboard recovery.
+responsive density evidence, approver keyboard bulk-selection и
+destructive-action keyboard recovery.
 При `E2E_ARTIFACT_DIR` записва:
 `public-mobile.png`, `employee-desktop.png`, `approver-desktop.png`,
 `admin-desktop.png`, `employee-mobile.png` и `reception-desktop.png`.
@@ -452,7 +453,9 @@ responsive density evidence и destructive-action keyboard recovery.
 `destructive-handoff-confirmation.png` и
 `destructive-blackout-deactivate-confirmation.png`. Calendar/reception evidence
 добавя `admin-overdue-return-signal.png` и
-`reception-overdue-return-signal.png`.
+`reception-overdue-return-signal.png`; approver evidence добавя
+`approver-keyboard-bulk-selection.png`, където Space върху timeline checkbox
+синхронизира таблицата и bulk action bar-а.
 `test-results/` е игнориран от git.
 
 ## Спокойни и надеждни flows
@@ -462,7 +465,9 @@ FleetFlow трябва да се усеща като тих operational cockpit.
 - **Employee:** вижда текущ/следващ курс или един ясен ход за заявка; архивът
   и прочетените съобщения не се трупат в основния поток.
 - **Approver:** започва от Decision Rail; reject изисква причина, фокусира
-  точното поле при празен submit и не губи контекста.
+  точното поле при празен submit и не губи контекста. Bulk selection с
+  клавиатура синхронизира timeline card, таблица и action bar без скрито
+  разминаване.
 - **Reception:** започва от Reception Rail; approved handoff и active return
   са пред таблицата, overdue return е top signal пред нормални approvals, а
   return има confirmation ritual и Escape cancel.
@@ -540,7 +545,7 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Последна premium QA проверка:
-`make qa-premium` -> passed (dependency audit, Python compile, 160 pytest
+`make qa-premium` -> passed (dependency audit, Python compile, 161 pytest
 cases, JS syntax, 13 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
@@ -548,7 +553,7 @@ APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 missing и stale restore-drill marker сценарии. Активният Docker stack
 `fleetflow_prod_smoke` е healthy на `8001`.
 Последният Docker release artifact е push-нат като `dmedarov/fleetflow:latest`
-с digest `sha256:93da80aebc2169d5384ca183ec9e749ccdb5c2af9435ef0925bf2ca4b18c93d1`.
+с digest `sha256:dade72cb77568b8d7c2932f8e42cfdac262aa6bc7394aff3c053efd5386b509d`.
 
 Текущ source checkout няма `.env`, затова `make prod-check` отказва с
 `Run 'make setup' first to create .env`; това е очакван operator guard, не

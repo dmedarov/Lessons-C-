@@ -49,7 +49,7 @@ WAI-ARIA APG and NN/g heuristics. This is not a legal certification.
 | Calendar studio | `templates/index.html`, `static/app.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Responsive 390/768/1440, keyboard reachability, color+text statuses, role-aware operational visibility, no overlap | Mobile day mode is covered by `employee-mobile.png`; reception role calendar is covered by `reception-desktop.png`. Multi-day records are repeated on each covered date as start/continue/end, month markers use compact accessible plate labels, range pills are contained in the day cell, container-width layout drops the selected-day panel below the grid before cells become cramped, and empty selected days offer the next busy day. Still capture tablet month keyboard day controls. |
 | Reservation timeline/cards | `templates/index.html`, `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Timeline before table, status text, lifecycle clarity, 44 px actions, table remains secondary, cancel recovery | Employee reservations now render before calendar; browser smoke asserts timeline cards appear before tables. Continue with admin lifecycle action screenshots. |
 | Notifications | `static/app.js`, `static/i18n.js`, `static/styles.css` | needs evidence | `aria-live`, unread badge clarity, concise copy, no noisy motion | Notification lists are polite live regions and show only unread items by default; read items are hidden with a calm note. Verify polling update announcement with a screen reader. |
-| Admin pending queue / decision rail | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Top pending decisions first, bulk selection semantics, action bar visibility, partial-failure feedback, required reject reason | Desktop Decision Rail is covered by `approver-desktop.png` and `admin-desktop.png`; empty reject reason recovery is covered by `destructive-reject-recovery.png` with keyboard activation, `aria-invalid` and focus-to-textarea evidence. Still test keyboard checkbox selection. |
+| Admin pending queue / decision rail | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Top pending decisions first, bulk selection semantics, action bar visibility, partial-failure feedback, required reject reason | Desktop Decision Rail is covered by `approver-desktop.png` and `admin-desktop.png`; empty reject reason recovery is covered by `destructive-reject-recovery.png` with keyboard activation, `aria-invalid` and focus-to-textarea evidence. Keyboard checkbox selection is covered by `approver-keyboard-bulk-selection.png`; timeline checkbox, table checkbox, selected card/row state and bulk action bar stay synchronized. |
 | Admin reception queue / reception rail | `templates/admin.html`, `static/app.js`, `static/i18n.js`, `static/styles.css`, `routers/cars.py`, `e2e/test_browser_smoke.py` | pass | Approved handoffs and active returns before table, role-separated start/return, direct 44 px actions, scoped pickup GPS, no dependency on current table filter | Reception Rail uses the global operational reservation snapshot, shows scoped GPS for approved/active handoff cars and is covered by `reception-desktop.png`. Overdue returns are prioritized as next signal for reception and admin, covered by `reception-overdue-return-signal.png` and `admin-overdue-return-signal.png`. Return confirmation keyboard/Escape recovery is covered by `destructive-return-confirmation.png`. |
 | Admin users | `templates/admin.html`, `static/app.js`, `static/styles.css`, `e2e/test_browser_smoke.py` | pass | Destructive confirmations, role-change clarity, audit timeline readability | User deactivate confirmation is covered by `destructive-user-deactivate-confirmation.png`; role-change required-reason recovery is covered by `destructive-role-change-recovery.png`. Continue with password-reset screen-reader pass. |
 | Admin fleet/cars | `templates/admin.html`, `static/app.js`, `static/styles.css` | needs evidence | Notes textarea labels, active/inactive text state, 44 px controls | Verify notes save path, employee visibility and mobile card spacing. |
@@ -236,6 +236,10 @@ background and checks the high-risk cockpit combinations.
   `density-reception-768.png`, `density-admin-1024.png` and
   `density-admin-1440.png`. The browser guard checks horizontal overflow,
   clipped controls and module overlap.
+- `evidence`: approver keyboard bulk-selection screenshot
+  `approver-keyboard-bulk-selection.png` covers Space activation on the
+  timeline checkbox, matching table checkbox state, selected visual state and
+  visible bulk action bar.
 - `evidence`: destructive recovery screenshots include
   `destructive-reject-recovery.png` and
   `destructive-return-confirmation.png`, covering keyboard activation,
@@ -277,7 +281,7 @@ background and checks the high-risk cockpit combinations.
   release-check plus browser role smoke, and `make smoke-live APP_URL=...`
   verifies a running stack's health/readiness/public overview.
 - `evidence`: latest local handoff check ran `make qa-premium` -> dependency
-  audit, Python compile, 160 pytest cases, JS syntax and 13 Playwright browser
+  audit, Python compile, 161 pytest cases, JS syntax and 13 Playwright browser
   checks, `pytest tests/test_prod_readiness.py -q` -> 7 passed,
   `bash -n scripts/restore_postgres_drill.sh`, Python compile for production
   scripts, and `make smoke-live APP_URL=http://127.0.0.1:8001` ->

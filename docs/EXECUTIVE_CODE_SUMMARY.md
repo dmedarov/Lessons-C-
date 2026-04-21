@@ -22,11 +22,11 @@ Production readiness score: **91/100 за контролиран вътреше�
 
 | Metric | Value |
 | --- | ---: |
-| Production app/script/template/style lines | 14,358 |
-| Code lines including tests/e2e | 19,552 |
-| Tracked project lines including docs/config/workflows | 25,376 |
+| Production app/script/template/style lines | 14,387 |
+| Code lines including tests/e2e | 19,606 |
+| Tracked project lines including docs/config/workflows | 25,756 |
 | Tracked relevant project files | 80 |
-| Automated test functions | 173 |
+| Automated test functions | 174 |
 | FastAPI route declarations | 55 |
 | Alembic migrations | 9 |
 | Latest full local QA | `make qa-premium` passed |
@@ -56,21 +56,24 @@ employee lifecycle buttons, scoped pickup location, 24-hour time, `dd.mm.yyyy`
 dates, text-backed statuses, and recovery paths for destructive actions. Recent
 hardening also distinguishes "NetFleet key missing" from "NetFleet configured
 but temporarily unavailable", showing **Няма връзка** instead of misleading
-setup copy.
+setup copy. Approver bulk selection now behaves as one reliable control across
+timeline and table: Space on the timeline checkbox mirrors the table checkbox,
+selected card/row state and bulk action bar immediately.
 
 ## Quality Evidence
 
 Local quality gates are strong. `make qa-premium` runs production dependency
-audit, Python compile, 160 pytest cases, JS syntax checks and 13 Playwright
+audit, Python compile, 161 pytest cases, JS syntax checks and 13 Playwright
 browser checks. Browser evidence covers public, employee, approver, reception
 and admin flows, responsive density, contrast guardrails, calendar/reception
-visibility and destructive-action recovery. A Python 3.14 container audit of
+visibility, approver keyboard bulk-selection and destructive-action recovery.
+A Python 3.14 container audit of
 `requirements-dev.txt` reports no known vulnerabilities after the Dependabot
 pin update. The rebuilt PostgreSQL smoke stack
 is healthy on port `8001`, and live smoke checks `/health`, `/health/ready`,
 `/auth/setup-status` and `/public/overview`. The latest Docker artifact was
 pushed as `dmedarov/fleetflow:latest`, digest
-`sha256:93da80aebc2169d5384ca183ec9e749ccdb5c2af9435ef0925bf2ca4b18c93d1`.
+`sha256:dade72cb77568b8d7c2932f8e42cfdac262aa6bc7394aff3c053efd5386b509d`.
 
 The production quality bar is now explicit: no silent regressions and no noisy
 regressions. Silent regressions are things users may not notice immediately but

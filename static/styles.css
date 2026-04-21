@@ -1354,6 +1354,12 @@ select {
   box-shadow: var(--shadow-sm);
 }
 
+.reservation-flow-card.is-selected {
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 7%, var(--surface-raised));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 16%, transparent);
+}
+
 .reservation-flow-card__rail {
   background: var(--line-strong);
 }
@@ -1417,6 +1423,12 @@ select {
   margin-top: 4px;
   accent-color: var(--brand);
   flex: 0 0 auto;
+}
+
+.reservation-flow-card__select:focus-visible,
+.select-cell input[type="checkbox"]:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
 }
 
 .reservation-flow-card__lifecycle {
@@ -2225,6 +2237,10 @@ select {
   height: 18px;
   accent-color: var(--brand);
   cursor: pointer;
+}
+
+.data-table tr.is-selected td {
+  background: color-mix(in srgb, var(--brand) 7%, var(--surface-raised));
 }
 
 .data-table {

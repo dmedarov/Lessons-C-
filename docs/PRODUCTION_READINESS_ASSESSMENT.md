@@ -183,7 +183,7 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Targeted Playwright admin destructive recovery -> 1 passed.
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
 - Full Playwright smoke -> 12 passed.
-- `make qa-premium` -> dependency audit, Python compile, 160 pytest cases,
+- `make qa-premium` -> dependency audit, Python compile, 161 pytest cases,
   JS syntax and 13 Playwright browser checks passed.
 - PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
   containers are healthy.
@@ -194,7 +194,7 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Python 3.14 container dev audit -> `pip-audit -r requirements-dev.txt` found
   no known vulnerabilities after the Dependabot dev pin updates.
 - Docker release artifact pushed: `dmedarov/fleetflow:latest`, digest
-  `sha256:93da80aebc2169d5384ca183ec9e749ccdb5c2af9435ef0925bf2ca4b18c93d1`.
+  `sha256:dade72cb77568b8d7c2932f8e42cfdac262aa6bc7394aff3c053efd5386b509d`.
 - `make prod-check` in the source checkout -> blocked as expected because
   `.env` is missing.
 
@@ -212,6 +212,8 @@ reliable flows:
   recovery.
 - admin/reception overdue return next signal is visible before less urgent
   work;
+- approver bulk selection is keyboard-safe: timeline checkbox, table checkbox,
+  selected state and bulk action bar stay synchronized;
 - calendar range records stay visible on every covered day without overflowing
   neighboring date cells;
 - calendar month grid switches to a full-width layout by container width before
