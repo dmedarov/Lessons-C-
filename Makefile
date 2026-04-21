@@ -6,7 +6,7 @@ PYTHON       := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; 
 PIP_AUDIT    := $(shell if [ -x .venv/bin/pip-audit ]; then echo .venv/bin/pip-audit; else echo pip-audit; fi)
 APP_URL      ?= http://127.0.0.1:8001
 
-.PHONY: help setup prod prod-check go-live-check prod-backup prod-restore-drill audit-prod audit-prod-full release-check qa-premium smoke-live dev down logs test test-e2e guard-env guard-backup
+.PHONY: help setup prod prod-check go-live-check prod-backup prod-restore-drill audit-prod audit-prod-full secrets-scan secrets-scan-history release-check qa-premium smoke-live dev down logs test test-e2e guard-env guard-backup
 
 help:
 	@echo "FleetFlow"
@@ -19,6 +19,8 @@ help:
 	@echo "  make prod-restore-drill BACKUP=backups/file.dump Validate backup in an isolated restore project"
 	@echo "  make audit-prod Audit pinned runtime dependencies"
 	@echo "  make audit-prod-full Audit runtime dependencies with resolver"
+	@echo "  make secrets-scan Fail if tracked files contain real-looking secret values"
+	@echo "  make secrets-scan-history Scan all git refs for real-looking secret values"
 	@echo "  make release-check Run local production release gates"
 	@echo "  make qa-premium Run release gates + browser role smoke"
 	@echo "  make smoke-live APP_URL=http://... Smoke a running app URL"
@@ -71,7 +73,13 @@ audit-prod:
 audit-prod-full:
 	$(PIP_AUDIT) -r requirements.txt
 
-release-check: audit-prod
+secrets-scan:
+	$(PYTHON) scripts/scan_secrets.py
+
+secrets-scan-history:
+	$(PYTHON) scripts/scan_secrets.py --all-refs
+
+release-check: audit-prod secrets-scan
 	PYTHONPYCACHEPREFIX=/tmp/fleetflow-pycache $(PYTHON) -m py_compile app.py db.py schemas.py security.py production_readiness.py routers/*.py fleet_intelligence/*.py scripts/*.py
 	$(PYTHON) -m pytest -q
 	node --check static/app.js

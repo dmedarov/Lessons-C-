@@ -50,8 +50,8 @@ def test_executive_summary_records_current_quality_evidence() -> None:
 
     assert "`make qa-premium` passed" in summary
     assert "`make smoke-live APP_URL=http://127.0.0.1:8001` passed" in summary
-    assert "164 pytest cases" in summary
-    assert "14 Playwright" in summary
+    assert "168 pytest cases" in summary
+    assert "16 Playwright" in summary
     assert "91/100 за контролиран вътрешен pilot" in summary
 
 

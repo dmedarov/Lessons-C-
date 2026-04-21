@@ -18,15 +18,20 @@ Production readiness score: **91/100 за контролиран вътреше�
 реалния deployment, проверен GitHub Dependabot alert, реален NetFleet сигнал в
 работната мрежа и първа наблюдавана седмица без high-severity flow дефекти.
 
+Security hold: ако critical "environment secrets are public" alert е активен,
+go-live е **STOP**, независимо от 91/100 pilot score. Локалният guard
+`make secrets-scan` вече проверява tracked файловете, но реално споделен или
+committed ключ трябва първо да се ротира при доставчика.
+
 ## Code And Product Stats
 
 | Metric | Value |
 | --- | ---: |
-| Production app/script/template/style lines | 14,513 |
-| Code lines including tests/e2e | 20,256 |
-| Tracked project lines including docs/config/workflows | 26,389 |
-| Tracked relevant project files | 88 |
-| Automated test functions | 178 |
+| Production app/script/template/style lines | 14,772 |
+| Code lines including tests/e2e | 20,200 |
+| Tracked project lines including docs/config/workflows | 26,932 |
+| Tracked relevant project files | 90 |
+| Automated test functions | 184 |
 | FastAPI route declarations | 57 |
 | Alembic migrations | 9 |
 | Latest full local QA | `make qa-premium` passed |
@@ -68,8 +73,8 @@ user's email/GSM from the card without rerunning the bulk import.
 ## Quality Evidence
 
 Local quality gates are strong. `make qa-premium` runs production dependency
-audit, Python compile, 164 pytest cases, JS syntax checks and 14 Playwright
-browser checks. Browser evidence covers public, employee, approver, reception
+audit, tracked-file secret scan, Python compile, 168 pytest cases, JS syntax
+checks and 16 Playwright browser checks. Browser evidence covers public, employee, approver, reception
 and admin flows, responsive density, contrast guardrails, calendar/reception
 visibility, approver keyboard bulk-selection, admin contact correction and
 destructive-action recovery.

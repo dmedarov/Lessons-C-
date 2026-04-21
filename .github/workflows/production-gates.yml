@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements-dev.txt
 
+      - name: Scan tracked files for secrets
+        run: python scripts/scan_secrets.py
+
       - name: Compile Python modules
         run: python -m py_compile app.py db.py schemas.py security.py production_readiness.py routers/*.py fleet_intelligence/*.py
 

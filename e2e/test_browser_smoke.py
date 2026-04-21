@@ -605,6 +605,59 @@ def test_approver_decision_surface(browser: Browser, server: str, artifact_dir: 
     context.close()
 
 
+def test_approver_reject_flow_updates_employee_view(browser: Browser, server: str, artifact_dir: Path) -> None:
+    admin_token = _api_login(server, "admin", "AdminPass123")
+    users = _api_json(server, "/users", token=admin_token)
+    assert isinstance(users, list)
+    ivan = next(user for user in users if user["username"] == "ivan")
+    _api_json(
+        server,
+        f"/users/{ivan['id']}/contact",
+        "PUT",
+        admin_token,
+        {"gsm_number": "+359889001122", "reason": "Approver flow GSM evidence"},
+    )
+    _api_json(
+        server,
+        "/users",
+        "POST",
+        admin_token,
+        {
+            "username": "rejectapprover",
+            "display_name": "Reject Approver",
+            "password": "RejectApprover123",
+            "role": "fleet_approver",
+        },
+    )
+    _seed_pending_reservation(server, car_index=2)
+
+    approver_context = browser.new_context(viewport={"width": 1280, "height": 900})
+    approver_page = approver_context.new_page()
+    _login(approver_page, server, "/admin", "rejectapprover", "RejectApprover123")
+    decision_card = approver_page.locator("#decisionRail .decision-card").filter(has_text="E2E pending role smoke 2")
+    expect(decision_card).to_be_visible(timeout=10_000)
+    expect(decision_card).to_contain_text("GSM: +359889001122")
+    decision_card.locator('[data-reservation-action="reject"]').click()
+    dialog = approver_page.locator("dialog[open]")
+    expect(dialog.locator("textarea[name='reason']")).to_be_focused()
+    dialog.get_by_role("button", name="Откажи").click()
+    expect(dialog.locator("[data-dialog-error]")).to_contain_text("Добави причина", timeout=10_000)
+    dialog.locator("textarea[name='reason']").fill("Нужна е друга кола за същия слот.")
+    dialog.get_by_role("button", name="Откажи").click()
+    expect(approver_page.locator("#messageTitle")).to_contain_text("Lifecycle е обновен", timeout=10_000)
+    approver_page.screenshot(path=artifact_dir / "approver-reject-with-gsm.png", full_page=True)
+    approver_context.close()
+
+    employee_context = browser.new_context(viewport={"width": 1024, "height": 900})
+    employee_page = employee_context.new_page()
+    _login(employee_page, server, "/", "ivan", "IvanPass123")
+    employee_page.locator('[data-status="all"]').click()
+    expect(employee_page.locator("#reservationsTimeline")).to_contain_text("Отказана", timeout=10_000)
+    expect(employee_page.locator("#reservationsTimeline")).to_contain_text("E2E pending role smoke 2")
+    employee_page.screenshot(path=artifact_dir / "employee-rejected-request.png", full_page=True)
+    employee_context.close()
+
+
 def test_admin_control_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
     _seed_pending_reservation(server)
 
@@ -690,6 +743,35 @@ def test_reception_handoff_calendar_surface(browser: Browser, server: str, artif
     assert panel_box["y"] > board_box["y"] + board_box["height"] - 1
     reception_page.screenshot(path=artifact_dir / "reception-desktop.png", full_page=True)
     reception.close()
+
+
+def test_reception_start_and_return_flow(browser: Browser, server: str, artifact_dir: Path) -> None:
+    _seed_reception_work(server)
+
+    context = browser.new_context(viewport={"width": 1280, "height": 900})
+    page = context.new_page()
+    _login(page, server, "/admin", "reception", "ReceptionPass123")
+    approved_card = page.locator("#receptionRail .reception-card").filter(has_text="Reception approved calendar smoke")
+    expect(approved_card).to_be_visible(timeout=10_000)
+    expect(approved_card).to_contain_text("Къде да вземеш колата")
+    approved_card.locator('[data-reservation-action="start"]').click()
+    expect(page.locator("#messageTitle")).to_contain_text("Lifecycle е обновен", timeout=10_000)
+
+    page.locator('[data-status="checked_out"]').click()
+    active_card = page.locator("#receptionRail .reception-card").filter(has_text="Reception approved calendar smoke")
+    expect(active_card).to_be_visible(timeout=10_000)
+    expect(active_card).to_contain_text("Активен курс")
+    active_card.locator('[data-reservation-action="return"]').click()
+    dialog = page.locator("dialog[open]")
+    expect(dialog).to_contain_text("Потвърди връщането")
+    dialog.get_by_role("button", name="Върни автомобил").click()
+    expect(page.locator("#messageTitle")).to_contain_text("Lifecycle е обновен", timeout=10_000)
+
+    page.locator('[data-status="returned"]').click()
+    expect(page.locator("#reservationsTimeline")).to_contain_text("Върната", timeout=10_000)
+    expect(page.locator("#reservationsTimeline")).to_contain_text("Reception approved calendar smoke")
+    page.screenshot(path=artifact_dir / "reception-start-return-flow.png", full_page=True)
+    context.close()
 
 
 def test_reception_overdue_return_next_signal(browser: Browser, server: str, artifact_dir: Path) -> None:

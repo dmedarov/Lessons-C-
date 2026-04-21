@@ -79,6 +79,7 @@ e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
 scripts/prod_check.py        Live cutover .env readiness guard
 scripts/go_live_check.py     Final go-live gate: env, restore drill evidence, release gates, live smoke
 scripts/smoke_live.py        Live URL smoke: health, DB readiness, active admin, public overview
+scripts/scan_secrets.py      Current-tree and all-refs guard against real infrastructure secret assignments
 scripts/backup_postgres.sh   PostgreSQL custom-format backup helper
 scripts/restore_postgres_drill.sh Isolated restore drill helper
 docs/PRODUCTION_USER_GUIDE.md Production user/operator guide
@@ -201,6 +202,13 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - Final go-live command is now first-class: `make go-live-check APP_URL=...`
   requires generated production env, a fresh restore-drill evidence marker,
   local release gates and live smoke before real use.
+- Secret hygiene guard is now first-class: `.env.*` and `.claude/` stay out of
+  git while `.env.example` remains tracked, `make secrets-scan` blocks
+  real-looking infrastructure secret assignments in the current checkout,
+  `make secrets-scan-history` scans local reachable git refs/blobs during
+  incidents, and CI runs the current-tree guard before compile/tests. A
+  critical secret-leak alert is a go-live stop signal until keys are rotated
+  and alert metadata is verified through official provider/GitHub surfaces.
 - Static asset deploy guard is shipped: `/`, `/admin` and `/static/*.css/js`
   responses are `no-cache, must-revalidate`, and both templates use versioned
   asset URLs so stale browser cache cannot leave raw i18n keys on screen.
@@ -271,7 +279,10 @@ to 99/100 premium robust production. Do not mark it done from local tests alone.
 7. **Recovery evidence:** destructive actions, invalid form fields and keyboard
    escape paths have browser evidence for employee/approver/reception/admin.
 8. **Security closure:** Dependabot alert inspected and resolved or explicitly
-   accepted; production dependency audit is green or documented.
+   accepted; critical secret-leak alerts resolved through provider/GitHub
+   metadata, affected keys rotated, `make secrets-scan` and
+   `make secrets-scan-history` green; production dependency audit is green or
+   documented.
 9. **Accessibility proof:** `make qa-premium`, manual screen-reader smoke for
    the critical flows, reviewed desktop/tablet/mobile screenshots, light/dark
    contrast evidence.
@@ -295,10 +306,11 @@ Only after all ten are true should future agents change
 - **Required response:** add or update the narrowest automated guard first,
   keep browser evidence current for UI flows, update every affected `.md`, then
   run the targeted tests plus `make qa-premium` for UI/role/production changes.
-- The last visible GitHub security banner pointed at the Docker base image;
-  FleetFlow now builds on a Chainguard Python runtime with local Docker Scout
-  `0C/0H/0M/0L`, but GitHub Security must be rechecked after push to confirm
-  the alert is closed.
+- The last visible external security signals include a Docker/Dependabot alert
+  and a reported "Environment secrets are public" warning. Do not assume either
+  is solved from local evidence alone: verify the exact GitHub/provider alert,
+  rotate any real exposed credential, then record the closure in
+  `docs/PRODUCTION_READINESS_ASSESSMENT.md`.
 
 ## Codebase analysis handoff (2026-04-20)
 
@@ -2330,8 +2342,8 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Tests:** `tests/test_ui_compliance.py` now blocks `radial-gradient` from
   returning to the premium visual system; `tests/test_documentation_contracts.py`
   now blocks old Actions versions from returning.
-- **Verification:** `make qa-premium` -> dependency audit, Python compile,
-  164 pytest cases, JS syntax and 14 Playwright browser checks; Python 3.14
+- **Verification:** `make qa-premium` -> dependency audit, secret scan, Python compile,
+  168 pytest cases, JS syntax and 16 Playwright browser checks; Python 3.14
   container `pip-audit -r requirements-dev.txt` -> no known vulnerabilities;
   `make smoke-live APP_URL=http://127.0.0.1:8001` -> health/ready/setup/public
   overview passed after clean container rebuild; Docker Scout on the rebuilt
@@ -2367,13 +2379,13 @@ If time is limited, execute items 1-4 before any new feature work.
   fresh backup/restore drill evidence, checked Dependabot alert, real CORS
   domain, at least two active admins, observed NetFleet connectivity and one
   monitored live week without high-severity flow defects.
-- **Code size snapshot:** 14,513 production app/script/template/style lines;
-  20,256 code lines with automated tests/e2e; 26,389 tracked project lines
+- **Code size snapshot:** 14,772 production app/script/template/style lines;
+  20,200 code lines with automated tests/e2e; 26,932 tracked project lines
   including docs/config/workflows.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
-  `make qa-premium` -> dependency audit, Python compile, 164 pytest cases,
-  JS syntax and 14 Playwright browser checks passed. The local PostgreSQL smoke
+  `make qa-premium` -> dependency audit, secret scan, Python compile,
+  168 pytest cases, JS syntax and 16 Playwright browser checks passed. The local PostgreSQL smoke
   stack was rebuilt on `APP_PORT=8001`, both containers are healthy, and
   `make smoke-live APP_URL=http://127.0.0.1:8001` passed after rebuild.
 

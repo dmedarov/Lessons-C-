@@ -20,6 +20,9 @@ operations assistant for internal mobility**, което е:
 - Кратки и стойностни нотификации: без шум, без дублиране, без чувствителни данни.
 - Migration-first backend: schema промени минават през Alembic, не през ad-hoc ръчни SQL промени.
 - Security by default: пароли с slow hash, short-lived access token-и, refresh-token rotation, rebinding към текущ user state, least-privilege UI.
+- Secret hygiene by default: реални ключове стоят само в runtime `.env`,
+  provider consoles или admin-managed DB setting; source, tests, docs, frontend
+  assets и screenshots не трябва да съдържат NetFleet/API/DB/token стойности.
 
 ## What Best Practice Research Suggests
 

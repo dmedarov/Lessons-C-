@@ -124,6 +124,38 @@ make logs
 Операторският минимум преди cutover остава `make go-live-check`; инженерният
 минимум за UI/role/security промяна е targeted тест плюс `make qa-premium`.
 
+## 3.2 Secret leak stop signal
+
+Ако получиш предупреждение, че infrastructure secret е public, production
+cutover спира, докато alert-ът не бъде потвърден или затворен.
+
+Направи това, без да копираш стойността на ключа:
+
+1. Ротирай засегнатия ключ при доставчика. За FleetFlow това най-често е
+   NetFleet API key, Docker Hub token, OpenShift token, SMTP password,
+   Slack/Teams webhook, `SECRET_KEY`, `POSTGRES_PASSWORD` или production DB
+   парола в `DATABASE_URL`.
+2. Провери official source-а: GitHub Security tab, GitGuardian dashboard или
+   реалната provider конзола. Не плащай и не отваряй payment/resolution links
+   от непоискани имейли.
+3. Запиши само metadata: тип на secret-а, файл, commit SHA и remediation дата.
+4. Пусни:
+
+   ```bash
+   make secrets-scan
+   make secrets-scan-history
+   make release-check
+   ```
+
+5. Ако реална стойност е била committed в public history, историята може да се
+   чисти само след ротация и след отделно одобрение, защото public forks/cache
+   вече може да са я видели.
+
+`make secrets-scan` е guardrail за текущите tracked файлове.
+`make secrets-scan-history` сканира всички локални reachable git refs/blob-ове
+и е по-подходящ за incident response. Нито един от двата не отменя нуждата от
+ротация, ако ключът е бил публично видим.
+
 ### Как да разчетеш най-честите блокери
 
 | Блокер | Какво означава | Как се оправя |

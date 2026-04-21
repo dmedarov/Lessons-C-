@@ -525,6 +525,8 @@ def test_playwright_e2e_harness_is_documented_and_separate_from_unit_suite() -> 
     assert "employee-desktop.png" in e2e
     assert "admin-desktop.png" in e2e
     assert "admin-contact-correction.png" in e2e
+    assert "approver-reject-with-gsm.png" in e2e
+    assert "reception-start-return-flow.png" in e2e
     assert "employee-mobile.png" in e2e
     assert "test-results/" in gitignore
 

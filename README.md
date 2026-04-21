@@ -156,6 +156,34 @@ NETFLEET_API_KEY=your-netfleet-company-api-key
 
 Ако използваш `.env`, рестартирай stack-а с `make prod` или `docker compose ... up -d --build`. Не добавяй реалния ключ в `README`, source файлове, tests или frontend assets.
 
+## Secret hygiene and incident response
+
+FleetFlow treats any public secret warning as a **stop-the-line** event. Do not
+commit, push, rebuild production images or continue feature work until the
+finding is understood.
+
+Immediate response:
+
+1. Do not paste the secret value in issues, PRs, docs or chat again.
+2. Rotate/revoke the affected credential at the provider first. For the current
+   stack this can include NetFleet API keys, Docker Hub tokens, OpenShift
+   tokens, SMTP passwords, Slack/Teams webhooks, `SECRET_KEY`,
+   `POSTGRES_PASSWORD` and any production `DATABASE_URL` password.
+3. Capture the alert metadata only: provider, secret type, repository path and
+   commit SHA. Do not copy the secret value.
+4. Run `make secrets-scan` locally. It fails when tracked files contain
+   real-looking infrastructure secret assignments.
+5. Run `make secrets-scan-history` during incident response to scan all local
+   reachable git refs/blobs, not only the current checkout.
+6. If a real secret value was committed to public git history, rotate it before
+   any history rewrite. Purging history is a follow-up containment step, not a
+   substitute for rotation.
+
+Legitimate GitHub/GitGuardian-style alerts do not ask for payment through a
+Stripe resolution link. Treat payment links in "secret leak" emails as
+phishing until proven otherwise through the official GitHub Security tab or the
+provider's own console.
+
 Ако порт `8000` е зает, задай например:
 
 ```env
@@ -216,6 +244,8 @@ make prod-backup # създава PostgreSQL backup в backups/
 make prod-restore-drill BACKUP=backups/fleetflow-....dump # dry-run restore в отделен project
 make audit-prod # локален audit на pinned production runtime dependencies
 make audit-prod-full # resolver audit за production dependencies (същият подход като CI)
+make secrets-scan # проверява tracked файловете за реални secret стойности
+make secrets-scan-history # incident scan през всички локални git refs/blob-ове
 make release-check # локални production gates: audit, compile, tests, JS syntax
 make qa-premium # release gates + browser role smoke
 make smoke-live APP_URL=http://127.0.0.1:8001 # health/ready/active admin/public overview на жив stack
@@ -552,8 +582,8 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Последна premium QA проверка:
-`make qa-premium` -> passed (dependency audit, Python compile, 164 pytest
-cases, JS syntax, 14 Playwright browser checks). `make smoke-live
+`make qa-premium` -> passed (dependency audit, secret scan, Python compile,
+168 pytest cases, JS syntax, 16 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
 `pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,

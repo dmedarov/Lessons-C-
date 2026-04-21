@@ -9,6 +9,12 @@ FleetFlow е готов за **контролиран вътрешен productio
 
 Оценка: **91/100 за контролиран pilot**.
 
+Текущ security override: **STOP за live**, ако има отворен critical
+infrastructure-secret alert. Оценката 91/100 остава техническата pilot оценка
+на продукта, но go-live не продължава, докато alert metadata не бъде проверена,
+засегнатите ключове не бъдат ротирани и `make secrets-scan` /
+`make secrets-scan-history` не са зелени.
+
 Оценка за unattended/full rollout: **не още**. Преди това трябва да има реален
 production URL rehearsal, преглед на GitHub Dependabot alert-а и поне няколко
 дни наблюдение на служебния процес.
@@ -71,6 +77,10 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 7. **Security and dependency closure**
    - GitHub Dependabot alert-ът е отворен, записан и resolved или explicitly
      accepted;
+   - всеки secret-leak alert е проверен през official provider/GitHub surface,
+     засегнатите ключове са ротирани и metadata-та е записана без secret value;
+   - `make secrets-scan` и incident-only `make secrets-scan-history` са зелени;
+     current checkout scan-ът е част от `make release-check`/CI;
    - `make audit-prod`/production dependency audit е зелен или има документирано
      решение;
    - browser-facing assets не съдържат NetFleet API key, database URL или secret.
@@ -142,6 +152,12 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Production GitHub Actions са изравнени към `actions/checkout@v6` и
   `actions/setup-python@v6`; production checkout използва
   `persist-credentials: false`.
+- Repository secret hygiene guard is added: `.env.*` and `.claude/` are ignored,
+  while `.env.example` stays tracked; `make secrets-scan` fails on real-looking
+  tracked `SECRET_KEY`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `NETFLEET_API_KEY`,
+  webhook/token/password assignments and private key blocks; `make
+  secrets-scan-history` scans all local reachable git refs/blobs during
+  incident response.
 - Dependabot dev dependency pins са обновени: `pytest==9.0.3`,
   `filelock==3.20.3`, `requests==2.33.0`. Тези dev pins изискват Python 3.10+
   and match the CI floor of Python 3.12/3.14; стар локален Python 3.9 venv не е
@@ -159,7 +175,14 @@ pilot-ready към 99/100, трябва всички точки по-долу д
    `pip-audit --no-deps` минава, но GitHub Security/Dependabot alert трябва
    да се отвори директно и да се запише exact finding/решение.
 
-3. **Real production URL rehearsal.**
+3. **Critical secret-leak alert closure.**
+   Ако alert-ът "Environment secrets are public" е от GitHub/GitGuardian или
+   реален доставчик, rotate/revoke първо, после запиши provider, secret type,
+   file path и commit SHA. Локалната проверка до момента не намира реална
+   NetFleet/API/DB стойност в tracked current files; това не отменя ротацията
+   на ключ, който е бил публично споделен извън repo-то.
+
+4. **Real production URL rehearsal.**
    Локалният smoke на `http://127.0.0.1:8001` е зелен, но final cutover трябва
    да пусне:
 
@@ -170,7 +193,7 @@ pilot-ready към 99/100, трябва всички точки по-долу д
    make go-live-check APP_URL=<production-url>
    ```
 
-4. **At least two active admins.**
+5. **At least two active admins.**
    За реално ползване препоръката е минимум двама active `fleet_admin`, плюс
    отделни `fleet_approver` и `fleet_reception`, ако процесът е разделен.
    `/ops/readiness` вече показва `admin_redundancy` warning при само един active
@@ -184,9 +207,9 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - `pytest tests/test_ui_compliance.py -q` -> 38 passed.
 - Targeted Playwright admin destructive recovery -> 1 passed.
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
-- Full Playwright smoke -> 14 passed.
-- `make qa-premium` -> dependency audit, Python compile, 164 pytest cases,
-  JS syntax and 14 Playwright browser checks passed.
+- Full Playwright smoke -> 16 passed.
+- `make qa-premium` -> dependency audit, secret scan, Python compile,
+  168 pytest cases, JS syntax and 16 Playwright browser checks passed.
 - PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
   containers are healthy.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` after rebuild -> `/health`,

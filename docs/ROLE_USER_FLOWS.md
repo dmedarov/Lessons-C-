@@ -13,6 +13,9 @@
 | `fleet_reception` | предава/приема ключове и документи | `/admin` Reception Rail | approve/reject, настройки, fleet-wide GPS |
 | `fleet_admin` | конфигурира и наблюдава целия процес | `/admin` full cockpit | няма, но daily queue не трябва да се губи сред настройки |
 
+Никоя роля не вижда реални infrastructure secrets: NetFleet key, DB password,
+`SECRET_KEY`, webhook-и и tokens никога не се echo-ват в UI.
+
 ## Login routing
 
 - `employee` влиза в служителския desk и няма persistent достъп до `/admin`.
@@ -144,8 +147,8 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 
 Latest verification:
 
-- `make qa-premium` -> passed: dependency audit, Python compile, 164 pytest
-  cases, JS syntax and 14 Playwright browser checks.
+- `make qa-premium` -> passed: dependency audit, secret scan, Python compile,
+  168 pytest cases, JS syntax and 16 Playwright browser checks.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> passed:
   `/health`, `/health/ready`, `/auth/setup-status` and `/public/overview`.
 
@@ -168,6 +171,8 @@ Latest verification:
   доставчикът не отговаря".
 - Не ship-вай role или lifecycle промяна без targeted test и без да обновиш
   README, ROADMAP, ROADMAP_IMPROVEMENTS и засегнатия user/production документ.
+- Не ship-вай при отворен secret-leak alert без rotation/closure evidence и
+  зелен `make secrets-scan`.
 - Не разчитай на native browser validation за destructive dialogs; custom
   recovery copy + `aria-invalid` + focus target са product standard.
 - Не допускай хоризонтален overflow на 390, 768, 1024 или 1440 px.
