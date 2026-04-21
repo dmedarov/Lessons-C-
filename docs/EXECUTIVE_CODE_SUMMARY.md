@@ -23,10 +23,10 @@ Production readiness score: **91/100 за контролиран вътреше�
 | Metric | Value |
 | --- | ---: |
 | Production app/script/template/style lines | 14,341 |
-| Code lines including tests/e2e | 19,515 |
-| Tracked project lines including docs/config/workflows | 25,309 |
+| Code lines including tests/e2e | 19,526 |
+| Tracked project lines including docs/config/workflows | 25,332 |
 | Tracked relevant project files | 80 |
-| Automated test functions | 172 |
+| Automated test functions | 173 |
 | FastAPI route declarations | 55 |
 | Alembic migrations | 9 |
 | Latest full local QA | `make qa-premium` passed |
@@ -61,10 +61,12 @@ setup copy.
 ## Quality Evidence
 
 Local quality gates are strong. `make qa-premium` runs production dependency
-audit, Python compile, 159 pytest cases, JS syntax checks and 13 Playwright
+audit, Python compile, 160 pytest cases, JS syntax checks and 13 Playwright
 browser checks. Browser evidence covers public, employee, approver, reception
 and admin flows, responsive density, contrast guardrails, calendar/reception
-visibility and destructive-action recovery. The rebuilt PostgreSQL smoke stack
+visibility and destructive-action recovery. A Python 3.14 container audit of
+`requirements-dev.txt` reports no known vulnerabilities after the Dependabot
+pin update. The rebuilt PostgreSQL smoke stack
 is healthy on port `8001`, and live smoke checks `/health`, `/health/ready`,
 `/auth/setup-status` and `/public/overview`. The latest Docker artifact was
 pushed as `dmedarov/fleetflow:latest`, digest

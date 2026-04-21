@@ -140,6 +140,10 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Production GitHub Actions са изравнени към `actions/checkout@v6` и
   `actions/setup-python@v6`; production checkout използва
   `persist-credentials: false`.
+- Dependabot dev dependency pins са обновени: `pytest==9.0.3`,
+  `filelock==3.20.3`, `requests==2.33.0`. Тези dev pins изискват Python 3.10+
+  and match the CI floor of Python 3.12/3.14; стар локален Python 3.9 venv не е
+  валиден go-live evidence за dev dependency audit.
 
 ## Remaining go-live blockers
 
@@ -177,7 +181,7 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Targeted Playwright admin destructive recovery -> 1 passed.
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
 - Full Playwright smoke -> 12 passed.
-- `make qa-premium` -> dependency audit, Python compile, 159 pytest cases,
+- `make qa-premium` -> dependency audit, Python compile, 160 pytest cases,
   JS syntax and 13 Playwright browser checks passed.
 - PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
   containers are healthy.
@@ -185,6 +189,8 @@ pilot-ready към 99/100, трябва всички точки по-долу д
   `/health/ready`, `/auth/setup-status` and `/public/overview` passed.
 - Docker Scout on the rebuilt image -> 0 critical, 0 high, 0 medium, 0 low
   vulnerabilities across 80 packages.
+- Python 3.14 container dev audit -> `pip-audit -r requirements-dev.txt` found
+  no known vulnerabilities after the Dependabot dev pin updates.
 - Docker release artifact pushed: `dmedarov/fleetflow:latest`, digest
   `sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
 - `make prod-check` in the source checkout -> blocked as expected because

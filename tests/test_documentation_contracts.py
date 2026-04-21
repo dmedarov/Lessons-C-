@@ -50,7 +50,7 @@ def test_executive_summary_records_current_quality_evidence() -> None:
 
     assert "`make qa-premium` passed" in summary
     assert "`make smoke-live APP_URL=http://127.0.0.1:8001` passed" in summary
-    assert "159 pytest cases" in summary
+    assert "160 pytest cases" in summary
     assert "13 Playwright" in summary
     assert "91/100 за контролиран вътрешен pilot" in summary
 
@@ -88,6 +88,17 @@ def test_github_actions_are_current_and_hardened_for_dependabot() -> None:
     assert "actions/checkout@v6" in combined
     assert "actions/setup-python@v6" in combined
     assert "persist-credentials: false" in workflows[".github/workflows/production-gates.yml"]
+
+
+def test_dev_dependency_pins_include_dependabot_fixes() -> None:
+    requirements_dev = _read("requirements-dev.txt")
+
+    assert "pytest==9.0.3" in requirements_dev
+    assert "filelock==3.20.3" in requirements_dev
+    assert "requests==2.33.0" in requirements_dev
+    assert "pytest==8.3.5" not in requirements_dev
+    assert "filelock==3.19.1" not in requirements_dev
+    assert "requests==2.32.5" not in requirements_dev
 
 
 def test_executive_route_and_migration_stats_match_code() -> None:

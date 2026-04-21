@@ -408,6 +408,7 @@ docker-compose.postgres.yml
 ## Тестове
 
 ```bash
+python3.12 -m venv .venv  # Python 3.12+ matches CI and the secured dev pins
 pip install -r requirements-dev.txt
 make test
 make audit-prod
@@ -539,7 +540,7 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Последна premium QA проверка:
-`make qa-premium` -> passed (dependency audit, Python compile, 159 pytest
+`make qa-premium` -> passed (dependency audit, Python compile, 160 pytest
 cases, JS syntax, 13 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от

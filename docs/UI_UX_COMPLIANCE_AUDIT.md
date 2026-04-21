@@ -277,7 +277,7 @@ background and checks the high-risk cockpit combinations.
   release-check plus browser role smoke, and `make smoke-live APP_URL=...`
   verifies a running stack's health/readiness/public overview.
 - `evidence`: latest local handoff check ran `make qa-premium` -> dependency
-  audit, Python compile, 159 pytest cases, JS syntax and 13 Playwright browser
+  audit, Python compile, 160 pytest cases, JS syntax and 13 Playwright browser
   checks, `pytest tests/test_prod_readiness.py -q` -> 7 passed,
   `bash -n scripts/restore_postgres_drill.sh`, Python compile for production
   scripts, and `make smoke-live APP_URL=http://127.0.0.1:8001` ->

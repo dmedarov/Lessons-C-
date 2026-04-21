@@ -2254,16 +2254,19 @@ If time is limited, execute items 1-4 before any new feature work.
   `actions/checkout@4` and `actions/setup-python@5` from
   `.github/workflows/production-gates.yml`. Updated that workflow to
   `actions/checkout@v6`, `actions/setup-python@v6` and
-  `persist-credentials: false` for checkout. Local `pip-audit -r
-  requirements.txt` and `docker scout cves fleetflow_prod_smoke-car-pool:latest`
-  both report no known vulnerabilities, so the remaining external check is
-  whether GitHub clears the alert after push.
+  `persist-credentials: false` for checkout. After push showed the alert still
+  open, `pip-audit -r requirements-dev.txt` identified dev dependency fixes;
+  `pytest` is bumped to `9.0.3`, `filelock` to `3.20.3` and `requests` to
+  `2.33.0`. Local `pip-audit -r requirements.txt` and Docker Scout on
+  `fleetflow_prod_smoke-car-pool:latest` both report no known production/image
+  vulnerabilities.
 - **Tests:** `tests/test_ui_compliance.py` now blocks `radial-gradient` from
   returning to the premium visual system; `tests/test_documentation_contracts.py`
   now blocks old Actions versions from returning.
 - **Verification:** `make qa-premium` -> dependency audit, Python compile,
-  159 pytest cases, JS syntax and 13 Playwright browser checks; `make
-  smoke-live APP_URL=http://127.0.0.1:8001` -> health/ready/setup/public
+  160 pytest cases, JS syntax and 13 Playwright browser checks; Python 3.14
+  container `pip-audit -r requirements-dev.txt` -> no known vulnerabilities;
+  `make smoke-live APP_URL=http://127.0.0.1:8001` -> health/ready/setup/public
   overview passed after clean container rebuild; Docker Scout on the rebuilt
   image -> 0C/0H/0M/0L; `docker push dmedarov/fleetflow:latest` -> digest
   `sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
@@ -2279,7 +2282,7 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Docs:** updated Executive Code Summary, ROADMAP and this handoff with the
   new code/test/project line counts after the guardrail test.
 - **Verification:** `pytest tests/test_documentation_contracts.py -q` -> 5
-  passed; `make qa-premium` -> dependency audit, Python compile, 159 pytest
+  passed; `make qa-premium` -> dependency audit, Python compile, 160 pytest
   cases, JS syntax and 13 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed.
@@ -2298,11 +2301,11 @@ If time is limited, execute items 1-4 before any new feature work.
   domain, at least two active admins, observed NetFleet connectivity and one
   monitored live week without high-severity flow defects.
 - **Code size snapshot:** 14,341 production app/script/template/style lines;
-  19,515 code lines with automated tests/e2e; 25,309 tracked project lines
+  19,526 code lines with automated tests/e2e; 25,332 tracked project lines
   including docs/config/workflows.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
-  `make qa-premium` -> dependency audit, Python compile, 159 pytest cases,
+  `make qa-premium` -> dependency audit, Python compile, 160 pytest cases,
   JS syntax and 13 Playwright browser checks passed. The local PostgreSQL smoke
   stack was rebuilt on `APP_PORT=8001`, both containers are healthy, and
   `make smoke-live APP_URL=http://127.0.0.1:8001` passed after rebuild.
@@ -2340,7 +2343,7 @@ If time is limited, execute items 1-4 before any new feature work.
   now all describe the same calm handoff flow and production status.
 - **Verification:** `tests/test_ui_compliance.py` -> 38 passed; targeted
   Playwright reception/calendar + overdue signal -> 2 passed; `make
-  qa-premium` -> dependency audit, Python compile, 159 pytest cases, JS syntax
+  qa-premium` -> dependency audit, Python compile, 160 pytest cases, JS syntax
   and 13 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed. Follow-up mid-width calendar fix was rechecked with `node --check`,
