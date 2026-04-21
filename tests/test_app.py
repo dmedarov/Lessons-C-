@@ -1302,9 +1302,18 @@ def test_ops_readiness_is_admin_only_and_does_not_leak_secrets(client: TestClien
     assert data["ready"] is False
     assert data["app_env"] == "dev"
     assert data["database_backend"] == "sqlite"
-    assert {"app_env", "database_connection", "active_admin", "netfleet", "notifications"} <= ids
+    assert {"app_env", "database_connection", "active_admin", "admin_redundancy", "netfleet", "notifications"} <= ids
+    redundancy = next(item for item in data["items"] if item["id"] == "admin_redundancy")
+    assert redundancy["status"] == "warn"
+    assert "само един активен администратор" in redundancy["detail"]
     assert not any("test-secret-key" in str(item) for item in data["items"])
     assert not any("DATABASE_URL" in item["detail"] and "://" in item["detail"] for item in data["items"])
+
+    _create_user(client, admin, "backupadmin", "Backup Admin", "BackupAdmin123", role="fleet_admin")
+    redundant = client.get("/ops/readiness", headers=_auth(admin)).json()
+    redundancy_after = next(item for item in redundant["items"] if item["id"] == "admin_redundancy")
+    assert redundancy_after["status"] == "pass"
+    assert "двама активни администратори" in redundancy_after["detail"]
 
 
 def test_admin_responsive_css_prevents_module_overlap() -> None:

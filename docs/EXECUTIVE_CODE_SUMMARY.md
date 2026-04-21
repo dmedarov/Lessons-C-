@@ -22,9 +22,9 @@ Production readiness score: **91/100 за контролиран вътреше�
 
 | Metric | Value |
 | --- | ---: |
-| Production app/script/template/style lines | 14,341 |
-| Code lines including tests/e2e | 19,526 |
-| Tracked project lines including docs/config/workflows | 25,332 |
+| Production app/script/template/style lines | 14,358 |
+| Code lines including tests/e2e | 19,552 |
+| Tracked project lines including docs/config/workflows | 25,376 |
 | Tracked relevant project files | 80 |
 | Automated test functions | 173 |
 | FastAPI route declarations | 55 |
@@ -70,7 +70,7 @@ pin update. The rebuilt PostgreSQL smoke stack
 is healthy on port `8001`, and live smoke checks `/health`, `/health/ready`,
 `/auth/setup-status` and `/public/overview`. The latest Docker artifact was
 pushed as `dmedarov/fleetflow:latest`, digest
-`sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
+`sha256:93da80aebc2169d5384ca183ec9e749ccdb5c2af9435ef0925bf2ca4b18c93d1`.
 
 The production quality bar is now explicit: no silent regressions and no noisy
 regressions. Silent regressions are things users may not notice immediately but
@@ -78,8 +78,8 @@ can break trust: role leakage, schema drift, stale assets, secret exposure,
 missing i18n, wrong readiness score or misleading NetFleet state. Noisy
 regressions are visible friction: overlap, duplicate primary actions, old
 notifications in the current stream, returned trips dominating the workflow,
-or status communicated only through icon/color. Both are treated as go-live
-blockers.
+single-admin continuity risk disappearing from readiness, or status
+communicated only through icon/color. Both are treated as go-live blockers.
 
 ## Remaining Work To 99/100
 

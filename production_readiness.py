@@ -248,6 +248,23 @@ def evaluate_runtime_readiness() -> dict:
                 "Създай или активирай поне един fleet_admin.",
             )
         )
+        if active_admins > 0:
+            checks.append(
+                _pass(
+                    "admin_redundancy",
+                    "Admin redundancy",
+                    "At least two active fleet_admin users exist.",
+                    "Има поне двама активни администратори за live continuity.",
+                    required=False,
+                )
+                if active_admins >= 2
+                else _warn(
+                    "admin_redundancy",
+                    "Admin redundancy",
+                    "Only one active fleet_admin exists; add a second admin before full go-live.",
+                    "Има само един активен администратор. Добави втори преди пълен live.",
+                )
+            )
     except Exception:
         checks.append(
             ReadinessCheck(

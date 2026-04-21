@@ -295,7 +295,9 @@ operations assistant for internal mobility**, което е:
 - Production readiness: `/health/ready` checks database reachability for
   orchestration, while admin-only `/ops/readiness` and the `/admin` panel show
   live blockers/warnings without exposing secret values. Operator instructions
-  now live in `docs/PRODUCTION_USER_GUIDE.md`.
+  now live in `docs/PRODUCTION_USER_GUIDE.md`. Runtime readiness now warns when
+  there is only one active `fleet_admin`, keeping the two-admin continuity rule
+  visible before full go-live.
 - PostgreSQL image is pinned to major version 16 by default; do not use
   `latest` against a persistent production volume without a planned dump/restore
   major upgrade.
@@ -329,7 +331,7 @@ operations assistant for internal mobility**, което е:
   and `make smoke-live APP_URL=http://127.0.0.1:8001` returned
   health/ready/active-admin/public overview from the running PostgreSQL stack.
   The latest rebuilt Docker artifact was pushed to `dmedarov/fleetflow:latest`
-  as digest `sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
+  as digest `sha256:93da80aebc2169d5384ca183ec9e749ccdb5c2af9435ef0925bf2ca4b18c93d1`.
 - Latest calm-flow verification: Playwright captures responsive density
   evidence for public/employee/approver/reception/admin viewports and
   destructive-action recovery screenshots for reject required-reason, return
@@ -355,8 +357,8 @@ operations assistant for internal mobility**, което е:
 - NetFleet production UX guard: Fleet Pulse now distinguishes missing API key
   from configured-but-unavailable live GPS, and shows text-backed
   `Няма връзка` instead of a symbol-only warning.
-- Current tracked size: 14,341 production app/script/template/style lines,
-  19,526 code lines including automated tests/e2e, and 25,332 tracked project
+- Current tracked size: 14,358 production app/script/template/style lines,
+  19,552 code lines including automated tests/e2e, and 25,376 tracked project
   lines including docs/config/workflows.
 
 ## Go-Live Plan

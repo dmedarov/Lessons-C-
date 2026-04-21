@@ -171,6 +171,8 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 4. **At least two active admins.**
    За реално ползване препоръката е минимум двама active `fleet_admin`, плюс
    отделни `fleet_approver` и `fleet_reception`, ако процесът е разделен.
+   `/ops/readiness` вече показва `admin_redundancy` warning при само един active
+   admin и pass при двама или повече.
 
 ## Latest local evidence
 
@@ -192,7 +194,7 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Python 3.14 container dev audit -> `pip-audit -r requirements-dev.txt` found
   no known vulnerabilities after the Dependabot dev pin updates.
 - Docker release artifact pushed: `dmedarov/fleetflow:latest`, digest
-  `sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
+  `sha256:93da80aebc2169d5384ca183ec9e749ccdb5c2af9435ef0925bf2ca4b18c93d1`.
 - `make prod-check` in the source checkout -> blocked as expected because
   `.env` is missing.
 

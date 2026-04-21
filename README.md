@@ -48,7 +48,7 @@
 - Role-aware calendar: operational календарът за `fleet_reception` показва approved handoffs и active returns от глобалния snapshot, независимо от филтъра на таблицата.
 - Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола, `X/Y` свежи GPS позиции и compact Fleet Intelligence insight-и.
 - NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а. UI показва last-seen/freshness label, разграничава "ключът липсва" от "NetFleet временно не отговаря" и прави ясно дали локацията е надеждна за вземане на автомобила; reception вижда локация за approved/active handoff коли.
-- Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string.
+- Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string, включително warning ако има само един active `fleet_admin`.
 - Pickup location: служителят вижда къде да вземе колата само за своя одобрена/активна резервация.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
 - Реален месечен календарен изглед за планиране и натоварване по дни.
@@ -548,7 +548,7 @@ APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 missing и stale restore-drill marker сценарии. Активният Docker stack
 `fleetflow_prod_smoke` е healthy на `8001`.
 Последният Docker release artifact е push-нат като `dmedarov/fleetflow:latest`
-с digest `sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
+с digest `sha256:93da80aebc2169d5384ca183ec9e749ccdb5c2af9435ef0925bf2ca4b18c93d1`.
 
 Текущ source checkout няма `.env`, затова `make prod-check` отказва с
 `Run 'make setup' first to create .env`; това е очакван operator guard, не

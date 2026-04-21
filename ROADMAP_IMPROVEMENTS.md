@@ -2223,6 +2223,20 @@ If time is limited, execute items 1-4 before any new feature work.
 
 ## Done
 
+### 2026-04-21 - Admin redundancy production readiness signal
+
+- **Goal:** Turn the "at least two active admins before full go-live" rule from
+  a human memory item into a visible runtime readiness signal.
+- **Backend/UI contract:** `/ops/readiness` now adds `admin_redundancy`. It is
+  a warning when exactly one active `fleet_admin` exists and a pass when two or
+  more active admins exist. It remains non-blocking for controlled pilot, but
+  clearly reduces confidence for full production continuity until resolved.
+- **Tests:** `test_ops_readiness_is_admin_only_and_does_not_leak_secrets`
+  verifies the warning with one admin and the pass state after adding a backup
+  admin.
+- **Docs:** README, ROADMAP, production readiness assessment, executive summary
+  and UI/UX audit now describe the machine-visible admin redundancy signal.
+
 ### 2026-04-21 - Role-first login routing for operational users
 
 - **Goal:** Remove the last wrong-surface moment at login. Operational users
@@ -2269,7 +2283,7 @@ If time is limited, execute items 1-4 before any new feature work.
   `make smoke-live APP_URL=http://127.0.0.1:8001` -> health/ready/setup/public
   overview passed after clean container rebuild; Docker Scout on the rebuilt
   image -> 0C/0H/0M/0L; `docker push dmedarov/fleetflow:latest` -> digest
-  `sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
+  `sha256:93da80aebc2169d5384ca183ec9e749ccdb5c2af9435ef0925bf2ca4b18c93d1`.
 
 ### 2026-04-21 - Executive documentation contract guard
 
@@ -2300,8 +2314,8 @@ If time is limited, execute items 1-4 before any new feature work.
   fresh backup/restore drill evidence, checked Dependabot alert, real CORS
   domain, at least two active admins, observed NetFleet connectivity and one
   monitored live week without high-severity flow defects.
-- **Code size snapshot:** 14,341 production app/script/template/style lines;
-  19,526 code lines with automated tests/e2e; 25,332 tracked project lines
+- **Code size snapshot:** 14,358 production app/script/template/style lines;
+  19,552 code lines with automated tests/e2e; 25,376 tracked project lines
   including docs/config/workflows.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
