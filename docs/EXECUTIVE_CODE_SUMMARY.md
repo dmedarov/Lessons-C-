@@ -23,10 +23,10 @@ Production readiness score: **91/100 за контролиран вътреше�
 | Metric | Value |
 | --- | ---: |
 | Production app/script/template/style lines | 14,513 |
-| Code lines including tests/e2e | 20,227 |
-| Tracked project lines including docs/config/workflows | 26,357 |
+| Code lines including tests/e2e | 20,256 |
+| Tracked project lines including docs/config/workflows | 26,389 |
 | Tracked relevant project files | 88 |
-| Automated test functions | 177 |
+| Automated test functions | 178 |
 | FastAPI route declarations | 57 |
 | Alembic migrations | 9 |
 | Latest full local QA | `make qa-premium` passed |
@@ -68,10 +68,11 @@ user's email/GSM from the card without rerunning the bulk import.
 ## Quality Evidence
 
 Local quality gates are strong. `make qa-premium` runs production dependency
-audit, Python compile, 164 pytest cases, JS syntax checks and 13 Playwright
+audit, Python compile, 164 pytest cases, JS syntax checks and 14 Playwright
 browser checks. Browser evidence covers public, employee, approver, reception
 and admin flows, responsive density, contrast guardrails, calendar/reception
-visibility, approver keyboard bulk-selection and destructive-action recovery.
+visibility, approver keyboard bulk-selection, admin contact correction and
+destructive-action recovery.
 A Python 3.14 container audit of
 `requirements-dev.txt` reports no known vulnerabilities after the Dependabot
 pin update. The rebuilt PostgreSQL smoke stack

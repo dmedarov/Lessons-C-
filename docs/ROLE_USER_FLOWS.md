@@ -145,7 +145,7 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 Latest verification:
 
 - `make qa-premium` -> passed: dependency audit, Python compile, 164 pytest
-  cases, JS syntax and 13 Playwright browser checks.
+  cases, JS syntax and 14 Playwright browser checks.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> passed:
   `/health`, `/health/ready`, `/auth/setup-status` and `/public/overview`.
 

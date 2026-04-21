@@ -623,6 +623,34 @@ def test_admin_control_surface(browser: Browser, server: str, artifact_dir: Path
     context.close()
 
 
+def test_admin_user_contact_correction_flow(browser: Browser, server: str, artifact_dir: Path) -> None:
+    context = browser.new_context(viewport={"width": 1440, "height": 1000})
+    page = context.new_page()
+    _login(page, server, "/admin", "admin", "AdminPass123")
+
+    users_deck = page.locator("#usersDeck")
+    expect(users_deck).to_be_visible(timeout=10_000)
+    maria_card = page.locator(".user-card").filter(has_text="Maria Petrova")
+    expect(maria_card).to_be_visible()
+    maria_card.get_by_role("button", name="Контакт").click()
+
+    dialog = page.locator("dialog[open]")
+    expect(dialog).to_contain_text("Контакт за Maria Petrova")
+    dialog.locator('input[name="email"]').fill("maria.production@example.com")
+    dialog.locator('input[name="gsmNumber"]').fill("+359881112233")
+    dialog.locator('textarea[name="reason"]').fill("Production contact verification")
+    dialog.get_by_role("button", name="Запази").click()
+
+    expect(page.locator("#message")).to_contain_text("Контактът е обновен", timeout=10_000)
+    maria_card = page.locator(".user-card").filter(has_text="Maria Petrova")
+    expect(maria_card).to_contain_text("maria.production@example.com")
+    expect(maria_card).to_contain_text("GSM: +359881112233")
+    maria_card.get_by_role("button", name="Покажи audit").click()
+    expect(maria_card).to_contain_text("Контакт обновен", timeout=10_000)
+    page.screenshot(path=artifact_dir / "admin-contact-correction.png", full_page=True)
+    context.close()
+
+
 def test_employee_mobile_calendar_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
     context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
     page = context.new_page()

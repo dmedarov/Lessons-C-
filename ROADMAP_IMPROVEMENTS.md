@@ -2236,7 +2236,9 @@ If time is limited, execute items 1-4 before any new feature work.
   audit entries.
 - **Tests:** added API coverage for admin-only access, persistence, max-length
   rejection and audit reason; UI compliance coverage now asserts the dialog,
-  route contract and i18n audit label.
+  route contract and i18n audit label; Playwright now captures
+  `admin-contact-correction.png` for the real admin view/dialog/card/audit
+  path.
 - **Docs:** README, Production User Guide, Role User Flows, UI/UX Compliance
   Audit, Executive Code Summary and ROADMAP now describe the contact correction
   path.
@@ -2329,7 +2331,7 @@ If time is limited, execute items 1-4 before any new feature work.
   returning to the premium visual system; `tests/test_documentation_contracts.py`
   now blocks old Actions versions from returning.
 - **Verification:** `make qa-premium` -> dependency audit, Python compile,
-  164 pytest cases, JS syntax and 13 Playwright browser checks; Python 3.14
+  164 pytest cases, JS syntax and 14 Playwright browser checks; Python 3.14
   container `pip-audit -r requirements-dev.txt` -> no known vulnerabilities;
   `make smoke-live APP_URL=http://127.0.0.1:8001` -> health/ready/setup/public
   overview passed after clean container rebuild; Docker Scout on the rebuilt
@@ -2348,7 +2350,7 @@ If time is limited, execute items 1-4 before any new feature work.
   new code/test/project line counts after the guardrail test.
 - **Verification:** `pytest tests/test_documentation_contracts.py -q` -> 5
   passed; `make qa-premium` -> dependency audit, Python compile, 164 pytest
-  cases, JS syntax and 13 Playwright browser checks; `make smoke-live
+  cases, JS syntax and 14 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed.
 
@@ -2366,12 +2368,12 @@ If time is limited, execute items 1-4 before any new feature work.
   domain, at least two active admins, observed NetFleet connectivity and one
   monitored live week without high-severity flow defects.
 - **Code size snapshot:** 14,513 production app/script/template/style lines;
-  20,227 code lines with automated tests/e2e; 26,357 tracked project lines
+  20,256 code lines with automated tests/e2e; 26,389 tracked project lines
   including docs/config/workflows.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
   `make qa-premium` -> dependency audit, Python compile, 164 pytest cases,
-  JS syntax and 13 Playwright browser checks passed. The local PostgreSQL smoke
+  JS syntax and 14 Playwright browser checks passed. The local PostgreSQL smoke
   stack was rebuilt on `APP_PORT=8001`, both containers are healthy, and
   `make smoke-live APP_URL=http://127.0.0.1:8001` passed after rebuild.
 
@@ -2409,12 +2411,12 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Verification:** `tests/test_ui_compliance.py` -> 38 passed; targeted
   Playwright reception/calendar + overdue signal -> 2 passed; `make
   qa-premium` -> dependency audit, Python compile, 164 pytest cases, JS syntax
-  and 13 Playwright browser checks; `make smoke-live
+  and 14 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed. Follow-up mid-width calendar fix was rechecked with `node --check`,
   `tests/test_ui_compliance.py` -> 38 passed, targeted Playwright reception
   calendar/overdue signal -> 2 passed, and full `make qa-premium` -> 151
-  pytest cases + 13 Playwright checks.
+  pytest cases + 14 Playwright checks.
 
 ### 2026-04-21 - Static asset cache guard for i18n correctness
 
@@ -2435,7 +2437,7 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `tests/test_ui_compliance.py` + `test_health_and_ui` -> 39
   passed; full `make qa-premium` -> dependency audit, Python compile, 151
-  pytest cases, JS syntax and 13 Playwright browser checks.
+  pytest cases, JS syntax and 14 Playwright browser checks.
 
 ### 2026-04-21 - Final go-live gate and docs review
 

@@ -553,7 +553,7 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 
 Последна premium QA проверка:
 `make qa-premium` -> passed (dependency audit, Python compile, 164 pytest
-cases, JS syntax, 13 Playwright browser checks). `make smoke-live
+cases, JS syntax, 14 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
 `pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,

@@ -333,7 +333,7 @@ operations assistant for internal mobility**, което е:
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
   Alembic revision `20260420_0009`.
 - Latest go-live gate verification: `pytest tests/test_prod_readiness.py -q`
-  -> 7 passed, `make qa-premium` -> 164 pytest cases + 13 browser checks,
+  -> 7 passed, `make qa-premium` -> 164 pytest cases + 14 browser checks,
   and `make smoke-live APP_URL=http://127.0.0.1:8001` returned
   health/ready/active-admin/public overview from the running PostgreSQL stack.
   The latest rebuilt Docker artifact was pushed to `dmedarov/fleetflow:latest`
@@ -366,7 +366,7 @@ operations assistant for internal mobility**, което е:
   from configured-but-unavailable live GPS, and shows text-backed
   `Няма връзка` instead of a symbol-only warning.
 - Current tracked size: 14,513 production app/script/template/style lines,
-  20,227 code lines including automated tests/e2e, and 26,357 tracked project
+  20,256 code lines including automated tests/e2e, and 26,389 tracked project
   lines including docs/config/workflows.
 
 ## Go-Live Plan

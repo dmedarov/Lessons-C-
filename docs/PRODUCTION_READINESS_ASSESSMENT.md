@@ -184,9 +184,9 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - `pytest tests/test_ui_compliance.py -q` -> 38 passed.
 - Targeted Playwright admin destructive recovery -> 1 passed.
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
-- Full Playwright smoke -> 12 passed.
+- Full Playwright smoke -> 14 passed.
 - `make qa-premium` -> dependency audit, Python compile, 164 pytest cases,
-  JS syntax and 13 Playwright browser checks passed.
+  JS syntax and 14 Playwright browser checks passed.
 - PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
   containers are healthy.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` after rebuild -> `/health`,
