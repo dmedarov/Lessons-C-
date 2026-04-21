@@ -16,6 +16,7 @@ from schemas import (
     EmployeeImportPayload,
     EmployeeImportResponse,
     PasswordChangePayload,
+    UserContactUpdatePayload,
     UserAuditResponse,
     UserCreatePayload,
     UserResponse,
@@ -337,6 +338,28 @@ def change_my_password(payload: PasswordChangePayload, auth: AuthContext = Depen
         )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.put("/{user_id}/contact", response_model=UserResponse)
+def update_user_contact(
+    user_id: int,
+    payload: UserContactUpdatePayload,
+    auth: AuthContext = Depends(require_admin),
+) -> UserResponse:
+    email = payload.email.strip() if payload.email else None
+    gsm_number = payload.gsm_number.strip() if payload.gsm_number else None
+    reason = payload.reason.strip() if payload.reason else None
+
+    with get_conn() as conn, transaction(conn):
+        _load_user(conn, user_id)
+        conn.execute(
+            "UPDATE users SET email=?, gsm_number=? WHERE id=?",
+            (email, gsm_number, user_id),
+        )
+        _log_user_action(conn, auth.user_id, user_id, "contact_updated", reason or "contact update")
+        updated = _load_user(conn, user_id)
+
+    return _to_user_response(updated)
 
 
 @router.post("/{user_id}/reset-password", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)

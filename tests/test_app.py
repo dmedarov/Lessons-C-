@@ -355,6 +355,47 @@ def test_user_gsm_number_is_optional_and_length_limited(client: TestClient) -> N
     assert too_long.status_code == 422
 
 
+def test_admin_can_update_user_contact_fields(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    created = _create_user(client, admin, "contact-user", "Contact User", "UserPass123")
+    employee = _login(client, "contact-user", "UserPass123")
+
+    forbidden = client.put(
+        f"/users/{created['id']}/contact",
+        json={"email": "blocked@example.com", "gsm_number": "+359000000000"},
+        headers=_auth(employee),
+    )
+    assert forbidden.status_code == 403
+
+    updated = client.put(
+        f"/users/{created['id']}/contact",
+        json={
+            "email": "contact.user@example.com",
+            "gsm_number": "+359882422442",
+            "reason": "Production contact correction",
+        },
+        headers=_auth(admin),
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["email"] == "contact.user@example.com"
+    assert updated.json()["gsm_number"] == "+359882422442"
+
+    users = client.get("/users", headers=_auth(admin)).json()
+    assert next(user for user in users if user["id"] == created["id"])["gsm_number"] == "+359882422442"
+
+    too_long = client.put(
+        f"/users/{created['id']}/contact",
+        json={"gsm_number": "+" + ("1" * 40)},
+        headers=_auth(admin),
+    )
+    assert too_long.status_code == 422
+
+    audit = client.get(f"/users/{created['id']}/audit", headers=_auth(admin))
+    assert audit.status_code == 200
+    assert audit.json()[0]["action"] == "contact_updated"
+    assert audit.json()[0]["reason"] == "Production contact correction"
+
+
 def test_admin_can_bulk_import_employee_names_and_gsm_numbers(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
     _create_user(

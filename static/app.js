@@ -503,6 +503,42 @@ function resetPasswordDialog(user) {
   });
 }
 
+function contactEditDialog(user) {
+  return userDialog({
+    title: t("admin.editContactTitle", { name: user.display_name }),
+    body: t("admin.editContactBody"),
+    confirmLabel: t("action.save"),
+    renderFields: () => `
+      <label class="field">
+        <span>${t("admin.emailLabel")}</span>
+        <input name="email" type="email" autocomplete="email" value="${escapeHtml(user.email || "")}" />
+      </label>
+      <label class="field">
+        <span>${t("admin.gsmLabel")}</span>
+        <input name="gsmNumber" type="tel" autocomplete="tel" value="${escapeHtml(user.gsm_number || "")}" />
+      </label>
+      <label class="field">
+        <span>${t("admin.reasonLabel")}</span>
+        <textarea name="reason" rows="3"></textarea>
+      </label>
+    `,
+    readValue: (form) => ({
+      email: form.elements.email.value.trim() || null,
+      gsm_number: form.elements.gsmNumber.value.trim() || null,
+      reason: form.elements.reason.value.trim() || null,
+    }),
+    validate: (value) => {
+      if (value.email && value.email.length > 254) {
+        return { message: t("admin.emailTooLong"), fieldName: "email" };
+      }
+      if (value.gsm_number && value.gsm_number.length > 32) {
+        return { message: t("admin.gsmTooLong"), fieldName: "gsmNumber" };
+      }
+      return null;
+    },
+  });
+}
+
 function editBlackoutDialog(blackout) {
   const startLocal = localInputValue(new Date(blackout.start_time));
   const endLocal = localInputValue(new Date(blackout.end_time));
@@ -1752,6 +1788,7 @@ function renderUsers() {
             : ""
         }
         <button class="action-btn action-btn--toggle" type="button" data-user-role="${user.id}">${t("action.changeRole")}</button>
+        <button class="action-btn action-btn--toggle" type="button" data-user-contact="${user.id}">${t("action.editContact")}</button>
         <button class="action-btn action-btn--toggle" type="button" data-user-reset="${user.id}" ${user.active ? "" : "disabled"}>${t("action.resetPassword")}</button>
         <button class="action-btn action-btn--toggle" type="button" data-user-audit="${user.id}">${t("action.loadAudit")}</button>
       </div>
@@ -4007,6 +4044,27 @@ async function changeUserRole(userId) {
   }
 }
 
+async function updateUserContact(userId) {
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+
+  const payload = await contactEditDialog(user);
+  if (!payload) return;
+
+  try {
+    await apiFetch(`/users/${userId}/contact`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    });
+    showMessage("Контактът е обновен", t("admin.contactUpdateSuccess", { name: user.display_name }), "success");
+    await refreshData();
+    await loadUserAudit(userId);
+  } catch (error) {
+    showMessage("Контактът не се обнови", error.message);
+  }
+}
+
 async function loadUserAudit(userId) {
   try {
     state.userAudit[userId] = await apiFetch(`/users/${userId}/audit`, { headers: authHeaders() });
@@ -4416,6 +4474,7 @@ document.addEventListener("click", (event) => {
   const userButton = event.target.closest("[data-user-action]");
   const userResetButton = event.target.closest("[data-user-reset]");
   const userRoleButton = event.target.closest("[data-user-role]");
+  const userContactButton = event.target.closest("[data-user-contact]");
   const userAuditButton = event.target.closest("[data-user-audit]");
   const blackoutButton = event.target.closest("[data-blackout-disable]");
   const blackoutEditButton = event.target.closest("[data-blackout-edit]");
@@ -4472,6 +4531,9 @@ document.addEventListener("click", (event) => {
   }
   if (userRoleButton) {
     changeUserRole(Number(userRoleButton.dataset.userRole));
+  }
+  if (userContactButton) {
+    updateUserContact(Number(userContactButton.dataset.userContact));
   }
   if (userAuditButton) {
     loadUserAudit(Number(userAuditButton.dataset.userAudit));

@@ -22,12 +22,12 @@ Production readiness score: **91/100 за контролиран вътреше�
 
 | Metric | Value |
 | --- | ---: |
-| Production app/script/template/style lines | 14,314 |
-| Code lines including tests/e2e | 19,983 |
-| Tracked project lines including docs/config/workflows | 26,174 |
-| Tracked relevant project files | 80 |
-| Automated test functions | 176 |
-| FastAPI route declarations | 56 |
+| Production app/script/template/style lines | 14,513 |
+| Code lines including tests/e2e | 20,227 |
+| Tracked project lines including docs/config/workflows | 26,357 |
+| Tracked relevant project files | 88 |
+| Automated test functions | 177 |
+| FastAPI route declarations | 57 |
 | Alembic migrations | 9 |
 | Latest full local QA | `make qa-premium` passed |
 | Latest live smoke | `make smoke-live APP_URL=http://127.0.0.1:8001` passed |
@@ -62,12 +62,13 @@ selected card/row state and bulk action bar immediately.
 
 Admin employee maintenance is now repeatable: the Admin UI can paste the source
 employee table, use `Име + Фамилия + GSM`, create/update `employee` accounts,
-and ignore chip/tachograph columns that FleetFlow does not need.
+ignore chip/tachograph columns that FleetFlow does not need, and correct one
+user's email/GSM from the card without rerunning the bulk import.
 
 ## Quality Evidence
 
 Local quality gates are strong. `make qa-premium` runs production dependency
-audit, Python compile, 163 pytest cases, JS syntax checks and 13 Playwright
+audit, Python compile, 164 pytest cases, JS syntax checks and 13 Playwright
 browser checks. Browser evidence covers public, employee, approver, reception
 and admin flows, responsive density, contrast guardrails, calendar/reception
 visibility, approver keyboard bulk-selection and destructive-action recovery.
@@ -77,7 +78,7 @@ pin update. The rebuilt PostgreSQL smoke stack
 is healthy on port `8001`, and live smoke checks `/health`, `/health/ready`,
 `/auth/setup-status` and `/public/overview`. The latest Docker artifact was
 pushed as `dmedarov/fleetflow:latest`, digest
-`sha256:69846a924506f485ec1b6ea115ca694221a6529bba5aa7a2b31f7dac68d534c0`.
+`sha256:96ef7229f656b5993653aab20ad7db4ebc78d6cc6215e8d07c2cb060070a2853`.
 
 The production quality bar is now explicit: no silent regressions and no noisy
 regressions. Silent regressions are things users may not notice immediately but

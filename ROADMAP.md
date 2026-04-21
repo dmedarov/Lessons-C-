@@ -225,7 +225,9 @@ operations assistant for internal mobility**, което е:
   location without exposing lifecycle transition buttons.
 - User contact readiness: admin user creation now stores optional email and
   GSM number for operational coordination without turning GSM into an auth
-  factor.
+  factor. Full admins can now correct email/GSM from the user card and the
+  change is recorded as `contact_updated` in user audit, avoiding a fresh bulk
+  import for one bad phone number.
 - Repeatable employee import: full admins can paste the source employee table
   into Admin UI; FleetFlow uses `Име + Фамилия + GSM`, updates existing
   `employee` accounts, creates missing ones and ignores chip/tachograph data.
@@ -331,11 +333,11 @@ operations assistant for internal mobility**, което е:
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
   Alembic revision `20260420_0009`.
 - Latest go-live gate verification: `pytest tests/test_prod_readiness.py -q`
-  -> 7 passed, `make qa-premium` -> 163 pytest cases + 13 browser checks,
+  -> 7 passed, `make qa-premium` -> 164 pytest cases + 13 browser checks,
   and `make smoke-live APP_URL=http://127.0.0.1:8001` returned
   health/ready/active-admin/public overview from the running PostgreSQL stack.
   The latest rebuilt Docker artifact was pushed to `dmedarov/fleetflow:latest`
-  as digest `sha256:69846a924506f485ec1b6ea115ca694221a6529bba5aa7a2b31f7dac68d534c0`.
+  as digest `sha256:96ef7229f656b5993653aab20ad7db4ebc78d6cc6215e8d07c2cb060070a2853`.
 - Latest calm-flow verification: Playwright captures responsive density
   evidence for public/employee/approver/reception/admin viewports and
   destructive-action recovery screenshots for reject required-reason, return
@@ -363,8 +365,8 @@ operations assistant for internal mobility**, което е:
 - NetFleet production UX guard: Fleet Pulse now distinguishes missing API key
   from configured-but-unavailable live GPS, and shows text-backed
   `Няма връзка` instead of a symbol-only warning.
-- Current tracked size: 14,314 production app/script/template/style lines,
-  19,983 code lines including automated tests/e2e, and 26,174 tracked project
+- Current tracked size: 14,513 production app/script/template/style lines,
+  20,227 code lines including automated tests/e2e, and 26,357 tracked project
   lines including docs/config/workflows.
 
 ## Go-Live Plan

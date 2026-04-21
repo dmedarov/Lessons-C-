@@ -108,6 +108,8 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Employee не може да остане на `/admin`.
 - Approver одобрява/отказва, reception стартира/връща, admin управлява
   настройки и override-и.
+- Admin може да коригира email/GSM на конкретен потребител с audit следа,
+  без да повтаря bulk import или да сменя пароли/роли.
 - Pre-login surface показва полезна заетост без requester, GSM, GPS или
   lifecycle действия.
 - NetFleet ключът е server-side/admin-managed и не стига до browser assets.
@@ -183,7 +185,7 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Targeted Playwright admin destructive recovery -> 1 passed.
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
 - Full Playwright smoke -> 12 passed.
-- `make qa-premium` -> dependency audit, Python compile, 163 pytest cases,
+- `make qa-premium` -> dependency audit, Python compile, 164 pytest cases,
   JS syntax and 13 Playwright browser checks passed.
 - PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
   containers are healthy.
@@ -194,7 +196,7 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Python 3.14 container dev audit -> `pip-audit -r requirements-dev.txt` found
   no known vulnerabilities after the Dependabot dev pin updates.
 - Docker release artifact pushed: `dmedarov/fleetflow:latest`, digest
-  `sha256:69846a924506f485ec1b6ea115ca694221a6529bba5aa7a2b31f7dac68d534c0`.
+  `sha256:96ef7229f656b5993653aab20ad7db4ebc78d6cc6215e8d07c2cb060070a2853`.
 - `make prod-check` in the source checkout -> blocked as expected because
   `.env` is missing.
 

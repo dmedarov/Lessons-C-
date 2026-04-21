@@ -2223,6 +2223,24 @@ If time is limited, execute items 1-4 before any new feature work.
 
 ## Done
 
+### 2026-04-21 - Admin user contact correction flow
+
+- **Goal:** Close a production operator gap: after a bulk import or manual user
+  creation, one bad GSM/email should not require a new source-table import.
+- **UX:** Full admins now have a compact **Контакт** action on each user card.
+  The dialog edits email and GSM only, keeps role/password/active state
+  untouched, validates max lengths before submit and refreshes the user card
+  plus audit timeline after save.
+- **Backend:** added admin-only `PUT /users/{id}/contact` with
+  `UserContactUpdatePayload`, trimmed nullable values and `contact_updated`
+  audit entries.
+- **Tests:** added API coverage for admin-only access, persistence, max-length
+  rejection and audit reason; UI compliance coverage now asserts the dialog,
+  route contract and i18n audit label.
+- **Docs:** README, Production User Guide, Role User Flows, UI/UX Compliance
+  Audit, Executive Code Summary and ROADMAP now describe the contact correction
+  path.
+
 ### 2026-04-21 - Admin bulk employee import from source table
 
 - **Goal:** Make employee list maintenance repeatable before production use,
@@ -2311,12 +2329,12 @@ If time is limited, execute items 1-4 before any new feature work.
   returning to the premium visual system; `tests/test_documentation_contracts.py`
   now blocks old Actions versions from returning.
 - **Verification:** `make qa-premium` -> dependency audit, Python compile,
-  163 pytest cases, JS syntax and 13 Playwright browser checks; Python 3.14
+  164 pytest cases, JS syntax and 13 Playwright browser checks; Python 3.14
   container `pip-audit -r requirements-dev.txt` -> no known vulnerabilities;
   `make smoke-live APP_URL=http://127.0.0.1:8001` -> health/ready/setup/public
   overview passed after clean container rebuild; Docker Scout on the rebuilt
   image -> 0C/0H/0M/0L; `docker push dmedarov/fleetflow:latest` -> digest
-  `sha256:69846a924506f485ec1b6ea115ca694221a6529bba5aa7a2b31f7dac68d534c0`.
+  `sha256:96ef7229f656b5993653aab20ad7db4ebc78d6cc6215e8d07c2cb060070a2853`.
 
 ### 2026-04-21 - Executive documentation contract guard
 
@@ -2329,7 +2347,7 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Docs:** updated Executive Code Summary, ROADMAP and this handoff with the
   new code/test/project line counts after the guardrail test.
 - **Verification:** `pytest tests/test_documentation_contracts.py -q` -> 5
-  passed; `make qa-premium` -> dependency audit, Python compile, 163 pytest
+  passed; `make qa-premium` -> dependency audit, Python compile, 164 pytest
   cases, JS syntax and 13 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed.
@@ -2347,12 +2365,12 @@ If time is limited, execute items 1-4 before any new feature work.
   fresh backup/restore drill evidence, checked Dependabot alert, real CORS
   domain, at least two active admins, observed NetFleet connectivity and one
   monitored live week without high-severity flow defects.
-- **Code size snapshot:** 14,314 production app/script/template/style lines;
-  19,983 code lines with automated tests/e2e; 26,174 tracked project lines
+- **Code size snapshot:** 14,513 production app/script/template/style lines;
+  20,227 code lines with automated tests/e2e; 26,357 tracked project lines
   including docs/config/workflows.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
-  `make qa-premium` -> dependency audit, Python compile, 163 pytest cases,
+  `make qa-premium` -> dependency audit, Python compile, 164 pytest cases,
   JS syntax and 13 Playwright browser checks passed. The local PostgreSQL smoke
   stack was rebuilt on `APP_PORT=8001`, both containers are healthy, and
   `make smoke-live APP_URL=http://127.0.0.1:8001` passed after rebuild.
@@ -2390,7 +2408,7 @@ If time is limited, execute items 1-4 before any new feature work.
   now all describe the same calm handoff flow and production status.
 - **Verification:** `tests/test_ui_compliance.py` -> 38 passed; targeted
   Playwright reception/calendar + overdue signal -> 2 passed; `make
-  qa-premium` -> dependency audit, Python compile, 163 pytest cases, JS syntax
+  qa-premium` -> dependency audit, Python compile, 164 pytest cases, JS syntax
   and 13 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed. Follow-up mid-width calendar fix was rechecked with `node --check`,

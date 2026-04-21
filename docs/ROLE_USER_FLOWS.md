@@ -90,10 +90,12 @@
    Reception Rail, когато има operational работа.
 3. Управлява потребители, роли, автомобили, blackout-и, NetFleet ключ и
    production settings.
-4. Импортира служители от таблица с `Име / Фамилия / GSM`, без да записва
+4. Коригира email/GSM от бутона **Контакт** в user картата; всяка промяна
+   остава в audit историята.
+5. Импортира служители от таблица с `Име / Фамилия / GSM`, без да записва
    чип/тахограф данни в FleetFlow.
-5. За role change и admin handoff добавя причина, за да има audit trail.
-6. Използва `make go-live-check` и Admin readiness panel преди live.
+6. За role change и admin handoff добавя причина, за да има audit trail.
+7. Използва `make go-live-check` и Admin readiness panel преди live.
 
 **Надеждност:**
 
@@ -142,7 +144,7 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 
 Latest verification:
 
-- `make qa-premium` -> passed: dependency audit, Python compile, 163 pytest
+- `make qa-premium` -> passed: dependency audit, Python compile, 164 pytest
   cases, JS syntax and 13 Playwright browser checks.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> passed:
   `/health`, `/health/ready`, `/auth/setup-status` and `/public/overview`.

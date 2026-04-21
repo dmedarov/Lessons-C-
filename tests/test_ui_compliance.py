@@ -629,13 +629,21 @@ def test_admin_user_form_supports_gsm_number() -> None:
     html = _read("templates/admin.html")
     app_js = _read("static/app.js")
     i18n_js = _read("static/i18n.js")
+    schemas = _read("schemas.py")
+    router = _read("routers/users.py")
 
     assert 'id="newGsmNumber"' in html
     assert 'type="tel"' in html
     assert "GSM номер" in html
     assert "newGsmNumber: document.getElementById" in app_js
     assert "gsm_number: els.newGsmNumber?.value.trim() || null" in app_js
+    assert "function contactEditDialog(user)" in app_js
+    assert 'data-user-contact="${user.id}"' in app_js
+    assert "updateUserContact(Number(userContactButton.dataset.userContact))" in app_js
+    assert "UserContactUpdatePayload" in schemas
+    assert '@router.put("/{user_id}/contact"' in router
     assert 'user.gsm": "GSM: {number}"' in i18n_js
+    assert 'audit.contact_updated": "Контакт обновен"' in i18n_js
 
 
 def test_admin_bulk_employee_import_supports_name_surname_gsm_source() -> None:

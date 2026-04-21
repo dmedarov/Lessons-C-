@@ -86,6 +86,12 @@ class AdminPasswordResetPayload(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=500)
 
 
+class UserContactUpdatePayload(BaseModel):
+    email: Optional[str] = Field(default=None, max_length=254)
+    gsm_number: Optional[str] = Field(default=None, max_length=32)
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
 class UserRoleChangePayload(BaseModel):
     role: Role
     reason: Optional[str] = Field(default=None, max_length=500)
