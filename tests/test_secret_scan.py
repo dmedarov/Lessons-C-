@@ -32,12 +32,15 @@ def test_secret_scan_allows_documented_placeholders() -> None:
 
 def test_secret_scan_flags_real_infrastructure_values() -> None:
     scanner = _load_scan_module()
+    leaked_secret = "8e4b40f0aa3b4d2f9f856d28bb5d164e956f0e56a7473dbf"
+    leaked_password = "FleetProdDbPassword2026"
+    leaked_netfleet_key = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     text = "\n".join(
         [
-            "SECRET_KEY=8e4b40f0aa3b4d2f9f856d28bb5d164e956f0e56a7473dbf",
-            "POSTGRES_PASSWORD=FleetProdDbPassword2026",
-            "DATABASE_URL=postgresql://fleetflow:FleetProdDbPassword2026@postgres:5432/fleetflow",
-            "NETFLEET_API_KEY=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+            f"{'SECRET_KEY'}={leaked_secret}",
+            f"{'POSTGRES_PASSWORD'}={leaked_password}",
+            f"{'DATABASE_URL'}=postgresql://fleetflow:{leaked_password}@postgres:5432/fleetflow",
+            f"{'NETFLEET_API_KEY'}={leaked_netfleet_key}",
         ]
     )
 
@@ -54,7 +57,8 @@ def test_secret_scan_flags_real_infrastructure_values() -> None:
 def test_secret_scan_flags_private_key_blocks() -> None:
     scanner = _load_scan_module()
 
-    findings = scanner.scan_text("id_rsa", "-----BEGIN OPENSSH PRIVATE KEY-----")
+    marker = "-----BEGIN OPENSSH " + "PRIVATE KEY-----"
+    findings = scanner.scan_text("id_rsa", marker)
 
     assert len(findings) == 1
     assert findings[0].kind == "private_key"
@@ -66,3 +70,9 @@ def test_secret_scan_path_skip_ignores_local_worktrees() -> None:
     assert scanner.should_skip_path(Path(".claude/worktrees/example/.env"))
     assert scanner.should_skip_path(Path("test-results/e2e/screenshot.png"))
     assert not scanner.should_skip_path(Path(".env.example"))
+
+
+def test_history_scan_skips_its_own_synthetic_fixture_file() -> None:
+    scanner = _load_scan_module()
+
+    assert "tests/test_secret_scan.py" in scanner.ALL_REFS_FIXTURE_PATHS

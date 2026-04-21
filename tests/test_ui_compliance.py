@@ -57,10 +57,10 @@ def test_static_assets_are_cache_busted_in_templates() -> None:
     assert "NO_CACHE_ASSET_EXTENSIONS" in app_py
     for template in ("templates/index.html", "templates/admin.html"):
         html = _read(template)
-        assert "/static/styles.css?v=20260421-cnsys-routing" in html
-        assert "/static/i18n.js?v=20260421-cnsys-routing" in html
-        assert "/static/app.js?v=20260421-cnsys-routing" in html
-        assert "/static/theme.js?v=20260421-cnsys-routing" in html
+        assert "/static/styles.css?v=20260421-users-density" in html
+        assert "/static/i18n.js?v=20260421-users-density" in html
+        assert "/static/app.js?v=20260421-users-density" in html
+        assert "/static/theme.js?v=20260421-users-density" in html
         assert 'src="/static/i18n.js"' not in html
         assert 'src="/static/app.js"' not in html
 
@@ -649,6 +649,22 @@ def test_admin_user_form_supports_gsm_number() -> None:
     assert 'audit.contact_updated": "Контакт обновен"' in i18n_js
 
 
+def test_admin_user_cards_use_scannable_density_layout() -> None:
+    app_js = _read("static/app.js")
+    css = _read("static/styles.css")
+    i18n_js = _read("static/i18n.js")
+
+    assert 'class="user-card__signals"' in app_js
+    assert 'class="user-card__action-group user-card__action-group--primary"' in app_js
+    render_users_src = app_js[app_js.index("function renderUsers()") : app_js.index("function renderCars()")]
+    assert 'class="car-card__actions"' not in render_users_src
+    assert ".user-card__meta {\n  display: grid;" in css
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr));" in css
+    assert "@media (max-width: 760px)" in css
+    assert ".user-card__action-group .action-btn" in css
+    assert '"user.contactMissing": "не е въведено"' in i18n_js
+
+
 def test_admin_bulk_employee_import_supports_name_surname_gsm_source() -> None:
     html = _read("templates/admin.html")
     app_js = _read("static/app.js")
@@ -681,9 +697,13 @@ def test_admin_production_readiness_panel_is_present_and_secret_safe() -> None:
     assert "function loadProductionReadiness()" in app_js
     assert "function renderProductionReadiness()" in app_js
     assert "function readinessCountsText(failed, warnings)" in app_js
+    assert "function readinessNextStep(item)" in app_js
     assert 'apiFetch("/ops/readiness"' in app_js
     assert '"readiness.notReady": "Има блокери преди live"' in i18n_js
+    assert '"readiness.next.cors": "Замени example/wildcard с реалния production домейн."' in i18n_js
+    assert '"readiness.next.admin_redundancy": "Добави втори активен fleet_admin за continuity."' in i18n_js
     assert '"readiness.warnings.one": "{count} бележка"' in i18n_js
     assert ".readiness-item--fail span" in styles
+    assert ".readiness-item__next" in styles
     assert "SECRET_KEY" not in html
     assert "POSTGRES_PASSWORD" not in html

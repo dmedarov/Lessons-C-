@@ -76,6 +76,10 @@ IGNORED_DIR_PARTS = {
     "test-results",
 }
 
+ALL_REFS_FIXTURE_PATHS = {
+    "tests/test_secret_scan.py",
+}
+
 
 @dataclass(frozen=True)
 class SecretFinding:
@@ -212,6 +216,8 @@ def scan_all_refs() -> list[SecretFinding]:
         if len(parts) != 2:
             continue
         object_id, raw_path = parts
+        if raw_path in ALL_REFS_FIXTURE_PATHS:
+            continue
         path = Path(raw_path)
         if object_id in scanned_blobs or should_skip_path(path):
             continue

@@ -209,7 +209,7 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
 - Full Playwright smoke -> 16 passed.
 - `make qa-premium` -> dependency audit, secret scan, Python compile,
-  168 pytest cases, JS syntax and 16 Playwright browser checks passed.
+  170 pytest cases, JS syntax and 16 Playwright browser checks passed.
 - PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
   containers are healthy.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` after rebuild -> `/health`,

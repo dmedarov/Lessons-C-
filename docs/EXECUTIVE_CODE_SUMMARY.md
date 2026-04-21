@@ -27,11 +27,11 @@ committed ключ трябва първо да се ротира при дос�
 
 | Metric | Value |
 | --- | ---: |
-| Production app/script/template/style lines | 14,772 |
-| Code lines including tests/e2e | 20,200 |
-| Tracked project lines including docs/config/workflows | 26,932 |
+| Production app/script/template/style lines | 14,915 |
+| Code lines including tests/e2e | 20,374 |
+| Tracked project lines including docs/config/workflows | 27,128 |
 | Tracked relevant project files | 90 |
-| Automated test functions | 184 |
+| Automated test functions | 186 |
 | FastAPI route declarations | 57 |
 | Alembic migrations | 9 |
 | Latest full local QA | `make qa-premium` passed |
@@ -73,7 +73,7 @@ user's email/GSM from the card without rerunning the bulk import.
 ## Quality Evidence
 
 Local quality gates are strong. `make qa-premium` runs production dependency
-audit, tracked-file secret scan, Python compile, 168 pytest cases, JS syntax
+audit, tracked-file secret scan, Python compile, 170 pytest cases, JS syntax
 checks and 16 Playwright browser checks. Browser evidence covers public, employee, approver, reception
 and admin flows, responsive density, contrast guardrails, calendar/reception
 visibility, approver keyboard bulk-selection, admin contact correction and

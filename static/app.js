@@ -1434,6 +1434,15 @@ function readinessCountsText(failed, warnings) {
   return `${blockerText} · ${warningText}`;
 }
 
+function readinessNextStep(item) {
+  if (!item || item.status === "pass") return "";
+  const key = `readiness.next.${item.id}`;
+  if (!window.FleetFlowI18n?.bg?.[key]) {
+    return t("readiness.next.default");
+  }
+  return t(key);
+}
+
 function renderProductionReadiness() {
   if (!els.productionReadinessSummary || !els.productionReadinessList) return;
   if (state.loading.productionReadiness) {
@@ -1464,6 +1473,7 @@ function renderProductionReadiness() {
       <div>
         <strong>${escapeHtml(item.label)}</strong>
         <p>${escapeHtml(item.detail)}</p>
+        ${readinessNextStep(item) ? `<p class="readiness-item__next">${escapeHtml(readinessNextStep(item))}</p>` : ""}
       </div>
       <span>${escapeHtml(t(`readiness.status.${item.status}`))}</span>
     </article>
@@ -1737,6 +1747,24 @@ function renderUsers() {
     const card = document.createElement("article");
     card.className = "user-card";
     const isSelf = state.currentUser && user.id === state.currentUser.id;
+    const primaryUserActions = `
+      <button class="action-btn action-btn--toggle" type="button" data-user-contact="${user.id}">${t("action.editContact")}</button>
+      <button class="action-btn action-btn--toggle" type="button" data-user-audit="${user.id}">${t("action.loadAudit")}</button>
+    `;
+    const adminUserActions = `
+      ${
+        user.active
+          ? `<button class="action-btn action-btn--toggle" type="button" data-user-action="deactivate" data-user-id="${user.id}" ${isSelf ? "data-self=true" : ""}>${t("action.deactivate")}</button>`
+          : `<button class="action-btn action-btn--toggle" type="button" data-user-action="activate" data-user-id="${user.id}">${t("action.activate")}</button>`
+      }
+      ${
+        !isSelf && user.active
+          ? `<button class="action-btn action-btn--approve" type="button" data-handoff-candidate="${user.id}">${t("action.handoff")}</button>`
+          : ""
+      }
+      <button class="action-btn action-btn--toggle" type="button" data-user-role="${user.id}">${t("action.changeRole")}</button>
+      <button class="action-btn action-btn--toggle" type="button" data-user-reset="${user.id}" ${user.active ? "" : "disabled"}>${t("action.resetPassword")}</button>
+    `;
     const auditItems = state.userAudit[user.id] || [];
     const auditMarkup = state.userAudit[user.id]
       ? `
@@ -1764,33 +1792,27 @@ function renderUsers() {
       : "";
     card.innerHTML = `
       <div class="user-card__head">
-        <div>
+        <div class="user-card__identity">
           <strong>${escapeHtml(user.display_name)}</strong>
           <p class="muted">${escapeHtml(user.username)}</p>
         </div>
-        <span class="status-pill ${roleBadgeClass(user.role)}">${t(`role.${user.role}`)}</span>
+        <div class="user-card__signals" aria-label="Роля и активност">
+          <span class="status-pill ${roleBadgeClass(user.role)}">${t(`role.${user.role}`)}</span>
+          <span class="status-tag ${user.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(user.active ? "status.active" : "status.inactive")}</span>
+        </div>
       </div>
       <div class="user-card__meta">
-        <span class="status-tag ${user.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(user.active ? "status.active" : "status.inactive")}</span>
-        ${user.email ? `<span class="muted">${escapeHtml(user.email)}</span>` : ""}
-        ${user.gsm_number ? `<span class="muted">${escapeHtml(t("user.gsm", { number: user.gsm_number }))}</span>` : ""}
-        <span class="muted">създаден: ${formatDateTime(user.created_at)}</span>
+        <span><strong>${t("admin.emailLabel")}</strong>${user.email ? escapeHtml(user.email) : t("user.contactMissing")}</span>
+        <span><strong>${t("admin.gsmLabel")}</strong>${user.gsm_number ? escapeHtml(user.gsm_number) : t("user.contactMissing")}</span>
+        <span><strong>${t("user.createdAt")}</strong>${formatDateTime(user.created_at)}</span>
       </div>
-      <div class="car-card__actions">
-        ${
-          user.active
-            ? `<button class="action-btn action-btn--toggle" type="button" data-user-action="deactivate" data-user-id="${user.id}" ${isSelf ? "data-self=true" : ""}>${t("action.deactivate")}</button>`
-            : `<button class="action-btn action-btn--toggle" type="button" data-user-action="activate" data-user-id="${user.id}">${t("action.activate")}</button>`
-        }
-        ${
-          !isSelf && user.active
-            ? `<button class="action-btn action-btn--approve" type="button" data-handoff-candidate="${user.id}">${t("action.handoff")}</button>`
-            : ""
-        }
-        <button class="action-btn action-btn--toggle" type="button" data-user-role="${user.id}">${t("action.changeRole")}</button>
-        <button class="action-btn action-btn--toggle" type="button" data-user-contact="${user.id}">${t("action.editContact")}</button>
-        <button class="action-btn action-btn--toggle" type="button" data-user-reset="${user.id}" ${user.active ? "" : "disabled"}>${t("action.resetPassword")}</button>
-        <button class="action-btn action-btn--toggle" type="button" data-user-audit="${user.id}">${t("action.loadAudit")}</button>
+      <div class="user-card__actions" aria-label="Действия за потребител">
+        <div class="user-card__action-group user-card__action-group--primary">
+          ${primaryUserActions}
+        </div>
+        <div class="user-card__action-group">
+          ${adminUserActions}
+        </div>
       </div>
       ${auditMarkup}
     `;

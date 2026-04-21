@@ -2674,6 +2674,73 @@ select {
   color: var(--muted);
 }
 
+.user-card {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.user-card__identity {
+  min-width: 0;
+}
+
+.user-card__identity strong,
+.user-card__identity p {
+  overflow-wrap: anywhere;
+}
+
+.user-card__signals {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.user-card__meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+}
+
+.user-card__meta span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.user-card__meta strong {
+  color: var(--ink);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.user-card__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.user-card__action-group {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.user-card__action-group--primary .action-btn {
+  border-color: color-mix(in srgb, var(--brand) 26%, var(--line));
+  background: color-mix(in srgb, var(--brand) 8%, var(--surface-raised));
+}
+
 .user-audit {
   display: grid;
   gap: var(--sp-2);
@@ -2701,6 +2768,16 @@ select {
   margin: 0;
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.readiness-item__next {
+  margin-top: var(--sp-2);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-size: 0.84rem;
 }
 
 .rule-list {
@@ -3025,6 +3102,28 @@ select {
   }
 
   .reservation-flow-card__actions .action-btn {
+    min-height: 44px;
+  }
+
+  .user-card__head {
+    align-items: flex-start;
+  }
+
+  .user-card__signals {
+    justify-content: flex-start;
+  }
+
+  .user-card__meta {
+    grid-template-columns: 1fr;
+  }
+
+  .user-card__actions,
+  .user-card__action-group {
+    width: 100%;
+  }
+
+  .user-card__action-group .action-btn {
+    flex: 1 1 150px;
     min-height: 44px;
   }
 

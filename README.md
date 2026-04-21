@@ -51,6 +51,9 @@
 - Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола, `X/Y` свежи GPS позиции и compact Fleet Intelligence insight-и.
 - NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а. UI показва last-seen/freshness label, разграничава "ключът липсва" от "NetFleet временно не отговаря" и прави ясно дали локацията е надеждна за вземане на автомобила; reception вижда локация за approved/active handoff коли.
 - Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string, включително warning ако има само един active `fleet_admin`.
+- Production operator next steps: readiness blocker/warning картите показват
+  кратък конкретен следващ ход за CORS, DB password/URL, backup/admin/NetFleet
+  и други cutover настройки, вместо само статус.
 - Pickup location: служителят вижда къде да вземе колата само за своя одобрена/активна резервация.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
 - Реален месечен календарен изглед за планиране и натоварване по дни.
@@ -583,7 +586,7 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 
 Последна premium QA проверка:
 `make qa-premium` -> passed (dependency audit, secret scan, Python compile,
-168 pytest cases, JS syntax, 16 Playwright browser checks). `make smoke-live
+170 pytest cases, JS syntax, 16 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
 `pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,

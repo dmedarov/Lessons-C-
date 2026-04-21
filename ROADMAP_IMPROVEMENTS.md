@@ -2235,6 +2235,25 @@ If time is limited, execute items 1-4 before any new feature work.
 
 ## Done
 
+### 2026-04-21 - Admin users density and readiness next steps
+
+- **Goal:** Improve pre-production operator polish without adding new modules.
+- **UX:** Admin user cards now separate identity/signals, contact fields and
+  action groups. Contact/audit are quick actions; activation, handoff, role
+  change and reset stay secondary so the card no longer reads as a button
+  cloud.
+- **Production UI:** readiness blocker/warning cards now show a concise next
+  step for common cutover issues such as CORS, DB password/URL, admin
+  redundancy, NetFleet and notifications.
+- **Tests:** UI compliance now guards cache-busted asset versioning, scannable
+  user-card structure and readiness next-step copy/classes. Playwright contact
+  correction flow was re-run against the new user card layout.
+- **Lesson learned:** secret-scanner tests must not leave raw leaked-looking
+  assignments in source/history. Build synthetic fixture strings at runtime and
+  keep any history-scan fixture allowlist narrow and documented.
+- **Docs:** README, UI/UX Compliance Audit and this handoff document now
+  describe the density and operator-next-step changes.
+
 ### 2026-04-21 - Admin user contact correction flow
 
 - **Goal:** Close a production operator gap: after a bulk import or manual user
@@ -2328,7 +2347,7 @@ If time is limited, execute items 1-4 before any new feature work.
   made mobile KPI cards a compact 3-column status strip so useful fleet
   context appears earlier.
 - **Cache freshness:** bumped versioned static URLs to
-  `20260421-cnsys-routing`.
+  `20260421-users-density`.
 - **Dependabot hardening:** GitHub dependency graph SBOM still showed
   `actions/checkout@4` and `actions/setup-python@5` from
   `.github/workflows/production-gates.yml`. Updated that workflow to
@@ -2343,7 +2362,7 @@ If time is limited, execute items 1-4 before any new feature work.
   returning to the premium visual system; `tests/test_documentation_contracts.py`
   now blocks old Actions versions from returning.
 - **Verification:** `make qa-premium` -> dependency audit, secret scan, Python compile,
-  168 pytest cases, JS syntax and 16 Playwright browser checks; Python 3.14
+  170 pytest cases, JS syntax and 16 Playwright browser checks; Python 3.14
   container `pip-audit -r requirements-dev.txt` -> no known vulnerabilities;
   `make smoke-live APP_URL=http://127.0.0.1:8001` -> health/ready/setup/public
   overview passed after clean container rebuild; Docker Scout on the rebuilt
@@ -2379,13 +2398,13 @@ If time is limited, execute items 1-4 before any new feature work.
   fresh backup/restore drill evidence, checked Dependabot alert, real CORS
   domain, at least two active admins, observed NetFleet connectivity and one
   monitored live week without high-severity flow defects.
-- **Code size snapshot:** 14,772 production app/script/template/style lines;
-  20,200 code lines with automated tests/e2e; 26,932 tracked project lines
+- **Code size snapshot:** 14,915 production app/script/template/style lines;
+  20,374 code lines with automated tests/e2e; 27,128 tracked project lines
   including docs/config/workflows.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
   `make qa-premium` -> dependency audit, secret scan, Python compile,
-  168 pytest cases, JS syntax and 16 Playwright browser checks passed. The local PostgreSQL smoke
+  170 pytest cases, JS syntax and 16 Playwright browser checks passed. The local PostgreSQL smoke
   stack was rebuilt on `APP_PORT=8001`, both containers are healthy, and
   `make smoke-live APP_URL=http://127.0.0.1:8001` passed after rebuild.
 
