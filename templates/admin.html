@@ -242,6 +242,33 @@
             </form>
           </section>
 
+          <section class="glass-card hidden" id="employeeImportPanel">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Bulk users</p>
+                <h2>Импорт на служители</h2>
+              </div>
+            </div>
+            <form class="stack" id="employeeImportForm" novalidate>
+              <label class="field">
+                <span>Списък</span>
+                <textarea id="employeeImportText" name="employeeImportText" rows="8" placeholder="Име&#9;Презиме&#9;Фамилия&#9;Телефон"></textarea>
+                <small class="field__hint">Използват се Име + Фамилия + GSM. Презиме, чип и тахограф карта се игнорират.</small>
+                <small class="field__error" id="employeeImportTextError"></small>
+              </label>
+              <label class="field">
+                <span>Начална парола</span>
+                <input id="employeeImportPassword" name="employeeImportPassword" type="password" autocomplete="new-password" />
+                <small class="field__error" id="employeeImportPasswordError"></small>
+              </label>
+              <label class="checkbox-row">
+                <input id="employeeImportResetPasswords" name="employeeImportResetPasswords" type="checkbox" checked />
+                <span>Обнови паролата и за съществуващи служители</span>
+              </label>
+              <button class="btn btn--ghost" type="submit">Импортирай служители</button>
+            </form>
+          </section>
+
           <section class="glass-card hidden" id="handoffPanel">
             <div class="glass-card__header">
               <div>

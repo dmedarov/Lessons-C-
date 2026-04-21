@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sqlite3
 from datetime import datetime, timezone
 
@@ -11,6 +12,9 @@ from schemas import (
     AdminHandoffPayload,
     AdminHandoffResponse,
     AdminPasswordResetPayload,
+    EmployeeImportItem,
+    EmployeeImportPayload,
+    EmployeeImportResponse,
     PasswordChangePayload,
     UserAuditResponse,
     UserCreatePayload,
@@ -20,6 +24,103 @@ from schemas import (
 from security import AuthContext, get_auth_context, hash_password, require_admin, verify_password
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+_TRANSLITERATION = str.maketrans(
+    {
+        "а": "a",
+        "б": "b",
+        "в": "v",
+        "г": "g",
+        "д": "d",
+        "е": "e",
+        "ж": "zh",
+        "з": "z",
+        "и": "i",
+        "й": "y",
+        "к": "k",
+        "л": "l",
+        "м": "m",
+        "н": "n",
+        "о": "o",
+        "п": "p",
+        "р": "r",
+        "с": "s",
+        "т": "t",
+        "у": "u",
+        "ф": "f",
+        "х": "h",
+        "ц": "ts",
+        "ч": "ch",
+        "ш": "sh",
+        "щ": "sht",
+        "ъ": "a",
+        "ь": "y",
+        "ю": "yu",
+        "я": "ya",
+    }
+)
+
+
+def _employee_username(display_name: str) -> str:
+    lowered = display_name.lower().translate(_TRANSLITERATION)
+    slug = re.sub(r"[^a-z0-9]+", ".", lowered).strip(".")
+    return slug[:64].strip(".") or "employee"
+
+
+def _unique_username(conn, base: str, current_id: int | None = None) -> str:
+    username = base if len(base) >= 3 else f"{base}.user"
+    username = username[:64].strip(".")
+    suffix = 2
+    while True:
+        row = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+        if not row or int(row["id"]) == current_id:
+            return username
+        tail = f".{suffix}"
+        username = f"{base[:64 - len(tail)].strip('.')}{tail}"
+        suffix += 1
+
+
+def _parse_employee_import_rows(text: str) -> tuple[list[dict[str, str | None]], list[str]]:
+    rows: list[dict[str, str | None]] = []
+    skipped: list[str] = []
+    seen: set[str] = set()
+    for line in text.splitlines():
+        raw = line.strip()
+        if not raw:
+            continue
+        parts = [part.strip() for part in (raw.split("\t") if "\t" in raw else re.split(r";|,", raw))]
+        lowered = raw.lower()
+        if "име" in lowered and ("фамилия" in lowered or "телефон" in lowered):
+            continue
+
+        first = last = gsm_number = ""
+        if len(parts) >= 4:
+            first = parts[0]
+            last = parts[2] or parts[1]
+            gsm_number = parts[3]
+        else:
+            tokens = raw.split()
+            if len(tokens) >= 2:
+                if tokens[-1].startswith("+") or tokens[-1].replace(" ", "").isdigit():
+                    gsm_number = tokens[-1]
+                    tokens = tokens[:-1]
+                first = tokens[0]
+                last = tokens[-1] if len(tokens) > 1 else ""
+
+        if not first or not last:
+            skipped.append(raw)
+            continue
+        display_name = f"{first} {last}".strip()
+        key = display_name.casefold()
+        if key in seen:
+            skipped.append(f"{display_name} duplicate")
+            continue
+        seen.add(key)
+        if len(display_name) > 120 or len(gsm_number) > 32:
+            skipped.append(display_name)
+            continue
+        rows.append({"display_name": display_name, "gsm_number": gsm_number or None})
+    return rows, skipped
 
 
 def _is_integrity_error(exc: Exception) -> bool:
@@ -119,6 +220,100 @@ def create_user(payload: UserCreatePayload, auth: AuthContext = Depends(require_
         _log_user_action(conn, auth.user_id, int(row["id"]), "created", f"role={payload.role}")
 
     return _to_user_response(row)
+
+
+@router.post("/import-employees", response_model=EmployeeImportResponse)
+def import_employees(payload: EmployeeImportPayload, auth: AuthContext = Depends(require_admin)) -> EmployeeImportResponse:
+    rows, skipped_rows = _parse_employee_import_rows(payload.text)
+    imported: list[EmployeeImportItem] = []
+    created = 0
+    updated = 0
+    now = datetime.now(timezone.utc).isoformat()
+
+    with get_conn() as conn, transaction(conn):
+        for item in rows:
+            display_name = str(item["display_name"])
+            gsm_number = item["gsm_number"]
+            base_username = _employee_username(display_name)
+            current = conn.execute(
+                """
+                SELECT id, username, display_name, role, active, email, gsm_number, created_at
+                FROM users
+                WHERE display_name=? OR username=?
+                ORDER BY CASE WHEN display_name=? THEN 0 ELSE 1 END, id
+                LIMIT 1
+                """,
+                (display_name, base_username, display_name),
+            ).fetchone()
+
+            if current:
+                user_id = int(current["id"])
+                username = _unique_username(conn, base_username, user_id)
+                if payload.reset_existing_passwords:
+                    conn.execute(
+                        """
+                        UPDATE users
+                        SET username=?, display_name=?, password_hash=?, role='employee', active=1, gsm_number=?
+                        WHERE id=?
+                        """,
+                        (username, display_name, hash_password(payload.password), gsm_number, user_id),
+                    )
+                else:
+                    conn.execute(
+                        """
+                        UPDATE users
+                        SET username=?, display_name=?, role='employee', active=1, gsm_number=?
+                        WHERE id=?
+                        """,
+                        (username, display_name, gsm_number, user_id),
+                    )
+                _log_user_action(conn, auth.user_id, user_id, "employee_import_updated", "bulk employee import")
+                action = "updated"
+                updated += 1
+            else:
+                username = _unique_username(conn, base_username)
+                if conn.backend == "postgres":
+                    inserted = conn.execute(
+                        """
+                        INSERT INTO users(username, display_name, password_hash, role, active, email, gsm_number, created_at)
+                        VALUES(?, ?, ?, 'employee', 1, NULL, ?, ?)
+                        RETURNING id
+                        """,
+                        (username, display_name, hash_password(payload.password), gsm_number, now),
+                    ).fetchone()
+                    user_id = int(inserted["id"])
+                else:
+                    user_id = int(
+                        conn.execute(
+                            """
+                            INSERT INTO users(username, display_name, password_hash, role, active, email, gsm_number, created_at)
+                            VALUES(?, ?, ?, 'employee', 1, NULL, ?, ?)
+                            """,
+                            (username, display_name, hash_password(payload.password), gsm_number, now),
+                        ).lastrowid
+                    )
+                _log_user_action(conn, auth.user_id, user_id, "employee_import_created", "bulk employee import")
+                action = "created"
+                created += 1
+
+            row = _load_user(conn, user_id)
+            imported.append(
+                EmployeeImportItem(
+                    id=int(row["id"]),
+                    username=str(row["username"]),
+                    display_name=str(row["display_name"]),
+                    gsm_number=row["gsm_number"] or None,
+                    action=action,
+                )
+            )
+
+    return EmployeeImportResponse(
+        created=created,
+        updated=updated,
+        skipped=len(skipped_rows),
+        skipped_rows=skipped_rows,
+        items=imported,
+    )
 
 
 @router.post(

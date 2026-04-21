@@ -22,12 +22,12 @@ Production readiness score: **91/100 за контролиран вътреше�
 
 | Metric | Value |
 | --- | ---: |
-| Production app/script/template/style lines | 14,387 |
-| Code lines including tests/e2e | 19,606 |
-| Tracked project lines including docs/config/workflows | 25,756 |
+| Production app/script/template/style lines | 14,314 |
+| Code lines including tests/e2e | 19,983 |
+| Tracked project lines including docs/config/workflows | 26,174 |
 | Tracked relevant project files | 80 |
-| Automated test functions | 174 |
-| FastAPI route declarations | 55 |
+| Automated test functions | 176 |
+| FastAPI route declarations | 56 |
 | Alembic migrations | 9 |
 | Latest full local QA | `make qa-premium` passed |
 | Latest live smoke | `make smoke-live APP_URL=http://127.0.0.1:8001` passed |
@@ -37,7 +37,7 @@ Production readiness score: **91/100 за контролиран вътреше�
 The backend owns the business rules: auth, refresh-token rotation, bootstrap
 admin, role rebinding, reservation lifecycle, bulk approval, blackout windows,
 audit trail, notifications, NetFleet server-side proxy, production readiness
-checks and explainable Fleet Intelligence scoring. The database path is
+checks, repeatable employee import and explainable Fleet Intelligence scoring. The database path is
 production-aware: Alembic migrations, PostgreSQL compose, backup helper,
 restore-drill helper and a final `make go-live-check` gate.
 
@@ -60,10 +60,14 @@ setup copy. Approver bulk selection now behaves as one reliable control across
 timeline and table: Space on the timeline checkbox mirrors the table checkbox,
 selected card/row state and bulk action bar immediately.
 
+Admin employee maintenance is now repeatable: the Admin UI can paste the source
+employee table, use `Име + Фамилия + GSM`, create/update `employee` accounts,
+and ignore chip/tachograph columns that FleetFlow does not need.
+
 ## Quality Evidence
 
 Local quality gates are strong. `make qa-premium` runs production dependency
-audit, Python compile, 161 pytest cases, JS syntax checks and 13 Playwright
+audit, Python compile, 163 pytest cases, JS syntax checks and 13 Playwright
 browser checks. Browser evidence covers public, employee, approver, reception
 and admin flows, responsive density, contrast guardrails, calendar/reception
 visibility, approver keyboard bulk-selection and destructive-action recovery.
@@ -73,7 +77,7 @@ pin update. The rebuilt PostgreSQL smoke stack
 is healthy on port `8001`, and live smoke checks `/health`, `/health/ready`,
 `/auth/setup-status` and `/public/overview`. The latest Docker artifact was
 pushed as `dmedarov/fleetflow:latest`, digest
-`sha256:dade72cb77568b8d7c2932f8e42cfdac262aa6bc7394aff3c053efd5386b509d`.
+`sha256:69846a924506f485ec1b6ea115ca694221a6529bba5aa7a2b31f7dac68d534c0`.
 
 The production quality bar is now explicit: no silent regressions and no noisy
 regressions. Silent regressions are things users may not notice immediately but

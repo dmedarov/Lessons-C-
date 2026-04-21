@@ -355,6 +355,62 @@ def test_user_gsm_number_is_optional_and_length_limited(client: TestClient) -> N
     assert too_long.status_code == 422
 
 
+def test_admin_can_bulk_import_employee_names_and_gsm_numbers(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(
+        client,
+        admin,
+        "old.kamberov",
+        "Велян Камберов",
+        "OldPass123",
+        gsm_number="+359000000000",
+    )
+
+    _create_user(client, admin, "plain.employee", "Plain Employee", "UserPass123")
+    employee = _login(client, "plain.employee", "UserPass123")
+    forbidden = client.post(
+        "/users/import-employees",
+        json={"text": "Натали\t\tФилипова\t+359882422442", "password": "Cars2026"},
+        headers=_auth(employee),
+    )
+    assert forbidden.status_code == 403
+
+    payload = {
+        "password": "Cars2026",
+        "reset_existing_passwords": True,
+        "text": "\n".join(
+            [
+                "Име\tПрезиме\tФамилия\tТелефон\tНомер на чип",
+                "Натали\t\tФилипова\t+359882422442\t430002003D23CE01",
+                "Велян\t\tКамберов\t+359884144305\t7100020034163901",
+                "Оборотна\t\tСервиз\t\t1F00020042C79901",
+                "Натали\t\tФилипова\t+359882422442\tduplicate",
+            ]
+        ),
+    }
+    res = client.post("/users/import-employees", json=payload, headers=_auth(admin))
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["created"] == 2
+    assert data["updated"] == 1
+    assert data["skipped"] == 1
+    assert {item["display_name"] for item in data["items"]} == {
+        "Натали Филипова",
+        "Велян Камберов",
+        "Оборотна Сервиз",
+    }
+
+    users = client.get("/users", headers=_auth(admin)).json()
+    by_name = {user["display_name"]: user for user in users}
+    assert by_name["Натали Филипова"]["username"] == "natali.filipova"
+    assert by_name["Натали Филипова"]["gsm_number"] == "+359882422442"
+    assert by_name["Велян Камберов"]["username"] == "velyan.kamberov"
+    assert by_name["Велян Камберов"]["gsm_number"] == "+359884144305"
+    assert by_name["Оборотна Сервиз"]["gsm_number"] is None
+    _login(client, "natali.filipova", "Cars2026")
+    _login(client, "velyan.kamberov", "Cars2026")
+
+
 def test_admin_role_change_updates_stale_tokens_and_preserves_last_admin(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
     admin_user_id = client.get("/auth/me", headers=_auth(admin)).json()["id"]

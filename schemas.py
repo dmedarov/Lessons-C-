@@ -43,6 +43,12 @@ class UserCreatePayload(BaseModel):
     gsm_number: Optional[str] = Field(default=None, max_length=32)
 
 
+class EmployeeImportPayload(BaseModel):
+    text: str = Field(min_length=1, max_length=50000)
+    password: str = Field(min_length=8, max_length=128)
+    reset_existing_passwords: bool = True
+
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -52,6 +58,22 @@ class UserResponse(BaseModel):
     email: Optional[str] = None
     gsm_number: Optional[str] = None
     created_at: str
+
+
+class EmployeeImportItem(BaseModel):
+    id: int
+    username: str
+    display_name: str
+    gsm_number: Optional[str] = None
+    action: Literal["created", "updated"]
+
+
+class EmployeeImportResponse(BaseModel):
+    created: int
+    updated: int
+    skipped: int
+    items: list[EmployeeImportItem]
+    skipped_rows: list[str] = []
 
 
 class PasswordChangePayload(BaseModel):

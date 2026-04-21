@@ -119,6 +119,7 @@ const els = {
   reservationPanel: document.getElementById("reservationPanel"),
   passwordPanel: document.getElementById("passwordPanel"),
   userCreatePanel: document.getElementById("userCreatePanel"),
+  employeeImportPanel: document.getElementById("employeeImportPanel"),
   carPanel: document.getElementById("carPanel"),
   usersDeck: document.getElementById("usersDeck"),
   summaryDeck: document.getElementById("summaryDeck"),
@@ -137,6 +138,10 @@ const els = {
   newGsmNumber: document.getElementById("newGsmNumber"),
   newRole: document.getElementById("newRole"),
   newUserPassword: document.getElementById("newUserPassword"),
+  employeeImportForm: document.getElementById("employeeImportForm"),
+  employeeImportText: document.getElementById("employeeImportText"),
+  employeeImportPassword: document.getElementById("employeeImportPassword"),
+  employeeImportResetPasswords: document.getElementById("employeeImportResetPasswords"),
   handoffForm: document.getElementById("handoffForm"),
   handoffUserId: document.getElementById("handoffUserId"),
   handoffReason: document.getElementById("handoffReason"),
@@ -234,6 +239,8 @@ const fieldErrorIds = [
   "newDisplayName",
   "newGsmNumber",
   "newUserPassword",
+  "employeeImportText",
+  "employeeImportPassword",
   "handoffUserId",
   "handoffReason",
   "plate",
@@ -1152,6 +1159,7 @@ function renderShell() {
   toggleHidden(els.summaryDeck, !authenticated);
   toggleHidden(els.guidanceCard, authenticated);
   toggleHidden(els.userCreatePanel, !authenticated || !fullAdmin || !adminSurface);
+  toggleHidden(els.employeeImportPanel, !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.carPanel, !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.netfleetForm?.closest(".glass-card"), !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.productionReadinessPanel, !authenticated || !fullAdmin || !adminSurface);
@@ -3457,6 +3465,20 @@ function validateUserForm() {
   return valid;
 }
 
+function validateEmployeeImportForm() {
+  clearErrors();
+  let valid = true;
+  if (!els.employeeImportText?.value.trim()) {
+    setFieldError("employeeImportText", "Постави списък със служители.");
+    valid = false;
+  }
+  if (!els.employeeImportPassword?.value || els.employeeImportPassword.value.length < 8) {
+    setFieldError("employeeImportPassword", "Паролата трябва да е поне 8 символа.");
+    valid = false;
+  }
+  return valid;
+}
+
 function validateHandoffForm() {
   clearErrors();
   let valid = true;
@@ -3771,6 +3793,40 @@ async function handleUserCreate(event) {
     await refreshData();
   } catch (error) {
     showMessage("Неуспешно създаване", error.message);
+  } finally {
+    releaseSubmit();
+  }
+}
+
+async function handleEmployeeImport(event) {
+  event.preventDefault();
+  if (!validateEmployeeImportForm()) {
+    focusFirstFieldError(["employeeImportText", "employeeImportPassword"]);
+    showMessage("Има проблем", "Поправи списъка или началната парола.");
+    return;
+  }
+
+  const releaseSubmit = setSubmitBusy(event.currentTarget);
+  try {
+    const result = await apiFetch("/users/import-employees", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        text: els.employeeImportText.value,
+        password: els.employeeImportPassword.value,
+        reset_existing_passwords: Boolean(els.employeeImportResetPasswords?.checked),
+      }),
+    });
+    els.employeeImportForm.reset();
+    showMessage(
+      "Служителите са импортирани",
+      `Нови: ${result.created}. Обновени: ${result.updated}. Пропуснати: ${result.skipped}.`,
+      result.skipped ? "error" : "success",
+      result.skipped_rows || []
+    );
+    await refreshData();
+  } catch (error) {
+    showMessage("Импортът не успя", error.message);
   } finally {
     releaseSubmit();
   }
@@ -4271,6 +4327,7 @@ bind(els.quickBookBtn, "click", quickBookReservation);
 bind(els.smartPrefillBtn, "click", applySmartPrefill);
 bind(els.passwordForm, "submit", handlePasswordChange);
 bind(els.userForm, "submit", handleUserCreate);
+bind(els.employeeImportForm, "submit", handleEmployeeImport);
 bind(els.carForm, "submit", handleCarCreate);
 bind(els.netfleetForm, "submit", handleNetfleetConfigUpdate);
 bind(els.handoffForm, "submit", handleHandoff);

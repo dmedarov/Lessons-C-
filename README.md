@@ -14,7 +14,8 @@
 - Outbound notifications към email, Slack и Teams, когато са конфигурирани.
 - Bootstrap flow за първия `fleet_admin`, без demo users в production.
 - User management: създаване, activate/deactivate, password change и guarded admin handoff.
-- User contacts: admin може да добавя optional email и GSM номер към потребител.
+- User contacts: admin може да добавя optional email и GSM номер към потребител,
+  включително bulk import от таблица с `Име / Презиме / Фамилия / Телефон`.
 - Requester contact in requests: след login заявките показват GSM номера на заявителя, или ясно `GSM: не е въведен`, за authenticated потребителите, които вече имат право да виждат резервацията; публичният pre-login календар остава без заявител/GSM.
 - Employee admin guard: employee не остава на `/admin`; Admin shortcut-ът в employee изгледа е скрит и се показва само за operational роли.
 - Operational login routing: `fleet_admin`, `fleet_approver` и
@@ -355,6 +356,9 @@ docker-compose.postgres.yml
 - `GET /cars/{id}/telemetry/latest` — `fleet_admin`, `fleet_reception` за approved/active handoff коли или employee със собствена одобрена/активна резервация за тази кола.
 - `GET /users`, `POST /users`, `POST /users/{id}/activate`, `POST /users/{id}/deactivate` — само `fleet_admin`.
 - `POST /users` приема optional `email` и `gsm_number`; GSM номерът е contact поле, не auth фактор.
+- `POST /users/import-employees` — само `fleet_admin`; приема copy/paste
+  таблица със служители, използва `Име + Фамилия + GSM`, игнорира
+  презиме/чип/тахограф колони и създава или обновява `employee` акаунти.
 - `POST /users/{id}/handoff-admin` — guarded admin handoff към друг активен user.
 - `POST /users/me/password` — логнат потребител, със задължителна текуща парола.
 - `POST /cars/{id}/blackouts`, `GET /cars/{id}/blackouts`, `POST /cars/blackouts/{id}/deactivate` — blackout management за service/maintenance.
@@ -396,7 +400,7 @@ docker-compose.postgres.yml
 22. **Production cutover check** — `make prod-check` валидира `.env` за real origin, generated secrets, matching `DATABASE_URL`, pinned PostgreSQL image, disabled demo seed и production mode.
 23. **Secret-safe readiness UI** — admin вижда blockers/warnings за live без да получава сурови secret-и, пароли или connection string.
 24. **Backup before migration** — production backup и restore drill са Make targets, backup файловете са извън git, а успешният restore drill записва ignored evidence marker за `make go-live-check`.
-25. **User contact data** — email и GSM номер се пазят в user профила за operational coordination, без да участват в login/auth.
+25. **User contact data** — email и GSM номер се пазят в user профила за operational coordination, без да участват в login/auth. Bulk employee import прави поддръжката на служителския списък повторяема от Admin UI.
 26. **Structured production logs** — access logs са JSON в production и съдържат request id, route, status и latency без secret values.
 27. **Explainable fleet intelligence first** — quick-book uses a thin rules/metrics layer and records `car_assignments`; snapshot tables/jobs stay future work until production usage proves the need.
 28. **Public orientation, private operations** — pre-login UI may show fleet counts and calendar occupancy with plate/model for frictionless orientation; users, trip purpose, GPS, reservation ids and lifecycle actions stay behind auth.
@@ -545,7 +549,7 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Последна premium QA проверка:
-`make qa-premium` -> passed (dependency audit, Python compile, 161 pytest
+`make qa-premium` -> passed (dependency audit, Python compile, 163 pytest
 cases, JS syntax, 13 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
@@ -553,7 +557,7 @@ APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 missing и stale restore-drill marker сценарии. Активният Docker stack
 `fleetflow_prod_smoke` е healthy на `8001`.
 Последният Docker release artifact е push-нат като `dmedarov/fleetflow:latest`
-с digest `sha256:dade72cb77568b8d7c2932f8e42cfdac262aa6bc7394aff3c053efd5386b509d`.
+с digest `sha256:69846a924506f485ec1b6ea115ca694221a6529bba5aa7a2b31f7dac68d534c0`.
 
 Текущ source checkout няма `.env`, затова `make prod-check` отказва с
 `Run 'make setup' first to create .env`; това е очакван operator guard, не

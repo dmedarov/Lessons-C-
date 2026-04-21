@@ -638,6 +638,26 @@ def test_admin_user_form_supports_gsm_number() -> None:
     assert 'user.gsm": "GSM: {number}"' in i18n_js
 
 
+def test_admin_bulk_employee_import_supports_name_surname_gsm_source() -> None:
+    html = _read("templates/admin.html")
+    app_js = _read("static/app.js")
+    schemas = _read("schemas.py")
+    router = _read("routers/users.py")
+
+    assert 'id="employeeImportPanel"' in html
+    assert 'id="employeeImportText"' in html
+    assert "Използват се Име + Фамилия + GSM" in html
+    assert 'id="employeeImportPassword"' in html
+    assert 'id="employeeImportResetPasswords"' in html
+    assert 'apiFetch("/users/import-employees"' in app_js
+    assert "function validateEmployeeImportForm()" in app_js
+    assert "EmployeeImportPayload" in schemas
+    assert "EmployeeImportResponse" in schemas
+    assert '@router.post("/import-employees"' in router
+    assert "role='employee'" in router
+    assert "Презиме" in html
+
+
 def test_admin_production_readiness_panel_is_present_and_secret_safe() -> None:
     html = _read("templates/admin.html")
     app_js = _read("static/app.js")
