@@ -515,6 +515,57 @@ def test_employee_cannot_stay_on_admin_surface(browser: Browser, server: str) ->
     context.close()
 
 
+def test_operational_roles_login_to_admin_surface_first(browser: Browser, server: str) -> None:
+    admin_token = _api_login(server, "admin", "AdminPass123")
+    _api_json(
+        server,
+        "/users",
+        "POST",
+        admin_token,
+        {
+            "username": "firstapprover",
+            "display_name": "First Approver",
+            "password": "FirstApprover123",
+            "role": "fleet_approver",
+        },
+    )
+    _api_json(
+        server,
+        "/users",
+        "POST",
+        admin_token,
+        {
+            "username": "firstreception",
+            "display_name": "First Reception",
+            "password": "FirstReception123",
+            "role": "fleet_reception",
+        },
+    )
+
+    scenarios = [
+        ("admin", "AdminPass123", "Администратор"),
+        ("firstapprover", "FirstApprover123", "Одобряващ"),
+        ("firstreception", "FirstReception123", "Рецепция ключове"),
+    ]
+    for username, password, role_label in scenarios:
+        context = browser.new_context(viewport={"width": 1280, "height": 900})
+        page = context.new_page()
+        page.goto(f"{server}/", wait_until="domcontentloaded")
+        expect(page.locator("#loginPanel")).to_be_visible(timeout=10_000)
+        page.locator("#username").fill(username)
+        page.locator("#password").fill(password)
+        with page.expect_response(lambda response: response.url.endswith("/auth/me"), timeout=10_000) as me_info:
+            with page.expect_response(lambda response: response.url.endswith("/auth/login") and response.status == 200):
+                page.locator("#loginBtn").click()
+        me_response = me_info.value
+        assert me_response.status == 200
+        expect(page).to_have_url(f"{server}/admin", timeout=10_000)
+        expect(page.locator("body[data-surface='admin']")).to_be_attached()
+        expect(page.locator("#sessionModePill")).to_contain_text(role_label, timeout=10_000)
+        expect(page.locator("#reservationsDeck")).to_be_visible()
+        context.close()
+
+
 def test_approver_decision_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
     admin_token = _api_login(server, "admin", "AdminPass123")
     _api_json(

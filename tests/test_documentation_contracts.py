@@ -50,8 +50,8 @@ def test_executive_summary_records_current_quality_evidence() -> None:
 
     assert "`make qa-premium` passed" in summary
     assert "`make smoke-live APP_URL=http://127.0.0.1:8001` passed" in summary
-    assert "156 pytest cases" in summary
-    assert "12 Playwright" in summary
+    assert "159 pytest cases" in summary
+    assert "13 Playwright" in summary
     assert "91/100 за контролиран вътрешен pilot" in summary
 
 
@@ -74,6 +74,20 @@ def test_all_markdown_docs_explain_no_regression_discipline() -> None:
             missing.append(path)
 
     assert missing == []
+
+
+def test_github_actions_are_current_and_hardened_for_dependabot() -> None:
+    workflows = {
+        ".github/workflows/production-gates.yml": _read(".github/workflows/production-gates.yml"),
+        ".github/workflows/tests.yml": _read(".github/workflows/tests.yml"),
+    }
+    combined = "\n".join(workflows.values())
+
+    assert "actions/checkout@v4" not in combined
+    assert "actions/setup-python@v5" not in combined
+    assert "actions/checkout@v6" in combined
+    assert "actions/setup-python@v6" in combined
+    assert "persist-credentials: false" in workflows[".github/workflows/production-gates.yml"]
 
 
 def test_executive_route_and_migration_stats_match_code() -> None:

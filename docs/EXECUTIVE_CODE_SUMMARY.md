@@ -22,11 +22,11 @@ Production readiness score: **91/100 за контролиран вътреше�
 
 | Metric | Value |
 | --- | ---: |
-| Production app/script/template/style lines | 14,296 |
-| Code lines including tests/e2e | 19,382 |
-| Tracked project lines including docs/config/workflows | 25,094 |
+| Production app/script/template/style lines | 14,341 |
+| Code lines including tests/e2e | 19,515 |
+| Tracked project lines including docs/config/workflows | 25,309 |
 | Tracked relevant project files | 80 |
-| Automated test functions | 168 |
+| Automated test functions | 172 |
 | FastAPI route declarations | 55 |
 | Alembic migrations | 9 |
 | Latest full local QA | `make qa-premium` passed |
@@ -61,12 +61,14 @@ setup copy.
 ## Quality Evidence
 
 Local quality gates are strong. `make qa-premium` runs production dependency
-audit, Python compile, 156 pytest cases, JS syntax checks and 12 Playwright
+audit, Python compile, 159 pytest cases, JS syntax checks and 13 Playwright
 browser checks. Browser evidence covers public, employee, approver, reception
 and admin flows, responsive density, contrast guardrails, calendar/reception
 visibility and destructive-action recovery. The rebuilt PostgreSQL smoke stack
 is healthy on port `8001`, and live smoke checks `/health`, `/health/ready`,
-`/auth/setup-status` and `/public/overview`.
+`/auth/setup-status` and `/public/overview`. The latest Docker artifact was
+pushed as `dmedarov/fleetflow:latest`, digest
+`sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
 
 The production quality bar is now explicit: no silent regressions and no noisy
 regressions. Silent regressions are things users may not notice immediately but

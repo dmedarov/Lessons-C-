@@ -17,6 +17,8 @@
 - User contacts: admin може да добавя optional email и GSM номер към потребител.
 - Requester contact in requests: след login заявките показват GSM номера на заявителя, или ясно `GSM: не е въведен`, за authenticated потребителите, които вече имат право да виждат резервацията; публичният pre-login календар остава без заявител/GSM.
 - Employee admin guard: employee не остава на `/admin`; Admin shortcut-ът в employee изгледа е скрит и се показва само за operational роли.
+- Operational login routing: `fleet_admin`, `fleet_approver` и
+  `fleet_reception` винаги започват от `/admin`, дори ако login започне от `/`.
 - Structured access logs: production режимът логва request id, route, status и latency като JSON.
 - Пагинация при списъка с резервации.
 - `health` endpoint за Docker healthcheck.
@@ -537,13 +539,15 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 -> 7 passed, `node --check static/app.js`, `node --check static/i18n.js`.
 
 Последна premium QA проверка:
-`make qa-premium` -> passed (dependency audit, Python compile, 156 pytest
-cases, JS syntax, 12 Playwright browser checks). `make smoke-live
+`make qa-premium` -> passed (dependency audit, Python compile, 159 pytest
+cases, JS syntax, 13 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
 `pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,
 missing и stale restore-drill marker сценарии. Активният Docker stack
 `fleetflow_prod_smoke` е healthy на `8001`.
+Последният Docker release artifact е push-нат като `dmedarov/fleetflow:latest`
+с digest `sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
 
 Текущ source checkout няма `.env`, затова `make prod-check` отказва с
 `Run 'make setup' first to create .env`; това е очакван operator guard, не

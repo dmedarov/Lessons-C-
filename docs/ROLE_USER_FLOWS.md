@@ -13,6 +13,16 @@
 | `fleet_reception` | предава/приема ключове и документи | `/admin` Reception Rail | approve/reject, настройки, fleet-wide GPS |
 | `fleet_admin` | конфигурира и наблюдава целия процес | `/admin` full cockpit | няма, но daily queue не трябва да се губи сред настройки |
 
+## Login routing
+
+- `employee` влиза в служителския desk и няма persistent достъп до `/admin`.
+- `fleet_approver`, `fleet_reception` и `fleet_admin` винаги започват в
+  `/admin` след login или cookie restore, защото това са operational роли с
+  решение, ключове или пълен контрол като първа задача.
+- Ако служител отвори `/admin`, приложението го връща към `/` и скрива Admin
+  shortcut-а; ако operational роля отвори `/`, приложението я връща към
+  `/admin`.
+
 ## Employee flow
 
 **Цел:** служителят да не мисли къде да започне.
@@ -128,8 +138,8 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 
 Latest verification:
 
-- `make qa-premium` -> passed: dependency audit, Python compile, 156 pytest
-  cases, JS syntax and 12 Playwright browser checks.
+- `make qa-premium` -> passed: dependency audit, Python compile, 159 pytest
+  cases, JS syntax and 13 Playwright browser checks.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> passed:
   `/health`, `/health/ready`, `/auth/setup-status` and `/public/overview`.
 

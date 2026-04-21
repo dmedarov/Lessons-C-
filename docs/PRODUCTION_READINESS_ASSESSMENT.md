@@ -131,6 +131,15 @@ pilot-ready към 99/100, трябва всички точки по-долу д
   показва неутрален български текст вместо raw key.
 - Reception и admin получават top next signal за просрочено връщане преди
   pending approvals, защото това е по-спешен operational риск.
+- Premium visual calm guard е добавен: decorative radial orb backgrounds са
+  премахнати, mobile KPI остава компактен 3-column status strip, а тест пази
+  `radial-gradient` да не се върне тихо.
+- Role-first login routing е добавен: operational роли (`fleet_admin`,
+  `fleet_approver`, `fleet_reception`) започват в `/admin`, а служителят не може
+  да остане на `/admin`.
+- Production GitHub Actions са изравнени към `actions/checkout@v6` и
+  `actions/setup-python@v6`; production checkout използва
+  `persist-credentials: false`.
 
 ## Remaining go-live blockers
 
@@ -168,12 +177,16 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Targeted Playwright admin destructive recovery -> 1 passed.
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
 - Full Playwright smoke -> 12 passed.
-- `make qa-premium` -> dependency audit, Python compile, 156 pytest cases,
-  JS syntax and 12 Playwright browser checks passed.
+- `make qa-premium` -> dependency audit, Python compile, 159 pytest cases,
+  JS syntax and 13 Playwright browser checks passed.
 - PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
   containers are healthy.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` after rebuild -> `/health`,
   `/health/ready`, `/auth/setup-status` and `/public/overview` passed.
+- Docker Scout on the rebuilt image -> 0 critical, 0 high, 0 medium, 0 low
+  vulnerabilities across 80 packages.
+- Docker release artifact pushed: `dmedarov/fleetflow:latest`, digest
+  `sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
 - `make prod-check` in the source checkout -> blocked as expected because
   `.env` is missing.
 

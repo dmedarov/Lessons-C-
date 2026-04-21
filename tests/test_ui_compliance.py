@@ -57,12 +57,28 @@ def test_static_assets_are_cache_busted_in_templates() -> None:
     assert "NO_CACHE_ASSET_EXTENSIONS" in app_py
     for template in ("templates/index.html", "templates/admin.html"):
         html = _read(template)
-        assert "/static/styles.css?v=20260421-calendar-cache" in html
-        assert "/static/i18n.js?v=20260421-calendar-cache" in html
-        assert "/static/app.js?v=20260421-calendar-cache" in html
-        assert "/static/theme.js?v=20260421-calendar-cache" in html
+        assert "/static/styles.css?v=20260421-cnsys-routing" in html
+        assert "/static/i18n.js?v=20260421-cnsys-routing" in html
+        assert "/static/app.js?v=20260421-cnsys-routing" in html
+        assert "/static/theme.js?v=20260421-cnsys-routing" in html
         assert 'src="/static/i18n.js"' not in html
         assert 'src="/static/app.js"' not in html
+
+
+def test_premium_visual_system_avoids_decorative_orbs() -> None:
+    styles = _read("static/styles.css")
+    assert "radial-gradient" not in styles
+    assert ".hero__primary::before" not in styles
+    assert ".hero__primary::after" not in styles
+    assert "no decorative orbs" in styles
+
+
+def test_cnsys_brand_mark_is_visible_without_adding_nav_noise() -> None:
+    styles = _read("static/styles.css")
+    for template in ("templates/index.html", "templates/admin.html"):
+        html = _read(template)
+        assert '<span class="brand__company">CNSYS</span>' in html
+    assert ".brand__company" in styles
 
 
 def test_i18n_literal_keys_are_defined_and_missing_keys_do_not_render_raw_keys() -> None:
@@ -443,9 +459,16 @@ def test_employee_is_redirected_away_from_admin_surface() -> None:
     assert '<a class="hidden" href="/admin" data-operational-link>Admin</a>' in index_html
     assert 'operationalLinks: document.querySelectorAll("[data-operational-link]")' in app_js
     assert "function employeeBlockedFromAdminSurface(user)" in app_js
-    assert 'return surface === "admin" && user?.role === "employee";' in app_js
+    assert 'return window.location.pathname.startsWith("/admin") && user?.role === "employee";' in app_js
+    assert "function operationalBlockedFromEmployeeSurface(user)" in app_js
+    assert 'return !window.location.pathname.startsWith("/admin") && Boolean(user?.role) && user.role !== "employee";' in app_js
+    assert 'sessionStorage.setItem("fleetflow.surfaceRedirectToken", state.token);' in app_js
+    assert 'sessionStorage.removeItem("fleetflow.surfaceRedirectToken");' in app_js
+    assert "if (state.token) return await loadMe();" in app_js
     assert 'sessionStorage.setItem("fleetflow.employeeAdminDenied", "1");' in app_js
-    assert 'window.location.replace("/");' in app_js
+    assert 'window.location.assign("/");' in app_js
+    assert 'window.location.assign("/admin");' in app_js
+    assert "redirectOperationalToAdminSurface(state.currentUser)" in app_js
     assert "const allowed = await loadMe();" in app_js
     assert "if (!allowed) return;" in app_js
     assert "const canContinue = await restoreSessionFromCookie();" in app_js

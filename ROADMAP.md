@@ -233,6 +233,9 @@ operations assistant for internal mobility**, което е:
 - Employee admin guard: employee users are redirected away from `/admin`, and
   the employee top navigation exposes the Admin shortcut only to operational
   roles.
+- Role-first login routing: `fleet_admin`, `fleet_approver` and
+  `fleet_reception` redirect to `/admin` even when login starts from `/`, so
+  the first authenticated screen matches the user's pool-process job.
 - Intent-driven summary layer: employee/admin surfaces now expose contextual
   next-action buttons for free mode, active/approved trips, pending admin work,
   active trips and calm fleet state.
@@ -322,9 +325,11 @@ operations assistant for internal mobility**, което е:
   isolated project `fleetflow_restore_drill`; PostgreSQL smoke is migrated to
   Alembic revision `20260420_0009`.
 - Latest go-live gate verification: `pytest tests/test_prod_readiness.py -q`
-  -> 7 passed, `make qa-premium` -> 156 pytest cases + 12 browser checks,
+  -> 7 passed, `make qa-premium` -> 159 pytest cases + 13 browser checks,
   and `make smoke-live APP_URL=http://127.0.0.1:8001` returned
   health/ready/active-admin/public overview from the running PostgreSQL stack.
+  The latest rebuilt Docker artifact was pushed to `dmedarov/fleetflow:latest`
+  as digest `sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
 - Latest calm-flow verification: Playwright captures responsive density
   evidence for public/employee/approver/reception/admin viewports and
   destructive-action recovery screenshots for reject required-reason, return
@@ -350,8 +355,8 @@ operations assistant for internal mobility**, което е:
 - NetFleet production UX guard: Fleet Pulse now distinguishes missing API key
   from configured-but-unavailable live GPS, and shows text-backed
   `Няма връзка` instead of a symbol-only warning.
-- Current tracked size: 14,296 production app/script/template/style lines,
-  19,382 code lines including automated tests/e2e, and 25,094 tracked project
+- Current tracked size: 14,341 production app/script/template/style lines,
+  19,515 code lines including automated tests/e2e, and 25,309 tracked project
   lines including docs/config/workflows.
 
 ## Go-Live Plan

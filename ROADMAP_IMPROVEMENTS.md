@@ -2223,6 +2223,51 @@ If time is limited, execute items 1-4 before any new feature work.
 
 ## Done
 
+### 2026-04-21 - Role-first login routing for operational users
+
+- **Goal:** Remove the last wrong-surface moment at login. Operational users
+  should never first see the employee desk when their real next action is
+  approval, key handoff, return or admin control.
+- **UX:** `fleet_admin`, `fleet_approver` and `fleet_reception` now redirect to
+  `/admin` from `/` after login or session restore. `employee` remains on the
+  employee desk and is still redirected away from `/admin`.
+- **Branding:** added a quiet `CNSYS` ownership mark under FleetFlow in the
+  shared topbar so the product reads as a CNSYS internal operations tool without
+  adding navigation noise.
+- **Tests:** added Playwright coverage for admin, approver and reception login
+  from `/`, plus static guard assertions for the bidirectional surface routing.
+- **Docs:** README, role user flows, UI/UX audit, production readiness and this
+  roadmap describe the role-first routing contract.
+
+### 2026-04-21 - Premium visual calm and Dependabot action hardening
+
+- **Goal:** Make the first impression calmer and more operational while
+  addressing the likely GitHub Dependabot source before 99/100 production
+  scoring.
+- **Visual system:** removed decorative radial orb backgrounds from page,
+  hero, brand mark and dialog backdrop; reduced topbar/card/hero elevation;
+  made mobile KPI cards a compact 3-column status strip so useful fleet
+  context appears earlier.
+- **Cache freshness:** bumped versioned static URLs to
+  `20260421-cnsys-routing`.
+- **Dependabot hardening:** GitHub dependency graph SBOM still showed
+  `actions/checkout@4` and `actions/setup-python@5` from
+  `.github/workflows/production-gates.yml`. Updated that workflow to
+  `actions/checkout@v6`, `actions/setup-python@v6` and
+  `persist-credentials: false` for checkout. Local `pip-audit -r
+  requirements.txt` and `docker scout cves fleetflow_prod_smoke-car-pool:latest`
+  both report no known vulnerabilities, so the remaining external check is
+  whether GitHub clears the alert after push.
+- **Tests:** `tests/test_ui_compliance.py` now blocks `radial-gradient` from
+  returning to the premium visual system; `tests/test_documentation_contracts.py`
+  now blocks old Actions versions from returning.
+- **Verification:** `make qa-premium` -> dependency audit, Python compile,
+  159 pytest cases, JS syntax and 13 Playwright browser checks; `make
+  smoke-live APP_URL=http://127.0.0.1:8001` -> health/ready/setup/public
+  overview passed after clean container rebuild; Docker Scout on the rebuilt
+  image -> 0C/0H/0M/0L; `docker push dmedarov/fleetflow:latest` -> digest
+  `sha256:9944535c54f88a021e8987a3249457cbb049903a82ec9a562658de6cf614e096`.
+
 ### 2026-04-21 - Executive documentation contract guard
 
 - **Goal:** Keep executive production score, route/migration stats and the
@@ -2234,8 +2279,8 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Docs:** updated Executive Code Summary, ROADMAP and this handoff with the
   new code/test/project line counts after the guardrail test.
 - **Verification:** `pytest tests/test_documentation_contracts.py -q` -> 5
-  passed; `make qa-premium` -> dependency audit, Python compile, 156 pytest
-  cases, JS syntax and 12 Playwright browser checks; `make smoke-live
+  passed; `make qa-premium` -> dependency audit, Python compile, 159 pytest
+  cases, JS syntax and 13 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed.
 
@@ -2252,13 +2297,13 @@ If time is limited, execute items 1-4 before any new feature work.
   fresh backup/restore drill evidence, checked Dependabot alert, real CORS
   domain, at least two active admins, observed NetFleet connectivity and one
   monitored live week without high-severity flow defects.
-- **Code size snapshot:** 14,296 production app/script/template/style lines;
-  19,382 code lines with automated tests/e2e; 25,094 tracked project lines
+- **Code size snapshot:** 14,341 production app/script/template/style lines;
+  19,515 code lines with automated tests/e2e; 25,309 tracked project lines
   including docs/config/workflows.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
-  `make qa-premium` -> dependency audit, Python compile, 156 pytest cases,
-  JS syntax and 12 Playwright browser checks passed. The local PostgreSQL smoke
+  `make qa-premium` -> dependency audit, Python compile, 159 pytest cases,
+  JS syntax and 13 Playwright browser checks passed. The local PostgreSQL smoke
   stack was rebuilt on `APP_PORT=8001`, both containers are healthy, and
   `make smoke-live APP_URL=http://127.0.0.1:8001` passed after rebuild.
 
@@ -2295,13 +2340,13 @@ If time is limited, execute items 1-4 before any new feature work.
   now all describe the same calm handoff flow and production status.
 - **Verification:** `tests/test_ui_compliance.py` -> 38 passed; targeted
   Playwright reception/calendar + overdue signal -> 2 passed; `make
-  qa-premium` -> dependency audit, Python compile, 156 pytest cases, JS syntax
-  and 12 Playwright browser checks; `make smoke-live
+  qa-premium` -> dependency audit, Python compile, 159 pytest cases, JS syntax
+  and 13 Playwright browser checks; `make smoke-live
   APP_URL=http://127.0.0.1:8001` -> health/ready/active-admin/public overview
   passed. Follow-up mid-width calendar fix was rechecked with `node --check`,
   `tests/test_ui_compliance.py` -> 38 passed, targeted Playwright reception
   calendar/overdue signal -> 2 passed, and full `make qa-premium` -> 151
-  pytest cases + 12 Playwright checks.
+  pytest cases + 13 Playwright checks.
 
 ### 2026-04-21 - Static asset cache guard for i18n correctness
 
@@ -2322,7 +2367,7 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `tests/test_ui_compliance.py` + `test_health_and_ui` -> 39
   passed; full `make qa-premium` -> dependency audit, Python compile, 151
-  pytest cases, JS syntax and 12 Playwright browser checks.
+  pytest cases, JS syntax and 13 Playwright browser checks.
 
 ### 2026-04-21 - Final go-live gate and docs review
 

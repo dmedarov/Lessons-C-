@@ -1026,7 +1026,32 @@ async function apiFetch(url, options = {}) {
 }
 
 function employeeBlockedFromAdminSurface(user) {
-  return surface === "admin" && user?.role === "employee";
+  return window.location.pathname.startsWith("/admin") && user?.role === "employee";
+}
+
+function operationalBlockedFromEmployeeSurface(user) {
+  return !window.location.pathname.startsWith("/admin") && Boolean(user?.role) && user.role !== "employee";
+}
+
+function stashAccessTokenForSurfaceRedirect() {
+  if (!state.token) return;
+  try {
+    sessionStorage.setItem("fleetflow.surfaceRedirectToken", state.token);
+  } catch (_error) {
+    // The refresh cookie remains the fallback when session storage is blocked.
+  }
+}
+
+function consumeSurfaceRedirectToken() {
+  try {
+    const token = sessionStorage.getItem("fleetflow.surfaceRedirectToken");
+    if (token) {
+      sessionStorage.removeItem("fleetflow.surfaceRedirectToken");
+    }
+    return token;
+  } catch (_error) {
+    return null;
+  }
 }
 
 function redirectEmployeeFromAdminSurface(user) {
@@ -1037,7 +1062,15 @@ function redirectEmployeeFromAdminSurface(user) {
   } catch (_error) {
     // Session storage may be unavailable; the redirect remains the hard guard.
   }
-  window.location.replace("/");
+  window.location.assign("/");
+  return true;
+}
+
+function redirectOperationalToAdminSurface(user) {
+  if (!operationalBlockedFromEmployeeSurface(user)) return false;
+  stopNotificationPolling();
+  stashAccessTokenForSurfaceRedirect();
+  window.location.assign("/admin");
   return true;
 }
 
@@ -1095,6 +1128,10 @@ function stopNotificationPolling() {
 
 function renderShell() {
   const authenticated = Boolean(state.token && state.currentUser);
+  if (authenticated && !window.location.pathname.startsWith("/admin") && state.currentRole !== "employee") {
+    window.location.assign("/admin");
+    return;
+  }
   const fullAdmin = isFullAdmin();
   const operationalMode = isOperationalRole();
   const adminSurface = state.surface === "admin";
@@ -2722,7 +2759,11 @@ async function loadMe() {
 }
 
 async function restoreSessionFromCookie() {
-  if (state.token) return true;
+  const transferredToken = consumeSurfaceRedirectToken();
+  if (transferredToken) {
+    state.token = transferredToken;
+  }
+  if (state.token) return await loadMe();
   try {
     await refreshAccessToken();
     return await loadMe();
@@ -3440,6 +3481,9 @@ async function loginWith(username, password) {
   state.token = data.access_token;
   const allowed = await loadMe();
   if (!allowed) return;
+  if (redirectOperationalToAdminSurface(state.currentUser)) {
+    return;
+  }
   await refreshData();
   showMessage("Успешен вход", `Добре дошъл, ${state.currentUser.display_name}.`, "success");
 }
