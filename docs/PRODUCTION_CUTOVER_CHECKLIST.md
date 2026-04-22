@@ -39,6 +39,7 @@ make prod-backup
 make prod-restore-drill BACKUP=backups/fleetflow-YYYYmmddTHHMMSSZ.dump
 make prod
 make go-live-check APP_URL=https://your-production-url.example
+CUTOVER_ADMIN_USERNAME=admin CUTOVER_ADMIN_PASSWORD='...' make cutover-report APP_URL=https://your-production-url.example
 ```
 
 ### Evidence
@@ -47,7 +48,9 @@ make go-live-check APP_URL=https://your-production-url.example
 - Backup file: `____________________________`
 - Restore drill marker timestamp: `____________________________`
 - `make go-live-check`: `PASS / FAIL`
+- `make cutover-report`: `PASS / FAIL`
 - Live smoke URL: `____________________________`
+- Admin readiness snapshot included automatically: `YES / NO`
 
 Notes:
 

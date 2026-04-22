@@ -15,7 +15,7 @@ help:
 	@echo "  make prod    Build and start production stack (PostgreSQL + app)"
 	@echo "  make prod-check Validate .env before live production cutover"
 	@echo "  make go-live-check Validate env, restore drill evidence, release gates and live smoke"
-	@echo "  make cutover-report APP_URL=http://... Generate a markdown cutover evidence snapshot"
+	@echo "  make cutover-report APP_URL=http://... Generate a markdown cutover evidence snapshot (optional CUTOVER_ADMIN_USERNAME/PASSWORD adds /ops/readiness summary)"
 	@echo "  make prod-backup Create a PostgreSQL backup under backups/"
 	@echo "  make prod-restore-drill BACKUP=backups/file.dump Validate backup in an isolated restore project"
 	@echo "  make audit-prod Audit pinned runtime dependencies"

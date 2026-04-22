@@ -6,6 +6,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from scripts import cutover_report
 from scripts.go_live_check import restore_drill_messages
 
 
@@ -129,6 +130,8 @@ def test_backup_restore_operator_scripts_are_documented_and_guarded() -> None:
     assert "/auth/setup-status" in smoke
     assert "no active admin exists" in smoke
     assert "Manual-only checks still required" in cutover
+    assert "CUTOVER_ADMIN_USERNAME" in cutover
+    assert "CUTOVER_ADMIN_PASSWORD" in cutover
     assert "PRODUCTION_CUTOVER_CHECKLIST.md" in cutover
 
 
@@ -246,5 +249,111 @@ def test_cutover_report_script_generates_markdown_snapshot(tmp_path: Path) -> No
     assert "FleetFlow Cutover Report" in report
     assert "Target URL: `http://127.0.0.1:9`" in report
     assert "Restore drill evidence" in report
+    assert "Authenticated admin readiness" in report
+    assert "CUTOVER_ADMIN_USERNAME / CUTOVER_ADMIN_PASSWORD" in report
     assert "GitHub Security / Dependabot review in the GitHub web UI" in report
     assert "docs/PRODUCTION_CUTOVER_CHECKLIST.md" in report
+
+
+def test_cutover_report_can_include_authenticated_admin_readiness_snapshot(tmp_path: Path, monkeypatch) -> None:
+    env_file = tmp_path / ".env"
+    marker = tmp_path / "restore-drill-ok.json"
+    backup = tmp_path / "fleetflow.dump"
+    output_dir = tmp_path / "reports"
+    backup.write_text("not-a-real-dump")
+    marker.write_text(
+        (
+            "{"
+            '"succeeded": true,'
+            '"checked_at": "2026-04-23T10:00:00Z",'
+            f'"backup_path": "{backup}"'
+            "}"
+        )
+    )
+    env_file.write_text(
+        "\n".join(
+            [
+                "APP_ENV=prod",
+                f"SECRET_KEY={'s' * 48}",
+                f"POSTGRES_PASSWORD={'p' * 32}",
+                "POSTGRES_IMAGE=postgres:16",
+                f"DATABASE_URL=postgresql://fleetflow:{'p' * 32}@postgres:5432/fleetflow",
+                "CORS_ALLOW_ORIGINS=https://fleetflow.company.bg",
+                "DEV_SEED_DEMO_DATA=false",
+                f"RESTORE_DRILL_MARKER={marker}",
+            ]
+        )
+    )
+
+    def fake_request_json(
+        url: str,
+        *,
+        method: str = "GET",
+        payload: dict[str, object] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> tuple[str, str, dict[str, object] | None]:
+        if url.endswith("/auth/login"):
+            assert method == "POST"
+            assert payload == {"username": "admin", "password": "Cars2026"}
+            return "OK", "login ok", {
+                "access_token": "test-token",
+                "user": "Fleet Admin",
+                "role": "fleet_admin",
+                "expires_in": 3600,
+            }
+        if url.endswith("/ops/readiness"):
+            assert headers == {"Authorization": "Bearer test-token"}
+            return "OK", "readiness ok", {
+                "ready": False,
+                "checked_at": "2026-04-23T10:00:00Z",
+                "app_env": "prod",
+                "database_backend": "postgres",
+                "items": [
+                    {
+                        "id": "restore_drill",
+                        "label": "Backup / restore drill",
+                        "status": "pass",
+                        "detail": "Има свеж restore drill marker.",
+                        "required": False,
+                    },
+                    {
+                        "id": "admin_redundancy",
+                        "label": "Admin redundancy",
+                        "status": "warn",
+                        "detail": "Има само един активен администратор.",
+                        "required": False,
+                    },
+                    {
+                        "id": "notifications",
+                        "label": "Outbound notifications",
+                        "status": "warn",
+                        "detail": "Няма SMTP/Slack/Teams канал.",
+                        "required": False,
+                    },
+                ],
+            }
+        if url.endswith("/health"):
+            return "OK", "health ok", {"status": "ok"}
+        if url.endswith("/health/ready"):
+            return "OK", "ready ok", {"status": "ready"}
+        if url.endswith("/auth/setup-status"):
+            return "OK", "setup ok", {"has_admin": True}
+        if url.endswith("/public/overview"):
+            return "OK", "overview ok", {
+                "active_cars": 5,
+                "pending_requests": 1,
+                "active_trips": 2,
+                "available_cars": 3,
+            }
+        raise AssertionError(url)
+
+    monkeypatch.setenv("CUTOVER_ADMIN_USERNAME", "admin")
+    monkeypatch.setenv("CUTOVER_ADMIN_PASSWORD", "Cars2026")
+    monkeypatch.setattr(cutover_report, "request_json", fake_request_json)
+
+    report_path = output_dir / "cutover-report-test.md"
+    report = cutover_report.report_text(env_file, "http://fleetflow.example", report_path)
+    assert "Authenticated admin readiness" in report
+    assert "`WARN` Admin readiness snapshot: ready=False; 0 blockers; 2 warnings; app_env=prod; database=postgres" in report
+    assert "`WARN` Admin redundancy: Има само един активен администратор." in report
+    assert "`WARN` Outbound notifications: Няма SMTP/Slack/Teams канал." in report

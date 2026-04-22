@@ -29,20 +29,45 @@ def git_output(args: list[str]) -> str:
     return result.stdout.strip() if result.returncode == 0 else "unknown"
 
 
-def fetch_json(base_url: str, path: str) -> tuple[str, str]:
-    url = f"{base_url.rstrip('/')}{path}"
+def request_json(
+    url: str,
+    *,
+    method: str = "GET",
+    payload: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> tuple[str, str, dict[str, Any] | None]:
+    request_headers = {"Accept": "application/json"}
+    if headers:
+        request_headers.update(headers)
+    data = None
+    if payload is not None:
+        request_headers.setdefault("Content-Type", "application/json")
+        data = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(url, data=data, headers=request_headers, method=method)
     try:
-        with urllib.request.urlopen(url, timeout=10) as response:
+        with urllib.request.urlopen(request, timeout=10) as response:
             payload = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        detail = body or str(exc)
+        return "FAIL", f"{url} returned HTTP {exc.code}: {detail}", None
     except urllib.error.URLError as exc:
-        return "FAIL", f"{path} unreachable: {exc}"
+        return "FAIL", f"{url} unreachable: {exc}", None
 
     try:
         data = json.loads(payload)
     except json.JSONDecodeError:
-        return "FAIL", f"{path} did not return JSON"
+        return "FAIL", f"{url} did not return JSON", None
     if not isinstance(data, dict):
-        return "FAIL", f"{path} returned unexpected JSON"
+        return "FAIL", f"{url} returned unexpected JSON", None
+    return "OK", f"{url} returned JSON", data
+
+
+def fetch_json(base_url: str, path: str) -> tuple[str, str, dict[str, Any] | None]:
+    url = f"{base_url.rstrip('/')}{path}"
+    status, detail, data = request_json(url)
+    if status != "OK" or data is None:
+        return status, detail.replace(url, path), data
 
     if path == "/health":
         ok = data.get("status") == "ok"
@@ -54,11 +79,88 @@ def fetch_json(base_url: str, path: str) -> tuple[str, str]:
         ok = {"active_cars", "pending_requests", "active_trips", "available_cars"} <= set(data)
     else:
         ok = True
-    return ("OK", f"{path} {'passed' if ok else 'failed'}") if ok else ("FAIL", f"{path} failed predicate")
+    detail = f"{path} {'passed' if ok else 'failed'}"
+    return ("OK", detail, data) if ok else ("FAIL", f"{path} failed predicate", data)
 
 
 def render_check_line(prefix: str, label: str, detail: str) -> str:
     return f"- `{prefix}` {label}: {detail}"
+
+
+def summarize_admin_readiness(base_url: str) -> dict[str, Any]:
+    username = os.getenv("CUTOVER_ADMIN_USERNAME", "").strip()
+    password = os.getenv("CUTOVER_ADMIN_PASSWORD", "")
+    if not username or not password:
+        return {
+            "status": "SKIP",
+            "summary": "Липсват CUTOVER_ADMIN_USERNAME / CUTOVER_ADMIN_PASSWORD; admin readiness snapshot остава manual-only.",
+            "items": [],
+        }
+
+    login_status, login_detail, login_data = request_json(
+        f"{base_url.rstrip('/')}/auth/login",
+        method="POST",
+        payload={"username": username, "password": password},
+    )
+    if login_status != "OK" or not isinstance(login_data, dict):
+        return {
+            "status": "FAIL",
+            "summary": f"Login failed for CUTOVER_ADMIN_USERNAME: {login_detail}",
+            "items": [],
+        }
+
+    access_token = login_data.get("access_token")
+    if not isinstance(access_token, str) or not access_token:
+        return {
+            "status": "FAIL",
+            "summary": "Login response did not include an access token.",
+            "items": [],
+        }
+
+    readiness_status, readiness_detail, readiness_data = request_json(
+        f"{base_url.rstrip('/')}/ops/readiness",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    if readiness_status != "OK" or not isinstance(readiness_data, dict):
+        return {
+            "status": "FAIL",
+            "summary": f"/ops/readiness failed after login: {readiness_detail}",
+            "items": [],
+        }
+
+    items = readiness_data.get("items")
+    if not isinstance(items, list):
+        return {
+            "status": "FAIL",
+            "summary": "Readiness response did not include an items list.",
+            "items": [],
+        }
+
+    typed_items = [item for item in items if isinstance(item, dict)]
+    blockers = sum(1 for item in typed_items if item.get("status") == "fail" and item.get("required", True))
+    warnings = sum(1 for item in typed_items if item.get("status") == "warn")
+    ready = readiness_data.get("ready") is True
+    summary_status = "FAIL" if blockers else "WARN" if warnings or not ready else "OK"
+    item_order = {"fail": 0, "warn": 1, "pass": 2}
+    focus_ids = {"restore_drill", "admin_redundancy", "netfleet", "notifications", "active_admin"}
+    focus_items = sorted(
+        (
+            item
+            for item in typed_items
+            if item.get("status") != "pass" or item.get("id") in focus_ids
+        ),
+        key=lambda item: (item_order.get(str(item.get("status")), 3), str(item.get("label", ""))),
+    )[:5]
+
+    return {
+        "status": summary_status,
+        "summary": (
+            f"ready={ready}; {blockers} blockers; {warnings} warnings; "
+            f"app_env={readiness_data.get('app_env', 'unknown')}; "
+            f"database={readiness_data.get('database_backend', 'unknown')}"
+        ),
+        "items": focus_items,
+    }
 
 
 def report_text(env_path: Path, app_url: str, out_path: Path) -> str:
@@ -69,6 +171,7 @@ def report_text(env_path: Path, app_url: str, out_path: Path) -> str:
     passed = [item for item in env_checks if item.status == "pass"]
     restore = restore_drill_readiness(env, strict=True)
     timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    admin_readiness = summarize_admin_readiness(app_url)
 
     live_checks = [
         fetch_json(app_url, "/health"),
@@ -113,7 +216,32 @@ def report_text(env_path: Path, app_url: str, out_path: Path) -> str:
             "### Public live checks",
         ]
     )
-    lines.extend(render_check_line(status, detail.split(":")[0].replace(" passed", "").replace(" failed", ""), detail) for status, detail in live_checks)
+    lines.extend(
+        render_check_line(
+            status,
+            detail.split(":")[0].replace(" passed", "").replace(" failed", ""),
+            detail,
+        )
+        for status, detail, _ in live_checks
+    )
+
+    lines.extend(
+        [
+            "",
+            "### Authenticated admin readiness",
+            render_check_line(admin_readiness["status"], "Admin readiness snapshot", admin_readiness["summary"]),
+        ]
+    )
+    if admin_readiness["items"]:
+        lines.append("- Focus items:")
+        lines.extend(
+            render_check_line(
+                str(item.get("status", "warn")).upper(),
+                str(item.get("label", item.get("id", "item"))),
+                str(item.get("detail", "")),
+            )
+            for item in admin_readiness["items"]
+        )
 
     lines.extend(
         [
@@ -122,7 +250,7 @@ def report_text(env_path: Path, app_url: str, out_path: Path) -> str:
             "",
             "- GitHub Security / Dependabot review in the GitHub web UI",
             "- Secret rotation metadata if any alert is real",
-            "- Authenticated admin `/ops/readiness` screen review on the real production URL",
+            "- Visual review of the authenticated admin `/ops/readiness` panel on the real production URL",
             "- Live role rehearsal: employee -> approver -> reception -> return",
             "- Final operator / witness signoff",
             "",

@@ -2343,6 +2343,20 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Safety:** The generated report contains statuses and metadata only, not
   secret values.
 
+### 2026-04-23 - Optional authenticated readiness in cutover report
+
+- **Goal:** Make the evidence pack closer to the real operator view without
+  turning the report into a secret leak.
+- **Tooling:** `scripts/cutover_report.py` now supports temporary shell env
+  variables `CUTOVER_ADMIN_USERNAME` and `CUTOVER_ADMIN_PASSWORD`.
+- **Evidence:** When those env vars are present, the generated markdown adds an
+  authenticated `/ops/readiness` summary with blockers/warnings and top focus
+  items such as `restore_drill`, `admin_redundancy`, `netfleet` and
+  `notifications`.
+- **Safety:** The report stores only readiness statuses/details. It does not
+  write the admin password, access token or cookie into git or into the output
+  markdown artifact.
+
 ### 2026-04-23 - Shared restore-drill runtime readiness
 
 - **Goal:** Remove the last quiet gap between shell-based cutover evidence and

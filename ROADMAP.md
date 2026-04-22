@@ -536,22 +536,26 @@ visible modules.
 
 1. Run the real production rehearsal with final `.env`, backup/restore drill
    and `make go-live-check APP_URL=<production-url>`.
-2. Confirm GitHub Actions **Production Gates** and inspect the open GitHub
+2. Generate the operator evidence pack with `make cutover-report
+   APP_URL=<production-url>` and, when appropriate, temporary
+   `CUTOVER_ADMIN_USERNAME` / `CUTOVER_ADMIN_PASSWORD` env vars so the report
+   also captures authenticated `/ops/readiness` summary.
+3. Confirm GitHub Actions **Production Gates** and inspect the open GitHub
    Dependabot/secret alerts directly; local `pip-audit` and current-tree secret
    scan are clean, so decisions now depend on the external alert details.
-3. Keep the responsive density pass green and inspect the current screenshots
+4. Keep the responsive density pass green and inspect the current screenshots
    for weak hierarchy before each production handoff.
-4. Run the manual keyboard/accessibility pass from
+5. Run the manual keyboard/accessibility pass from
    `docs/ROLE_KEYBOARD_ACCESSIBILITY.md` on the production-like stack and then
    on the final production URL.
-5. Split `static/app.js` into small vanilla JS modules before the next large UI
+6. Split `static/app.js` into small vanilla JS modules before the next large UI
    package. Suggested boundaries: API/session, shell/overview, reservations
    lifecycle, calendar, admin users/fleet/settings, notifications/dialogs.
-6. Split reservation domain logic out of `routers/reservations.py` into service
+7. Split reservation domain logic out of `routers/reservations.py` into service
    modules without changing endpoint contracts.
-6. Add session-management UI and refresh-token cleanup job after the role flows
+8. Add session-management UI and refresh-token cleanup job after the role flows
    are stable.
-7. After real production usage, add materialized intelligence snapshots
+9. After real production usage, add materialized intelligence snapshots
    (`car_status_snapshots`, `fleet_insights`, `fleet_demand_snapshots`) only if
    inline metrics become too slow or operators need historical trend review.
 

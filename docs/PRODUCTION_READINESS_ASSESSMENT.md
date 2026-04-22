@@ -50,6 +50,9 @@ pilot-ready към 99/100, трябва всички точки по-долу д
    - има свеж `make prod-backup`;
    - `make prod-restore-drill BACKUP=<backup-file>` е минал успешно;
    - `make go-live-check APP_URL=<production-url>` е зелен срещу реалния URL;
+   - `make cutover-report APP_URL=<production-url>` е записал evidence
+     snapshot, а при подадени временни `CUTOVER_ADMIN_USERNAME` /
+     `CUTOVER_ADMIN_PASSWORD` е включил и authenticated admin readiness summary;
    - Docker stack-ът е rebuild-нат и няма стари FleetFlow контейнери/volumes,
      които обслужват стар код.
 
@@ -244,7 +247,7 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
 - Full Playwright smoke -> 16 passed.
 - `make qa-premium` -> dependency audit, secret scan, Python compile,
-  181 pytest cases, JS syntax and 16 Playwright browser checks passed.
+  183 pytest cases, JS syntax and 16 Playwright browser checks passed.
 - PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
   containers are healthy.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` after rebuild -> `/health`,
@@ -256,6 +259,10 @@ pilot-ready към 99/100, трябва всички точки по-долу д
   passed and wrote `.fleetflow/restore-drill-ok.json`.
 - `make go-live-check APP_URL=http://127.0.0.1:8001` -> passed against the
   local production-like stack after the restore drill.
+- `make cutover-report APP_URL=http://127.0.0.1:8001` -> generates an ignored
+  markdown snapshot; with temporary `CUTOVER_ADMIN_USERNAME` /
+  `CUTOVER_ADMIN_PASSWORD` env vars it now adds authenticated `/ops/readiness`
+  summary without storing secrets in git or in the report itself.
 - `/ops/readiness` now reads the same restore-drill marker and exposes a
   dedicated `restore_drill` item in the Admin readiness panel, so runtime UI
   and shell cutover evidence share one source of truth.

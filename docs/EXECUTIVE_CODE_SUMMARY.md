@@ -44,7 +44,9 @@ admin, role rebinding, reservation lifecycle, bulk approval, blackout windows,
 audit trail, notifications, NetFleet server-side proxy, production readiness
 checks, repeatable employee import and explainable Fleet Intelligence scoring. SMTP delivery follows the same role recipients as the in-app inbox: approvers/admins get new requests, requesters get decisions, and reception/admin gets the handoff signal after approval. Microsoft Teams remains a shared operational webhook for colleagues who monitor the process there. The database path is
 production-aware: Alembic migrations, PostgreSQL compose, backup helper,
-restore-drill helper and a final `make go-live-check` gate.
+restore-drill helper, a final `make go-live-check` gate and a
+`make cutover-report` evidence pack that can optionally include authenticated
+admin readiness summary through temporary shell env credentials.
 
 The frontend is a single-page vanilla JS experience with role-specific
 surfaces. Employees see the next useful move, current/approved trip context,
@@ -84,7 +86,7 @@ user's email/GSM from the card without rerunning the bulk import.
 ## Quality Evidence
 
 Local quality gates are strong. `make qa-premium` runs production dependency
-audit, tracked-file secret scan, Python compile, 181 pytest cases, JS syntax
+audit, tracked-file secret scan, Python compile, 183 pytest cases, JS syntax
 checks and 16 Playwright browser checks. Browser evidence covers public, employee, approver, reception
 and admin flows, responsive density, contrast guardrails, calendar/reception
 visibility, approver keyboard bulk-selection, admin contact correction and

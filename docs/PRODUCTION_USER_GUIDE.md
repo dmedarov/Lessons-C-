@@ -60,7 +60,10 @@ make cutover-report APP_URL=http://127.0.0.1:8000
 public overview smoke срещу подадения `APP_URL`.
 `make cutover-report` не заменя gate-а; той генерира markdown snapshot в
 ignored `cutover-reports/` с git/env/restore/public-smoke evidence и отделни
-manual-only секции за GitHub Security review и signoff.
+manual-only секции за GitHub Security review и signoff. Ако подадеш временни
+shell env променливи `CUTOVER_ADMIN_USERNAME` и `CUTOVER_ADMIN_PASSWORD`,
+отчетът ще добави и authenticated `/ops/readiness` summary, без да записва
+секретите в markdown файла.
 
 След реалния production run попълни
 [`PRODUCTION_CUTOVER_CHECKLIST.md`](PRODUCTION_CUTOVER_CHECKLIST.md), за да
@@ -139,6 +142,14 @@ Outstanding blockers/warnings се показват първи, а провер�
 минимум за UI/role/security промяна е targeted тест плюс `make qa-premium`.
 Финалният операторски handoff документ е
 [`PRODUCTION_CUTOVER_CHECKLIST.md`](PRODUCTION_CUTOVER_CHECKLIST.md).
+
+Практичен пример за по-пълен evidence snapshot:
+
+```bash
+CUTOVER_ADMIN_USERNAME=admin \
+CUTOVER_ADMIN_PASSWORD='...' \
+make cutover-report APP_URL=https://your-production-url.example
+```
 
 ## 3.2 Secret leak stop signal
 

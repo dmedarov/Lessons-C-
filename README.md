@@ -274,6 +274,7 @@ make down   # спира production/dev compose контейнерите
 make prod-check # проверява .env преди live cutover
 make go-live-check # final gate: env + restore-drill evidence + release-check + live smoke
 make cutover-report APP_URL=http://127.0.0.1:8001 # markdown snapshot за cutover evidence
+CUTOVER_ADMIN_USERNAME=admin CUTOVER_ADMIN_PASSWORD=... make cutover-report APP_URL=http://127.0.0.1:8001 # optional /ops/readiness snapshot
 make prod-backup # създава PostgreSQL backup в backups/
 make prod-restore-drill BACKUP=backups/fleetflow-....dump # dry-run restore в отделен project
 make audit-prod # локален audit на pinned production runtime dependencies
@@ -300,7 +301,9 @@ Tower UI. Подробната операторска инструкция е в
 [`docs/PRODUCTION_USER_GUIDE.md`](docs/PRODUCTION_USER_GUIDE.md).
 За real deployment rehearsal можеш да генерираш prefilled markdown snapshot с
 `make cutover-report APP_URL=<production-url>`; файлът се записва в ignored
-`cutover-reports/`.
+`cutover-reports/`. Ако подадеш временни shell env променливи
+`CUTOVER_ADMIN_USERNAME` и `CUTOVER_ADMIN_PASSWORD`, отчетът ще добави и
+authenticated `/ops/readiness` summary без да записва токени или пароли.
 
 ## Bootstrap token при fresh production install
 
@@ -639,10 +642,11 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 
 Последна premium QA проверка:
 `make qa-premium` -> passed (dependency audit, secret scan, Python compile,
-181 pytest cases, JS syntax, 16 Playwright browser checks). `make smoke-live
+183 pytest cases, JS syntax, 16 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
-`pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,
+`pytest tests/test_prod_readiness.py tests/test_documentation_contracts.py -q`
+-> 16 passed, включително fresh,
 missing и stale restore-drill marker сценарии. Активният Docker stack
 `fleetflow_prod_smoke` е healthy на `8001`.
 Локалният production rehearsal вече е затворен: `make prod-check` ->
