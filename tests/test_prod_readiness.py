@@ -24,6 +24,20 @@ def run_prod_check(env_file: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+def run_make_dry_run(tmp_path: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    makefile = tmp_path / "Makefile"
+    makefile.write_text((ROOT / "Makefile").read_text())
+    return subprocess.run(
+        ["make", "-n", *args],
+        cwd=tmp_path,
+        env={**os.environ, **(env or {})},
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+
 def test_prod_check_accepts_generated_live_ready_env(tmp_path: Path) -> None:
     env_file = tmp_path / ".env"
     secret = "s" * 48
@@ -148,6 +162,24 @@ def test_installation_docs_and_makefile_share_the_same_default_app_port_story() 
     assert "APP_PORT=8001" in readme
     assert "следват същия `APP_PORT` от" in guide
     assert "APP_PORT=8000" in env_example
+
+
+def test_smoke_live_defaults_to_app_port_from_env_file(tmp_path: Path) -> None:
+    (tmp_path / ".env").write_text("APP_PORT=8123\n")
+
+    result = run_make_dry_run(tmp_path, "smoke-live")
+
+    assert result.returncode == 0, result.stdout
+    assert 'scripts/smoke_live.py "http://127.0.0.1:8123"' in result.stdout
+
+
+def test_smoke_live_explicit_app_url_override_wins_over_env_port(tmp_path: Path) -> None:
+    (tmp_path / ".env").write_text("APP_PORT=8123\n")
+
+    result = run_make_dry_run(tmp_path, "smoke-live", "APP_URL=https://fleetflow.example.bg")
+
+    assert result.returncode == 0, result.stdout
+    assert 'scripts/smoke_live.py "https://fleetflow.example.bg"' in result.stdout
 
 
 def test_go_live_check_accepts_fresh_restore_drill_marker(tmp_path: Path) -> None:
