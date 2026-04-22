@@ -829,12 +829,23 @@ function localInputValue(date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
+function isAwaitingPickup(item) {
+  return item?.status === "approved" && !item?.checked_out_at && new Date(item.start_time) <= new Date();
+}
+
+function presentationStatusKey(item) {
+  return isAwaitingPickup(item) ? "awaiting_pickup" : item.status;
+}
+
 function statusTag(status) {
-  return `<span class="status-tag status-tag--${status}">${t(`status.${status}`)}</span>`;
+  const key = typeof status === "string" ? status : presentationStatusKey(status);
+  const className = key === "awaiting_pickup" ? "approved" : key;
+  return `<span class="status-tag status-tag--${className}">${t(`status.${key}`)}</span>`;
 }
 
 function lifecycleLabel(status) {
-  return t(`status.${status}`);
+  const key = typeof status === "string" ? status : presentationStatusKey(status);
+  return t(`status.${key}`);
 }
 
 function lifecycleMeter(item) {
@@ -842,17 +853,17 @@ function lifecycleMeter(item) {
   const currentIndex = flow.indexOf(item.status);
   if (currentIndex === -1) {
     return `
-      <div class="lifecycle-meter lifecycle-meter--terminal" aria-label="Lifecycle статус: ${lifecycleLabel(item.status)}">
+      <div class="lifecycle-meter lifecycle-meter--terminal" aria-label="Lifecycle статус: ${lifecycleLabel(item)}">
         <span class="lifecycle-step lifecycle-step--current">
           <span class="lifecycle-step__dot" aria-hidden="true"></span>
-          <span>${lifecycleLabel(item.status)}</span>
+          <span>${lifecycleLabel(item)}</span>
         </span>
       </div>
     `;
   }
 
   return `
-    <ol class="lifecycle-meter" aria-label="Lifecycle статус: ${lifecycleLabel(item.status)}">
+    <ol class="lifecycle-meter" aria-label="Lifecycle статус: ${lifecycleLabel(item)}">
       ${flow
         .map((status, index) => {
           const stepClass =
@@ -862,10 +873,11 @@ function lifecycleMeter(item) {
                 ? "lifecycle-step--current"
                 : "lifecycle-step--upcoming";
           const currentAttr = index === currentIndex ? ' aria-current="step"' : "";
+          const label = index === currentIndex ? lifecycleLabel(item) : lifecycleLabel(status);
           return `
             <li class="lifecycle-step ${stepClass}"${currentAttr}>
               <span class="lifecycle-step__dot" aria-hidden="true"></span>
-              <span>${lifecycleLabel(status)}</span>
+              <span>${label}</span>
             </li>
           `;
         })
@@ -892,6 +904,29 @@ function carMap() {
 
 function telemetryByPlate() {
   return new Map(state.telemetry.map((item) => [String(item.plate_number || "").trim().toUpperCase(), item]));
+}
+
+function operationalReservationSource() {
+  return state.pulseReservations.length || state.loading.pulseReservations ? state.pulseReservations : state.reservations;
+}
+
+function carOperationalState(carId) {
+  const relevant = operationalReservationSource()
+    .filter((item) => item.car_id === carId && ["approved", "checked_out"].includes(item.status))
+    .sort((a, b) => {
+      const left = presentationStatusKey(a) === "awaiting_pickup" ? 0 : a.status === "checked_out" ? 1 : 2;
+      const right = presentationStatusKey(b) === "awaiting_pickup" ? 0 : b.status === "checked_out" ? 1 : 2;
+      if (left !== right) return left - right;
+      return new Date(a.start_time) - new Date(b.start_time);
+    });
+  const current = relevant[0];
+  if (!current) {
+    return { labelKey: "car.state.available", noteKey: "car.stateNote.available", tagClass: "available" };
+  }
+  if (current.status === "checked_out") {
+    return { labelKey: "status.checked_out", noteKey: "car.stateNote.checked_out", tagClass: "checked_out" };
+  }
+  return { labelKey: "status.awaiting_pickup", noteKey: "car.stateNote.awaiting_pickup", tagClass: "approved" };
 }
 
 function calendarSourceItems() {
@@ -1628,17 +1663,37 @@ function operationalNextFocusInsights({ pending, approved, overdueReturns, activ
   return insights;
 }
 
+function nextFocusSupportActions() {
+  const actions = [];
+  const { failed, warnings } = readinessCounts();
+  if (isFullAdmin() && (failed || warnings)) {
+    actions.push({ name: "view-readiness", labelKey: "intent.action.viewReadiness" });
+  }
+  if (isFullAdmin()) {
+    actions.push({ name: "view-fleet", labelKey: "intent.action.viewFleet" });
+  }
+  return actions;
+}
+
+function setNextFocusState({ badgeKey, badgeTone = "muted", title, copy, insights = [], actions = [] }) {
+  setNextFocusBadge(t(badgeKey), badgeTone);
+  setNextFocusInsights(insights);
+  els.nextSignalTitle.textContent = title;
+  els.nextSignalCopy.textContent = copy;
+  setIntentActions(actions);
+}
+
 function updateSummary() {
   if (!state.currentUser) {
     els.modeHeading.textContent = "Влез в системата";
     els.modeCopy.textContent = "След login ще видиш или личен operational desk, или глобален административен изглед.";
-    els.nextSignalTitle.textContent = "Очаква setup";
-    els.nextSignalCopy.textContent = state.hasAdmin
-      ? "Влез с наличен профил, за да заредиш данните."
-      : "Създай първия fleet admin, за да инициализираш системата.";
-    setNextFocusBadge(t("summary.nextFocus.badge.setup"), "muted");
-    setNextFocusInsights([]);
-    setIntentActions([]);
+    setNextFocusState({
+      badgeKey: "summary.nextFocus.badge.setup",
+      title: "Очаква setup",
+      copy: state.hasAdmin
+        ? "Влез с наличен профил, за да заредиш данните."
+        : "Създай първия fleet admin, за да инициализираш системата.",
+    });
     return;
   }
 
@@ -1663,54 +1718,97 @@ function updateSummary() {
     }
     const baseInsights = operationalNextFocusInsights({ pending, approved, overdueReturns, activeTrips });
     if (canManageTripHandoff() && overdueReturns) {
-      setNextFocusBadge(t("summary.nextFocus.badge.overdue"), "danger");
-      setNextFocusInsights(baseInsights);
-      els.nextSignalTitle.textContent = receptionTitle("receptionOverdueReturnTitle", overdueReturns);
-      els.nextSignalCopy.textContent = t("intent.receptionOverdueReturnCopy");
-      setIntentActions([
+      setNextFocusState({
+        badgeKey: "summary.nextFocus.badge.overdue",
+        badgeTone: "danger",
+        title: receptionTitle("receptionOverdueReturnTitle", overdueReturns),
+        copy: t("intent.receptionOverdueReturnCopy"),
+        insights: baseInsights,
+        actions: [
         { name: "view-active-trips", labelKey: "intent.action.viewActiveTrips", primary: true },
-        ...(isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet" }] : []),
-      ]);
+        ...nextFocusSupportActions(),
+      ],
+      });
       return;
     }
     if (canApproveReservations() && pending) {
-      setNextFocusBadge(t("summary.nextFocus.badge.decide"), "warning");
-      setNextFocusInsights(baseInsights);
-      els.nextSignalTitle.textContent = t("intent.adminDecisionTitle", { count: pending });
-      els.nextSignalCopy.textContent = t("intent.adminDecisionCopy");
-      setIntentActions([
+      setNextFocusState({
+        badgeKey: "summary.nextFocus.badge.decide",
+        badgeTone: "warning",
+        title: t("intent.adminDecisionTitle", { count: pending }),
+        copy: t("intent.adminDecisionCopy"),
+        insights: baseInsights,
+        actions: [
         { name: "review-pending", labelKey: "intent.action.reviewPending", primary: true },
-        ...(isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet" }] : []),
-      ]);
+        ...nextFocusSupportActions(),
+      ],
+      });
       return;
     }
     if (canManageTripHandoff() && approved) {
-      setNextFocusBadge(t("summary.nextFocus.badge.handoff"), "success");
-      setNextFocusInsights(baseInsights);
-      els.nextSignalTitle.textContent = receptionTitle("receptionApprovedTitle", approved);
-      els.nextSignalCopy.textContent = t("intent.receptionApprovedCopy");
-      setIntentActions([
+      setNextFocusState({
+        badgeKey: "summary.nextFocus.badge.handoff",
+        badgeTone: "success",
+        title: receptionTitle("receptionApprovedTitle", approved),
+        copy: t("intent.receptionApprovedCopy"),
+        insights: baseInsights,
+        actions: [
         { name: "view-handoffs", labelKey: "intent.action.viewHandoffs", primary: true },
-        ...(isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet" }] : []),
-      ]);
+        ...nextFocusSupportActions(),
+      ],
+      });
       return;
     }
     if (canManageTripHandoff() && activeTrips) {
-      setNextFocusBadge(t("summary.nextFocus.badge.active"), "warning");
-      setNextFocusInsights(baseInsights);
-      els.nextSignalTitle.textContent = receptionTitle("receptionActiveTitle", activeTrips);
-      els.nextSignalCopy.textContent = t("intent.receptionActiveCopy");
-      setIntentActions([
+      setNextFocusState({
+        badgeKey: "summary.nextFocus.badge.active",
+        badgeTone: "warning",
+        title: receptionTitle("receptionActiveTitle", activeTrips),
+        copy: t("intent.receptionActiveCopy"),
+        insights: baseInsights,
+        actions: [
         { name: "view-active-trips", labelKey: "intent.action.viewActiveTrips", primary: true },
-        ...(isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet" }] : []),
-      ]);
+        ...nextFocusSupportActions(),
+      ],
+      });
       return;
     }
-    setNextFocusBadge(t("summary.nextFocus.badge.calm"), "muted");
-    setNextFocusInsights(baseInsights);
-    els.nextSignalTitle.textContent = t("intent.adminCalmTitle");
-    els.nextSignalCopy.textContent = t("intent.adminCalmCopy");
-    setIntentActions(isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet", primary: true }] : []);
+    const { failed, warnings } = readinessCounts();
+    if (isFullAdmin() && failed) {
+      setNextFocusState({
+        badgeKey: "summary.nextFocus.badge.readiness",
+        badgeTone: "danger",
+        title: t("summary.nextFocus.readinessBlockersTitle", { count: failed }),
+        copy: t("summary.nextFocus.readinessBlockersCopy"),
+        insights: baseInsights,
+        actions: [
+          { name: "view-readiness", labelKey: "intent.action.viewReadiness", primary: true },
+          { name: "view-fleet", labelKey: "intent.action.viewFleet" },
+        ],
+      });
+      return;
+    }
+    if (isFullAdmin() && warnings) {
+      setNextFocusState({
+        badgeKey: "summary.nextFocus.badge.readiness",
+        badgeTone: "warning",
+        title: t("summary.nextFocus.readinessWarningsTitle", { count: warnings }),
+        copy: t("summary.nextFocus.readinessWarningsCopy"),
+        insights: baseInsights,
+        actions: [
+          { name: "view-readiness", labelKey: "intent.action.viewReadiness", primary: true },
+          { name: "view-fleet", labelKey: "intent.action.viewFleet" },
+        ],
+      });
+      return;
+    }
+    setNextFocusState({
+      badgeKey: "summary.nextFocus.badge.calm",
+      title: t("intent.adminCalmTitle"),
+      copy: t("intent.adminCalmCopy"),
+      insights: baseInsights,
+      actions: isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet", primary: true }] : [],
+    });
     return;
   }
 
@@ -1725,43 +1823,54 @@ function updateSummary() {
   els.modeHeading.textContent = t("ui.surface.employeeDesk");
   els.modeCopy.textContent = "Личен изглед с ясна история на заявките, активните курсове и нотификациите, които те касаят.";
   if (activeTrip) {
-    setNextFocusBadge(t("summary.nextFocus.badge.active"), "warning");
-    setNextFocusInsights([t("summary.nextFocus.employeeActiveInsight")]);
-    els.nextSignalTitle.textContent = t("intent.employeeActiveTitle");
-    els.nextSignalCopy.textContent = t("intent.employeeActiveCopy", { end: formatDateTime(activeTrip.end_time) });
-    setIntentActions([
+    setNextFocusState({
+      badgeKey: "summary.nextFocus.badge.active",
+      badgeTone: "warning",
+      title: t("intent.employeeActiveTitle"),
+      copy: t("intent.employeeActiveCopy", { end: formatDateTime(activeTrip.end_time) }),
+      insights: [t("summary.nextFocus.employeeActiveInsight")],
+      actions: [
       { name: "focus-reservation", labelKey: "intent.action.viewTrip", primary: true, reservationId: activeTrip.id },
-    ]);
+      ],
+    });
     return;
   }
   if (nextApproved) {
-    setNextFocusBadge(t("summary.nextFocus.badge.ready"), "success");
-    setNextFocusInsights([t("summary.nextFocus.employeeApprovedInsight")]);
-    els.nextSignalTitle.textContent = t("intent.employeeApprovedTitle");
-    els.nextSignalCopy.textContent = t("intent.employeeApprovedCopy", { start: formatDateTime(nextApproved.start_time) });
-    setIntentActions([
+    setNextFocusState({
+      badgeKey: "summary.nextFocus.badge.ready",
+      badgeTone: "success",
+      title: t("intent.employeeApprovedTitle"),
+      copy: t("intent.employeeApprovedCopy", { start: formatDateTime(nextApproved.start_time) }),
+      insights: [t("summary.nextFocus.employeeApprovedInsight")],
+      actions: [
       { name: "focus-reservation", labelKey: "intent.action.viewTrip", primary: true, reservationId: nextApproved.id },
-    ]);
+      ],
+    });
     return;
   }
   if (pendingRequest) {
-    setNextFocusBadge(t("summary.nextFocus.badge.decide"), "warning");
-    setNextFocusInsights([t("summary.nextFocus.employeePendingInsight")]);
-    els.nextSignalTitle.textContent = t("intent.employeePendingTitle");
-    els.nextSignalCopy.textContent = t("intent.employeePendingCopy", { start: formatDateTime(pendingRequest.start_time) });
-    setIntentActions([
+    setNextFocusState({
+      badgeKey: "summary.nextFocus.badge.decide",
+      badgeTone: "warning",
+      title: t("intent.employeePendingTitle"),
+      copy: t("intent.employeePendingCopy", { start: formatDateTime(pendingRequest.start_time) }),
+      insights: [t("summary.nextFocus.employeePendingInsight")],
+      actions: [
       { name: "focus-reservation", labelKey: "intent.action.viewTrip", primary: true, reservationId: pendingRequest.id },
-    ]);
+      ],
+    });
     return;
   }
-  setNextFocusBadge(t("summary.nextFocus.badge.calm"), "muted");
-  setNextFocusInsights([t("summary.nextFocus.employeeFreeInsight")]);
-  els.nextSignalTitle.textContent = t("intent.employeeFreeTitle");
-  els.nextSignalCopy.textContent = t("intent.employeeFreeCopy");
-  setIntentActions([
-    { name: "book-now", labelKey: "intent.action.bookNow", primary: true },
-    { name: "view-my-trips", labelKey: "intent.action.viewMyTrips" },
-  ]);
+  setNextFocusState({
+    badgeKey: "summary.nextFocus.badge.calm",
+    title: t("intent.employeeFreeTitle"),
+    copy: t("intent.employeeFreeCopy"),
+    insights: [t("summary.nextFocus.employeeFreeInsight")],
+    actions: [
+      { name: "book-now", labelKey: "intent.action.bookNow", primary: true },
+      { name: "view-my-trips", labelKey: "intent.action.viewMyTrips" },
+    ],
+  });
 }
 
 function currentTripCandidate() {
@@ -1792,6 +1901,7 @@ function renderCurrentTripHero() {
   const car = carMap().get(item.car_id);
   const carLabel = car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id });
   const active = item.status === "checked_out";
+  const awaitingPickup = presentationStatusKey(item) === "awaiting_pickup";
   const purpose = item.purpose
     ? `<p class="current-trip-hero__purpose">${escapeHtml(t("trip.hero.reason", { purpose: item.purpose }))}</p>`
     : "";
@@ -1802,18 +1912,18 @@ function renderCurrentTripHero() {
 
   els.currentTripHero.innerHTML = `
     <div class="current-trip-hero__content">
-      <p class="panel__eyebrow">${escapeHtml(t(active ? "trip.hero.activeEyebrow" : "trip.hero.approvedEyebrow"))}</p>
-      <h2 id="currentTripTitle">${escapeHtml(t(active ? "trip.hero.activeTitle" : "trip.hero.approvedTitle", { car: carLabel }))}</h2>
+      <p class="panel__eyebrow">${escapeHtml(t(active ? "trip.hero.activeEyebrow" : awaitingPickup ? "trip.hero.awaitingPickupEyebrow" : "trip.hero.approvedEyebrow"))}</p>
+      <h2 id="currentTripTitle">${escapeHtml(t(active ? "trip.hero.activeTitle" : awaitingPickup ? "trip.hero.awaitingPickupTitle" : "trip.hero.approvedTitle", { car: carLabel }))}</h2>
       <p class="current-trip-hero__time">${escapeHtml(t("trip.hero.window", {
         start: formatDateTime(item.start_time),
         end: formatDateTime(item.end_time),
       }))}</p>
-      <p class="section-copy">${escapeHtml(t(active ? "trip.hero.activeCopy" : "trip.hero.approvedCopy"))}</p>
+      <p class="section-copy">${escapeHtml(t(active ? "trip.hero.activeCopy" : awaitingPickup ? "trip.hero.awaitingPickupCopy" : "trip.hero.approvedCopy"))}</p>
       ${purpose}
       ${pickupMarkup}
     </div>
     <div class="current-trip-hero__aside">
-      <span class="status-tag status-tag--${item.status}">${escapeHtml(t("trip.hero.status", { status: lifecycleLabel(item.status) }))}</span>
+      <span class="status-tag status-tag--${active ? "checked_out" : "approved"}">${escapeHtml(t("trip.hero.status", { status: lifecycleLabel(item) }))}</span>
       <div class="current-trip-hero__actions">
         <button class="btn btn--primary" type="button" data-intent-action="focus-reservation" data-reservation-id="${item.id}" data-trip-focus-action="true">
           ${escapeHtml(t("intent.action.viewTrip"))}
@@ -2065,6 +2175,9 @@ function renderCars() {
   carsToShow.forEach((car) => {
     const card = document.createElement("article");
     card.className = "car-card";
+    const operationalState = car.active
+      ? carOperationalState(car.id)
+      : { labelKey: "car.state.inactive", noteKey: "car.stateNote.inactive", tagClass: "cancelled" };
     const gps = telemetry.get(String(car.plate_number || "").trim().toUpperCase());
     const telemetryMarkup = gps
       ? `
@@ -2087,9 +2200,9 @@ function renderCars() {
           <strong class="car-card__title">${escapeHtml(car.model)}</strong>
           <p class="car-card__plate">${escapeHtml(car.plate_number)}</p>
         </div>
-        <span class="status-tag ${car.active ? "status-tag--approved" : "status-tag--cancelled"}">${t(car.active ? "status.active" : "status.inactive")}</span>
+        <span class="status-tag status-tag--${operationalState.tagClass}">${escapeHtml(t(operationalState.labelKey))}</span>
       </div>
-      <p class="mini-note">${car.active ? "Наличен за нови заявки." : "Изваден от нови резервации."}</p>
+      <p class="mini-note">${escapeHtml(t(operationalState.noteKey))}</p>
       ${isFullAdmin() ? telemetryMarkup : ""}
       ${
         isFullAdmin()
@@ -2452,6 +2565,17 @@ async function handleIntentAction(button) {
   }
   if (action === "view-fleet") {
     document.getElementById("fleetDeck")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  if (action === "view-readiness") {
+    els.productionReadinessPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => {
+      const target = document.querySelector(".readiness-item--fail") || document.querySelector(".readiness-item--warn") || els.productionReadinessSummary || els.productionReadinessPanel;
+      if (target) {
+        target.tabIndex = -1;
+        target.focus();
+      }
+    }, 180);
   }
 }
 
@@ -2538,7 +2662,7 @@ function reservationFlowCard(item, car, canBulk) {
               ${requesterGsmLine(item)}
             </div>
           </div>
-          ${statusTag(item.status)}
+          ${statusTag(item)}
         </div>
         <div class="reservation-flow-card__lifecycle">
           ${lifecycleMeter(item)}
@@ -2781,7 +2905,7 @@ function receptionCardMarkup(item, cars) {
       <div class="decision-card__main">
         <div class="decision-card__topline">
           <strong>${escapeHtml(carLabel)}</strong>
-          <span class="status-pill ${overdue ? "status-pill--danger" : isActive ? "status-pill--warning" : "status-pill--success"}">${escapeHtml(t(`status.${item.status}`))}</span>
+          <span class="status-pill ${overdue ? "status-pill--danger" : isActive ? "status-pill--warning" : "status-pill--success"}">${escapeHtml(lifecycleLabel(item))}</span>
         </div>
         <p class="decision-card__window">${escapeHtml(item.employee_name)} · ${escapeHtml(t(timeKey, { time: formatDateTime(timeValue) }))}</p>
         ${requesterGsmLine(item)}
@@ -2947,7 +3071,7 @@ function renderReservations() {
         <strong>${formatDateTime(item.start_time)}</strong>
         <div class="muted">до ${formatDateTime(item.end_time)}</div>
       </td>
-      <td data-label="Статус">${statusTag(item.status)}</td>
+      <td data-label="Статус">${statusTag(item)}</td>
       <td data-label="Контекст">
         <div class="status-stack">
           ${lifecycleMeter(item)}
@@ -3107,7 +3231,7 @@ function renderDayTimeline() {
           <p class="muted">${contextLine}</p>
           ${requesterGsm ? `<p>${requesterGsm}</p>` : ""}
         </div>
-        ${statusTag(item.status)}
+        ${statusTag(item)}
       </div>
       <p>${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</p>
       ${lifecycleMeter(item)}

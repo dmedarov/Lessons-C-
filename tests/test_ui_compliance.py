@@ -179,9 +179,12 @@ def test_intent_driven_summary_exposes_one_primary_next_action() -> None:
     assert "function setIntentActions(actions = [])" in app_js
     assert "function setNextFocusBadge(label = \"\", tone = \"muted\")" in app_js
     assert "function setNextFocusInsights(items = [])" in app_js
+    assert "function nextFocusSupportActions()" in app_js
+    assert "function setNextFocusState({ badgeKey, badgeTone = \"muted\", title, copy, insights = [], actions = [] })" in app_js
     assert "function operationalNextFocusInsights({ pending, approved, overdueReturns, activeTrips })" in app_js
     assert 'data-primary-intent="true"' in app_js
     assert 'name: "review-pending", labelKey: "intent.action.reviewPending", primary: true' in app_js
+    assert 'name: "view-readiness", labelKey: "intent.action.viewReadiness"' in app_js
     assert 'name: "book-now", labelKey: "intent.action.bookNow", primary: true' in app_js
     assert 'name: "focus-reservation", labelKey: "intent.action.viewTrip", primary: true' in app_js
     assert "await quickBookReservation();" in app_js
@@ -190,13 +193,16 @@ def test_intent_driven_summary_exposes_one_primary_next_action() -> None:
     assert "function focusReservationRow(id, action = null)" in app_js
     assert '"intent.employeeFreeTitle": "Свободен режим"' in i18n_js
     assert '"intent.employeePendingTitle": "Заявката чака одобрение"' in i18n_js
-    assert 'els.nextSignalTitle.textContent = t("intent.employeePendingTitle");' in app_js
+    assert 'title: t("intent.employeePendingTitle")' in app_js
     assert '"ui.surface.controlTower": "Control Tower"' in i18n_js
     assert '"ui.surface.decisionDesk": "Decision Desk"' in i18n_js
     assert '"ui.surface.handoffDesk": "Handoff Desk"' in i18n_js
     assert '"ui.surface.employeeDesk": "Моят курс / Нова заявка"' in i18n_js
     assert '"summary.nextFocus.badge.decide": "Решение"' in i18n_js
+    assert '"summary.nextFocus.badge.readiness": "Live"' in i18n_js
     assert '"summary.nextFocus.readinessFailInsight": "{count} live блокера остават отворени."' in i18n_js
+    assert '"summary.nextFocus.readinessBlockersTitle": "{count} блокера преди live"' in i18n_js
+    assert '"intent.action.viewReadiness": "Готовност за live"' in i18n_js
     assert 'els.modeHeading.textContent = t("ui.surface.employeeDesk");' in app_js
     assert ".summary-card--hero" in styles
     assert ".summary-card__header" in styles
@@ -310,16 +316,33 @@ def test_current_trip_hero_promotes_active_or_next_trip() -> None:
     styles = _read("static/styles.css")
     assert 'id="currentTripHero" aria-labelledby="currentTripTitle"' in html
     assert "function currentTripCandidate()" in app_js
+    assert "function isAwaitingPickup(item)" in app_js
+    assert "function presentationStatusKey(item)" in app_js
     assert "function renderCurrentTripHero()" in app_js
     assert 'data-trip-focus-action="true"' in app_js
     assert 'data-intent-action="focus-reservation"' in app_js
     assert 'primaryAction = active ? "return" : "start"' not in app_js
     assert 'renderCurrentTripHero();' in app_js
     assert '"trip.hero.activeEyebrow": "Твоята кола"' in i18n_js
+    assert '"trip.hero.awaitingPickupEyebrow": "Чака вземане"' in i18n_js
+    assert '"status.awaiting_pickup": "Чака вземане"' in i18n_js
     assert "рецепция; там отбелязват старта" in i18n_js
+    assert "още не е отбелязала предаването" in i18n_js
     assert "рецепция приключва lifecycle-а" in i18n_js
     assert ".current-trip-hero" in styles
     assert ".current-trip-hero__actions .btn" in styles
+
+
+def test_car_cards_show_operational_state_not_just_pool_flag() -> None:
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+
+    assert "function operationalReservationSource()" in app_js
+    assert "function carOperationalState(carId)" in app_js
+    assert '"car.state.available": "Свободна"' in i18n_js
+    assert '"car.stateNote.awaiting_pickup": "Курсът е одобрен, но колата още чака вземане от рецепция."' in i18n_js
+    assert ".status-tag--available" in styles
 
 
 def test_employee_requests_are_prioritized_before_calendar_and_inbox() -> None:

@@ -674,6 +674,7 @@ def test_admin_control_surface(browser: Browser, server: str, artifact_dir: Path
     expect(page.locator("#nextFocusCard")).to_be_visible()
     expect(page.locator("#nextSignalBadge")).to_be_visible()
     expect(page.locator("#nextSignalInsights")).to_be_visible()
+    expect(page.locator("#nextFocusCard")).to_contain_text("Готовност за live")
     assert _element_is_before(page, "#summaryDeck", "#fleetPulse")
     assert _element_is_before(page, "#fleetPulse", "#productionReadinessPanel")
     assert _element_is_before(page, "#productionReadinessPanel", "#decisionRail")

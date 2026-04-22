@@ -1224,6 +1224,11 @@ select {
   color: var(--success);
 }
 
+.status-tag--available {
+  background: color-mix(in srgb, var(--success-soft) 70%, white 30%);
+  color: var(--success);
+}
+
 .status-tag--rejected {
   background: var(--danger-soft);
   color: var(--danger);

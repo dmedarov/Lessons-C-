@@ -43,6 +43,9 @@
 - Assignment traceability: ръчните и quick-book резервациите записват `car_assignments` със score и причина за избора.
 - Smart prefill: employee формата предлага обичайната кола, час и продължителност от последните резервации.
 - Current Trip Hero: активната или следваща одобрена резервация излиза като основен hero блок; employee вижда статус/място за взимане, а reception управлява start/return lifecycle.
+- Approved vs active clarity: одобрен, но още непредаден автомобил се показва
+  като **Чака вземане**, а не като **Активен курс**; fleet cards също
+  разграничават `Свободна / Чака вземане / Активен курс / Неактивна`.
 - Employee UX priority: след login заявките/lifecycle са преди календара, формата за нова заявка е преди inbox-а, а обучителните карти се скриват, за да няма UI шум.
 - Calm default inbox/listing: employee default филтърът е **Текущи**, така че върнатите/отказаните/отменените не стоят в оперативния поток; прочетените нотификации се прибират от inbox-а.
 - Role-specific operational surfaces: `/admin` показва Decision Rail за `fleet_approver`, handoff/start/return поток за `fleet_reception`, и пълен control surface само за `fleet_admin`.
