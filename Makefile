@@ -6,7 +6,7 @@ PYTHON       := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; 
 PIP_AUDIT    := $(shell if [ -x .venv/bin/pip-audit ]; then echo .venv/bin/pip-audit; else echo pip-audit; fi)
 APP_URL      ?= http://127.0.0.1:8001
 
-.PHONY: help setup prod prod-check go-live-check prod-backup prod-restore-drill audit-prod audit-prod-full secrets-scan secrets-scan-history release-check qa-premium smoke-live dev down logs test test-e2e guard-env guard-backup
+.PHONY: help setup prod prod-check go-live-check cutover-report prod-backup prod-restore-drill audit-prod audit-prod-full secrets-scan secrets-scan-history release-check qa-premium smoke-live dev down logs test test-e2e guard-env guard-backup
 
 help:
 	@echo "FleetFlow"
@@ -15,6 +15,7 @@ help:
 	@echo "  make prod    Build and start production stack (PostgreSQL + app)"
 	@echo "  make prod-check Validate .env before live production cutover"
 	@echo "  make go-live-check Validate env, restore drill evidence, release gates and live smoke"
+	@echo "  make cutover-report APP_URL=http://... Generate a markdown cutover evidence snapshot"
 	@echo "  make prod-backup Create a PostgreSQL backup under backups/"
 	@echo "  make prod-restore-drill BACKUP=backups/file.dump Validate backup in an isolated restore project"
 	@echo "  make audit-prod Audit pinned runtime dependencies"
@@ -60,6 +61,9 @@ go-live-check: guard-env
 	$(PYTHON) scripts/go_live_check.py .env
 	$(MAKE) release-check
 	$(MAKE) smoke-live APP_URL=$(APP_URL)
+
+cutover-report: guard-env
+	$(PYTHON) scripts/cutover_report.py .env "$(APP_URL)"
 
 prod-backup: guard-env
 	bash scripts/backup_postgres.sh

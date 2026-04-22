@@ -52,11 +52,15 @@ make prod
 
 ```bash
 make go-live-check APP_URL=http://127.0.0.1:8000
+make cutover-report APP_URL=http://127.0.0.1:8000
 ```
 
 `make go-live-check` е финалният gate: проверява `.env`, свежото restore-drill
 доказателство, локалните release тестове и live health/readiness/active-admin/
 public overview smoke срещу подадения `APP_URL`.
+`make cutover-report` не заменя gate-а; той генерира markdown snapshot в
+ignored `cutover-reports/` с git/env/restore/public-smoke evidence и отделни
+manual-only секции за GitHub Security review и signoff.
 
 След реалния production run попълни
 [`PRODUCTION_CUTOVER_CHECKLIST.md`](PRODUCTION_CUTOVER_CHECKLIST.md), за да

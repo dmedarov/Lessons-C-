@@ -120,6 +120,9 @@ The remaining external cutover work is now centralized in
 `docs/PRODUCTION_CUTOVER_CHECKLIST.md`, so the production URL rehearsal,
 GitHub Security review and final signoff are handled as one operator packet
 instead of scattered notes.
+`make cutover-report APP_URL=...` now generates a matching markdown snapshot
+under ignored `cutover-reports/`, prefilled with git/env/restore/public-smoke
+evidence and ready for manual signoff notes.
 
 ## Remaining Work To 99/100
 

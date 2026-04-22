@@ -10,5 +10,6 @@ __pycache__/
 !.env.example
 backups/
 .fleetflow/
+cutover-reports/
 test-results/
 .claude/

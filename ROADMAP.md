@@ -385,6 +385,9 @@ operations assistant for internal mobility**, което е:
 - External cutover pack: `docs/PRODUCTION_CUTOVER_CHECKLIST.md` is the operator
   packet for the real production URL rehearsal, GitHub Security/Dependabot
   review and final GO/STOP signoff.
+- Cutover snapshot: `make cutover-report APP_URL=...` writes a markdown
+  evidence snapshot under ignored `cutover-reports/` so env/restore/public-smoke
+  facts can be attached to the operator packet without copying secrets.
 - Structured production logs: access logs now switch to JSON in production and
   include request id, route, status and latency without secret values. The
   dedicated `fleetflow.access` logger writes one clean stdout JSON line per

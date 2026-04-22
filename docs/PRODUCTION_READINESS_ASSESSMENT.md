@@ -230,6 +230,10 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - secret rotation metadata;
 - final GO / STOP signoff.
 
+Ако искаш prefilled evidence snapshot от текущия git/env/runtime контекст,
+генерирай го с `make cutover-report APP_URL=<production-url>` и го използвай
+заедно с checklist-а.
+
 ## Latest local evidence
 
 - `node --check static/app.js` -> passed.

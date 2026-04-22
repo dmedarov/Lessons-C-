@@ -105,12 +105,16 @@ def test_backup_restore_operator_scripts_are_documented_and_guarded() -> None:
     backup = (ROOT / "scripts/backup_postgres.sh").read_text()
     restore = (ROOT / "scripts/restore_postgres_drill.sh").read_text()
     smoke = (ROOT / "scripts/smoke_live.py").read_text()
+    cutover = (ROOT / "scripts/cutover_report.py").read_text()
 
     assert "prod-backup" in makefile
     assert "prod-restore-drill" in makefile
+    assert "cutover-report" in makefile
     assert "backups/" in gitignore
+    assert "cutover-reports/" in gitignore
     assert "make prod-backup" in guide
     assert "make prod-restore-drill BACKUP=" in guide
+    assert "make cutover-report APP_URL=" in guide
     assert "Как да разчетеш най-честите блокери" in guide
     assert "Database password" in guide
     assert "CORS_ALLOW_ORIGINS=https://fleetflow.company.bg" in guide
@@ -124,6 +128,8 @@ def test_backup_restore_operator_scripts_are_documented_and_guarded() -> None:
     assert "Restore drill evidence written" in restore
     assert "/auth/setup-status" in smoke
     assert "no active admin exists" in smoke
+    assert "Manual-only checks still required" in cutover
+    assert "PRODUCTION_CUTOVER_CHECKLIST.md" in cutover
 
 
 def test_go_live_check_accepts_fresh_restore_drill_marker(tmp_path: Path) -> None:
@@ -175,6 +181,7 @@ def test_operator_scripts_have_valid_syntax() -> None:
         "scripts/restore_postgres_drill.sh",
         "scripts/go_live_check.py",
         "scripts/smoke_live.py",
+        "scripts/cutover_report.py",
     ):
         if script.endswith(".py"):
             command = [sys.executable, "-m", "py_compile", str(ROOT / script)]
@@ -190,3 +197,54 @@ def test_operator_scripts_have_valid_syntax() -> None:
             check=False,
         )
         assert result.returncode == 0, result.stdout
+
+
+def test_cutover_report_script_generates_markdown_snapshot(tmp_path: Path) -> None:
+    env_file = tmp_path / ".env"
+    marker = tmp_path / "restore-drill-ok.json"
+    backup = tmp_path / "fleetflow.dump"
+    output_dir = tmp_path / "reports"
+    backup.write_text("not-a-real-dump")
+    marker.write_text(
+        (
+            "{"
+            '"succeeded": true,'
+            '"checked_at": "2026-04-23T10:00:00Z",'
+            f'"backup_path": "{backup}"'
+            "}"
+        )
+    )
+    env_file.write_text(
+        "\n".join(
+            [
+                "APP_ENV=prod",
+                f"SECRET_KEY={'s' * 48}",
+                f"POSTGRES_PASSWORD={'p' * 32}",
+                "POSTGRES_IMAGE=postgres:16",
+                f"DATABASE_URL=postgresql://fleetflow:{'p' * 32}@postgres:5432/fleetflow",
+                "CORS_ALLOW_ORIGINS=https://fleetflow.company.bg",
+                "DEV_SEED_DEMO_DATA=false",
+                f"RESTORE_DRILL_MARKER={marker}",
+            ]
+        )
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "cutover_report.py"), str(env_file), "http://127.0.0.1:9"],
+        cwd=ROOT,
+        env={**os.environ, "CUTOVER_REPORT_DIR": str(output_dir)},
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout
+    report_path = Path(result.stdout.strip())
+    assert report_path.exists()
+    report = report_path.read_text()
+    assert "FleetFlow Cutover Report" in report
+    assert "Target URL: `http://127.0.0.1:9`" in report
+    assert "Restore drill evidence" in report
+    assert "GitHub Security / Dependabot review in the GitHub web UI" in report
+    assert "docs/PRODUCTION_CUTOVER_CHECKLIST.md" in report

@@ -2330,6 +2330,19 @@ If time is limited, execute items 1-4 before any new feature work.
   Assessment now point to the new cutover checklist as the execution pack for
   the external steps that remain before 99/100 confidence.
 
+### 2026-04-23 - Cutover report generator
+
+- **Goal:** Reduce copy/paste and missed evidence during the real production
+  rehearsal.
+- **Tooling:** Added `scripts/cutover_report.py` and `make cutover-report
+  APP_URL=...`, which generate an ignored markdown snapshot under
+  `cutover-reports/`.
+- **Content:** The report captures repo SHA/branch, `.env` readiness summary,
+  restore-drill status and public live checks, then leaves explicit manual
+  sections for GitHub Security/Dependabot review and final signoff.
+- **Safety:** The generated report contains statuses and metadata only, not
+  secret values.
+
 ### 2026-04-23 - Shared restore-drill runtime readiness
 
 - **Goal:** Remove the last quiet gap between shell-based cutover evidence and

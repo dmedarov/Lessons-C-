@@ -273,6 +273,7 @@ make logs   # app logs, включително bootstrap token при fresh inst
 make down   # спира production/dev compose контейнерите
 make prod-check # проверява .env преди live cutover
 make go-live-check # final gate: env + restore-drill evidence + release-check + live smoke
+make cutover-report APP_URL=http://127.0.0.1:8001 # markdown snapshot за cutover evidence
 make prod-backup # създава PostgreSQL backup в backups/
 make prod-restore-drill BACKUP=backups/fleetflow-....dump # dry-run restore в отделен project
 make audit-prod # локален audit на pinned production runtime dependencies
@@ -297,6 +298,9 @@ volume-а и записва локално доказателство в игн�
 runtime сигнал, за да няма разминаване между shell cutover check и Control
 Tower UI. Подробната операторска инструкция е в
 [`docs/PRODUCTION_USER_GUIDE.md`](docs/PRODUCTION_USER_GUIDE.md).
+За real deployment rehearsal можеш да генерираш prefilled markdown snapshot с
+`make cutover-report APP_URL=<production-url>`; файлът се записва в ignored
+`cutover-reports/`.
 
 ## Bootstrap token при fresh production install
 
