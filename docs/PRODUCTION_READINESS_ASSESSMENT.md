@@ -230,6 +230,13 @@ pilot-ready към 99/100, трябва всички точки по-долу д
   containers are healthy.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` after rebuild -> `/health`,
   `/health/ready`, `/auth/setup-status` and `/public/overview` passed.
+- `make prod-check` -> passed with warning only for optional `NETFLEET_API_KEY`
+  env value because Admin UI can configure live GPS later.
+- `make prod-backup` -> created `backups/fleetflow-20260422T205423Z.dump`.
+- `make prod-restore-drill BACKUP=backups/fleetflow-20260422T205423Z.dump` ->
+  passed and wrote `.fleetflow/restore-drill-ok.json`.
+- `make go-live-check APP_URL=http://127.0.0.1:8001` -> passed against the
+  local production-like stack after the restore drill.
 - Docker Scout on the rebuilt image -> 0 critical, 0 high, 0 medium, 0 low
   vulnerabilities across 80 packages.
 - Python 3.14 container dev audit -> `pip-audit -r requirements-dev.txt` found

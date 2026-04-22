@@ -631,13 +631,17 @@ APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,
 missing и stale restore-drill marker сценарии. Активният Docker stack
 `fleetflow_prod_smoke` е healthy на `8001`.
+Локалният production rehearsal вече е затворен: `make prod-check` ->
+passed с warning само за optional NetFleet env key, `make prod-backup` ->
+създаде custom PostgreSQL dump, `make prod-restore-drill BACKUP=...` ->
+passed и записа `.fleetflow/restore-drill-ok.json`, а
+`make go-live-check APP_URL=http://127.0.0.1:8001` -> passed.
 Последният Docker release artifact е push-нат като `dmedarov/fleetflow:latest`
 с digest `sha256:96ef7229f656b5993653aab20ad7db4ebc78d6cc6215e8d07c2cb060070a2853`.
 
-Текущ source checkout няма `.env`, затова `make prod-check` отказва с
-`Run 'make setup' first to create .env`; това е очакван operator guard, не
-регресия. За реален cutover първо пусни `make setup` или осигури production
-`.env`, после `make go-live-check APP_URL=<production-url>`.
+Оставащите honest blockers вече са външни за локалния rehearsal: реалният
+production URL, потвърждение/затваряне на GitHub Dependabot или secret alert,
+и първата наблюдавана жива седмица без high-severity role-flow дефекти.
 
 Последна локална проверка за NetFleet pickup clarity:
 `pytest tests/test_ui_compliance.py -q` -> 34 passed, `make qa-premium` ->

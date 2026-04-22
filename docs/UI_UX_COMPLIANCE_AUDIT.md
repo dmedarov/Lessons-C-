@@ -294,7 +294,10 @@ background and checks the high-risk cockpit combinations.
   checks, `pytest tests/test_prod_readiness.py -q` -> 7 passed,
   `bash -n scripts/restore_postgres_drill.sh`, Python compile for production
   scripts, and `make smoke-live APP_URL=http://127.0.0.1:8001` ->
-  health/ready/active-admin/public overview passed. Previous handoff check ran
+  health/ready/active-admin/public overview passed. The local cutover pass now
+  also includes `make prod-check`, `make prod-backup`,
+  `make prod-restore-drill BACKUP=...` and
+  `make go-live-check APP_URL=http://127.0.0.1:8001`. Previous handoff check ran
   `pytest -q` -> 145 passed,
   `pytest tests/test_schema_contracts.py -q` -> 5 passed,
   `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
