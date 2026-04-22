@@ -28,6 +28,10 @@ viewport hierarchy:
 - reception: overdue returns, после handoffs, после календар;
 - admin: Fleet Pulse + next focus + readiness преди settings.
 
+Employee Suggested Booking Hero вече е shipped: показва се само когато
+служителят няма pending/approved/active работа, използва `/reservations/suggest`
+и не заменя manual form-а; само го премества в fallback/change режим.
+
 Никоя роля не вижда реални infrastructure secrets: NetFleet key, DB password,
 `SECRET_KEY`, webhook-и и tokens никога не се echo-ват в UI.
 

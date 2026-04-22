@@ -303,7 +303,8 @@ small, reversible UI slices.
 
 **Implementation order:**
 
-1. Employee Suggested Booking Hero + clearer "change/manual" fallback.
+1. Employee Suggested Booking Hero + clearer "change/manual" fallback. ✅
+   shipped 2026-04-22
 2. Approver first-viewport Decision Desk density pass.
 3. Reception first-viewport Handoff Desk density pass, with overdue first.
 4. Admin Control Tower next-focus strip.
@@ -2411,7 +2412,7 @@ If time is limited, execute items 1-4 before any new feature work.
   made mobile KPI cards a compact 3-column status strip so useful fleet
   context appears earlier.
 - **Cache freshness:** bumped versioned static URLs to
-  `20260422-surface-notify`.
+  `20260422-suggested-hero`.
 - **Role surface names:** the next safe UI hierarchy step starts with stable
   names from the blueprint: `Control Tower`, `Decision Desk`, `Handoff Desk`
   and `Моят курс / Нова заявка`, without moving permissions or lifecycle logic.
@@ -2465,8 +2466,8 @@ If time is limited, execute items 1-4 before any new feature work.
   fresh backup/restore drill evidence, checked Dependabot alert, real CORS
   domain, at least two active admins, observed NetFleet connectivity and one
   monitored live week without high-severity flow defects.
-- **Code size snapshot:** 15,596 production app/script/template/style lines;
-  21,257 code lines with automated tests/e2e; 27,661 tracked project lines
+- **Code size snapshot:** 15,776 production app/script/template/style lines;
+  21,427 code lines with automated tests/e2e; 27,963 tracked project lines
   including docs/config/workflows.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
@@ -3225,6 +3226,26 @@ Five independent improvements shipped as one coherent commit:
 - **Verification:** targeted pytest covers SMTP-to-user, Teams payload and
   request -> approver / approval -> requester + reception delivery. JS syntax
   checks and UI compliance assertions cover the new request outcome surface.
+
+### 2026-04-22 — Employee Suggested Booking Hero
+
+- **Goal:** Start the accepted role-first blueprint with the lowest-risk,
+  highest-perceived-value slice: employee free mode becomes suggestion-first
+  instead of form-first.
+- **UX:** New `#suggestedBookingHero` renders above reservations and calendar,
+  but below Current Trip Hero. It appears only for employee users with no
+  pending/approved/active work, so it does not invite duplicate requests.
+- **Data:** Uses existing `GET /reservations/suggest` and `POST
+  /reservations/quick-book`. No new backend tables, roles or permissions.
+- **Flow:** One primary action **Резервирай сега** submits quick-book; secondary
+  **Промени** focuses the manual form. If no automatic suggestion is available,
+  the primary button is disabled and the secondary path remains available.
+- **Next signal:** pending employee requests now show **Заявката чака
+  одобрение** in the intent summary, so the next move is clear after submit.
+- **Evidence:** UI compliance assertions cover the hero placement, renderer,
+  `/reservations/suggest` fetch, edit fallback, pending signal and i18n keys.
+  Playwright employee smoke asserts the hero is visible before booking and
+  hidden after a pending request is created.
 
 ### 2026-04-19 — Items 2.10–2.12: blackout edit, car notes, test notification (commit `16443ad`)
 

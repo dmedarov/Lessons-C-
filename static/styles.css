@@ -2555,7 +2555,8 @@ select {
   color: var(--danger);
 }
 
-.current-trip-hero {
+.current-trip-hero,
+.suggested-booking-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--sp-5);
@@ -2568,19 +2569,35 @@ select {
 }
 
 .current-trip-hero__content,
-.current-trip-hero__aside {
+.current-trip-hero__aside,
+.suggested-booking-hero__content,
+.suggested-booking-hero__aside {
   min-width: 0;
 }
 
-.current-trip-hero__content h2 {
+.current-trip-hero__content h2,
+.suggested-booking-hero__content h2 {
   margin: 0;
   font-size: clamp(1.35rem, 1rem + 1vw, 2rem);
 }
 
-.current-trip-hero__time {
+.current-trip-hero__time,
+.suggested-booking-hero__time {
   margin: var(--sp-2) 0;
   color: var(--ink);
   font-weight: 700;
+}
+
+.suggested-booking-hero {
+  border-color: color-mix(in srgb, var(--brand) 28%, var(--line-strong));
+}
+
+.suggested-booking-hero__car {
+  margin: var(--sp-2) 0 0;
+  color: var(--ink-strong);
+  font-size: 1.08rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .current-trip-hero__purpose {
@@ -2606,14 +2623,23 @@ select {
   color: var(--ink-strong);
 }
 
-.current-trip-hero__aside {
+.current-trip-hero__aside,
+.suggested-booking-hero__aside {
   display: grid;
   justify-items: end;
   gap: var(--sp-4);
 }
 
-.current-trip-hero__actions .btn {
+.current-trip-hero__actions .btn,
+.suggested-booking-hero__actions .btn {
   min-height: 44px;
+}
+
+.suggested-booking-hero__actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .decision-rail {
@@ -2958,7 +2984,8 @@ select {
 
   .topbar,
   .control-rail,
-  .current-trip-hero {
+  .current-trip-hero,
+  .suggested-booking-hero {
     grid-template-columns: 1fr;
   }
 
@@ -2969,6 +2996,7 @@ select {
   }
 
   .current-trip-hero__aside,
+  .suggested-booking-hero__aside,
   .decision-rail__actions,
   .decision-card__actions {
     justify-items: start;
@@ -3300,6 +3328,8 @@ select {
   .smart-prefill .action-btn,
   .current-trip-hero__actions,
   .current-trip-hero__actions .btn,
+  .suggested-booking-hero__actions,
+  .suggested-booking-hero__actions .btn,
   .decision-rail__actions,
   .decision-rail__actions .btn,
   .decision-card__actions,

@@ -27,9 +27,9 @@ committed ключ трябва първо да се ротира при дос�
 
 | Metric | Value |
 | --- | ---: |
-| Production app/script/template/style lines | 15,596 |
-| Code lines including tests/e2e | 21,257 |
-| Tracked project lines including docs/config/workflows | 27,661 |
+| Production app/script/template/style lines | 15,776 |
+| Code lines including tests/e2e | 21,427 |
+| Tracked project lines including docs/config/workflows | 27,963 |
 | Tracked relevant project files | 90 |
 | Automated test functions | 190 |
 | FastAPI route declarations | 57 |

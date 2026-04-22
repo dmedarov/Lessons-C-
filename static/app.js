@@ -46,6 +46,7 @@ const state = {
   productionReadiness: null,
   pickupTelemetry: null,
   reservationPreferences: null,
+  suggestedBooking: null,
   users: [],
   userAudit: {},
   blackouts: [],
@@ -63,6 +64,7 @@ const state = {
     productionReadiness: false,
     pickupTelemetry: false,
     preferences: false,
+    suggestedBooking: false,
     users: false,
     blackouts: false,
   },
@@ -166,6 +168,7 @@ const els = {
   fleetPulse: document.getElementById("fleetPulse"),
   overviewStats: document.getElementById("overviewStats"),
   currentTripHero: document.getElementById("currentTripHero"),
+  suggestedBookingHero: document.getElementById("suggestedBookingHero"),
   message: document.getElementById("message"),
   messageTitle: document.getElementById("messageTitle"),
   messageText: document.getElementById("messageText"),
@@ -1639,6 +1642,9 @@ function updateSummary() {
   const nextApproved = [...state.reservations]
     .filter((item) => item.status === "approved")
     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0];
+  const pendingRequest = [...state.reservations]
+    .filter((item) => item.status === "pending")
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0];
 
   els.modeHeading.textContent = t("ui.surface.employeeDesk");
   els.modeCopy.textContent = "Личен изглед с ясна история на заявките, активните курсове и нотификациите, които те касаят.";
@@ -1658,6 +1664,14 @@ function updateSummary() {
     ]);
     return;
   }
+  if (pendingRequest) {
+    els.nextSignalTitle.textContent = t("intent.employeePendingTitle");
+    els.nextSignalCopy.textContent = t("intent.employeePendingCopy", { start: formatDateTime(pendingRequest.start_time) });
+    setIntentActions([
+      { name: "focus-reservation", labelKey: "intent.action.viewTrip", primary: true, reservationId: pendingRequest.id },
+    ]);
+    return;
+  }
   els.nextSignalTitle.textContent = t("intent.employeeFreeTitle");
   els.nextSignalCopy.textContent = t("intent.employeeFreeCopy");
   setIntentActions([
@@ -1672,6 +1686,13 @@ function currentTripCandidate() {
   if (activeTrip) return activeTrip;
   return [...state.reservations]
     .filter((item) => item.status === "approved")
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0] || null;
+}
+
+function employeeOpenReservation() {
+  if (isOperationalRole()) return null;
+  return [...state.reservations]
+    .filter((item) => ["pending", "approved", "checked_out"].includes(item.status))
     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0] || null;
 }
 
@@ -1712,6 +1733,64 @@ function renderCurrentTripHero() {
       <div class="current-trip-hero__actions">
         <button class="btn btn--primary" type="button" data-intent-action="focus-reservation" data-reservation-id="${item.id}" data-trip-focus-action="true">
           ${escapeHtml(t("intent.action.viewTrip"))}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSuggestedBookingHero() {
+  if (!els.suggestedBookingHero) return;
+  const visible = Boolean(state.token && state.currentRole === "employee" && !employeeOpenReservation());
+  toggleHidden(els.suggestedBookingHero, !visible);
+  if (!visible) {
+    els.suggestedBookingHero.innerHTML = "";
+    return;
+  }
+
+  if (state.loading.suggestedBooking) {
+    els.suggestedBookingHero.innerHTML = `
+      <div class="suggested-booking-hero__content">
+        <p class="panel__eyebrow">${escapeHtml(t("suggestedBooking.eyebrow"))}</p>
+        <h2 id="suggestedBookingTitle">${escapeHtml(t("suggestedBooking.loadingTitle"))}</h2>
+        <p class="section-copy">${escapeHtml(t("suggestedBooking.loadingCopy"))}</p>
+      </div>
+      <div class="suggested-booking-hero__aside">${skeletonCards(1)}</div>
+    `;
+    return;
+  }
+
+  const suggestion = state.suggestedBooking;
+  const hasSuggestion = Boolean(suggestion?.car_id);
+  const car = hasSuggestion
+    ? `${suggestion.plate_number} · ${suggestion.model}`
+    : t("suggestedBooking.noSuggestionCar");
+  const windowText = hasSuggestion
+    ? t("trip.hero.window", {
+        start: formatDateTime(suggestion.start_time),
+        end: formatDateTime(suggestion.end_time),
+      })
+    : t("suggestedBooking.noSuggestionWindow");
+  const reason = hasSuggestion
+    ? (suggestion.reason_text || t("suggestedBooking.defaultReason"))
+    : t("suggestedBooking.noSuggestionCopy");
+
+  els.suggestedBookingHero.innerHTML = `
+    <div class="suggested-booking-hero__content">
+      <p class="panel__eyebrow">${escapeHtml(t("suggestedBooking.eyebrow"))}</p>
+      <h2 id="suggestedBookingTitle">${escapeHtml(t(hasSuggestion ? "suggestedBooking.title" : "suggestedBooking.emptyTitle"))}</h2>
+      <p class="suggested-booking-hero__car">${escapeHtml(car)}</p>
+      <p class="suggested-booking-hero__time">${escapeHtml(windowText)}</p>
+      <p class="section-copy">${escapeHtml(reason)}</p>
+    </div>
+    <div class="suggested-booking-hero__aside">
+      <span class="status-tag status-tag--pending">${escapeHtml(t("suggestedBooking.status"))}</span>
+      <div class="suggested-booking-hero__actions">
+        <button class="btn btn--primary" type="button" data-intent-action="book-now"${hasSuggestion ? "" : " disabled"}>
+          ${escapeHtml(t("suggestedBooking.primary"))}
+        </button>
+        <button class="btn btn--ghost" type="button" data-intent-action="edit-suggestion">
+          ${escapeHtml(t("suggestedBooking.secondary"))}
         </button>
       </div>
     </div>
@@ -2256,6 +2335,10 @@ async function handleIntentAction(button) {
   }
   if (action === "book-now") {
     await quickBookReservation();
+    return;
+  }
+  if (action === "edit-suggestion") {
+    focusReservationForm();
     return;
   }
   if (action === "view-my-trips") {
@@ -3216,11 +3299,32 @@ async function loadReservationPreferences() {
   }
 }
 
+async function loadSuggestedBooking() {
+  if (!state.token || state.currentRole !== "employee" || employeeOpenReservation()) {
+    state.suggestedBooking = null;
+    renderSuggestedBookingHero();
+    return;
+  }
+
+  setLoading("suggestedBooking", true);
+  renderSuggestedBookingHero();
+  try {
+    state.suggestedBooking = await apiFetch("/reservations/suggest", { headers: authHeaders() });
+  } catch (error) {
+    state.suggestedBooking = null;
+    console.warn("Suggested booking failed", error);
+  } finally {
+    setLoading("suggestedBooking", false);
+    renderSuggestedBookingHero();
+  }
+}
+
 async function loadPickupTelemetry() {
   const candidate = currentTripCandidate();
   if (!state.token || !candidate) {
     state.pickupTelemetry = null;
     renderCurrentTripHero();
+    renderSuggestedBookingHero();
     return;
   }
 
@@ -3476,10 +3580,12 @@ async function refreshData() {
       loadUsers(),
     ]);
     await loadPickupTelemetry();
+    await loadSuggestedBooking();
     await loadHandoffTelemetry();
     updateOverview();
     updateSummary();
     renderCurrentTripHero();
+    renderSuggestedBookingHero();
   } catch (error) {
     showMessage("Неуспешно зареждане", error.message);
   }
@@ -3719,6 +3825,7 @@ async function handleLogout() {
   state.netfleetConfig = null;
   state.pickupTelemetry = null;
   state.reservationPreferences = null;
+  state.suggestedBooking = null;
   state.users = [];
   state.userAudit = {};
   state.blackouts = [];
@@ -3729,6 +3836,7 @@ async function handleLogout() {
   updateNotificationBadge();
   renderReservations();
   renderCurrentTripHero();
+  renderSuggestedBookingHero();
   renderDecisionRail();
   renderReceptionRail();
   renderFleetPulse();
@@ -4423,6 +4531,7 @@ function wireToolbar(buttons, key, callback) {
       updateSummary();
       updateOverview();
       renderCurrentTripHero();
+      renderSuggestedBookingHero();
     });
   });
 }
@@ -4449,6 +4558,7 @@ function initDefaults() {
   renderCarSelect();
   renderReservations();
   renderCurrentTripHero();
+  renderSuggestedBookingHero();
   renderCalendar();
   renderDayTimeline();
   renderConflictPreview();

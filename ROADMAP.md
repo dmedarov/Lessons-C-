@@ -168,6 +168,14 @@ operations assistant for internal mobility**, което е:
 - first viewport не е table-first за нито една роля
 - всяка роля има един доминиращ next move, без competing primary actions
 
+### Current Progress
+
+- Shipped: Employee Suggested Booking Hero за free mode без pending/approved/
+  active работа. Hero-то използва `/reservations/suggest`, показва car/time/
+  reason, дава един primary **Резервирай сега** и secondary **Промени**.
+- Next: Approver Decision Desk density pass, Reception Handoff Desk density
+  pass, Admin Control Tower next-focus strip.
+
 ## Phase 5: Production Discipline
 
 ### Goal
