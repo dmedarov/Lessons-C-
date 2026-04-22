@@ -59,7 +59,7 @@
   decision cards преди таблица/филтри, показва GSM, причина, автомобил, период
   и urgency marker. Bulk flow-ът първо избира заявките, после изисква отделно
   потвърждение за approve/reject; отказът винаги изисква причина.
-- Reception Rail: `/admin` показва одобрените курсове за предаване и активните курсове за връщане най-горе за `fleet_reception`/`fleet_admin`, с директни start/return действия преди таблицата; след approval reception получава отделен handoff сигнал `Курс чака ключове`.
+- Reception Handoff Desk: `/admin` показва самостоятелен handoff surface за `fleet_reception`/`fleet_admin`: първо просрочените връщания, после текущите предавания, после календара; reservations ledger остава tertiary context и не е first viewport. След approval reception получава отделен handoff сигнал `Курс чака ключове`.
 - Timeline-first reservations: employee/approver/reception/admin виждат lifecycle cards преди таблицата, с действия само според ролята и secondary table fallback.
 - Role-aware calendar: operational календарът за `fleet_reception` показва approved handoffs и active returns от глобалния snapshot, независимо от филтъра на таблицата.
 - Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола, `X/Y` свежи GPS позиции и compact Fleet Intelligence insight-и.

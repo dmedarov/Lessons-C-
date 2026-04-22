@@ -67,6 +67,11 @@ sit before the reservation module and show GSM, reason, car, time window and
 urgency text. The rail-level bulk button only selects pending requests and
 focuses the action bar; approve/reject still require the explicit bulk action,
 and reject requires a reason.
+Reception Handoff Desk is now board-first too: overdue returns sit above normal
+handoffs, the calendar comes after the handoff desk, and the reservation ledger
+is demoted to tertiary context. Full admin now lands on a cleaner Control Tower
+order where Fleet Pulse, next focus and production readiness appear before the
+settings/forms stack.
 
 Admin employee maintenance is now repeatable: the Admin UI can paste the source
 employee table, use `Име + Фамилия + GSM`, create/update `employee` accounts,

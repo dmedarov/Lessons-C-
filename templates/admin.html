@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0b1324" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="FleetFlow Admin — fleet, blackouts, approvals and user management." />
     <title>FleetFlow Admin | Fleet and user control</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260422-decision-desk" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260422-reception-desk" />
     <script>
       // Theme bootstrap — runs before first paint to avoid a flash of wrong theme.
       (function () {
@@ -19,9 +19,9 @@
         } catch (_) {}
       })();
     </script>
-    <script defer src="/static/i18n.js?v=20260422-decision-desk"></script>
-    <script defer src="/static/app.js?v=20260422-decision-desk"></script>
-    <script defer src="/static/theme.js?v=20260422-decision-desk"></script>
+    <script defer src="/static/i18n.js?v=20260422-reception-desk"></script>
+    <script defer src="/static/app.js?v=20260422-reception-desk"></script>
+    <script defer src="/static/theme.js?v=20260422-reception-desk"></script>
   </head>
   <body data-surface="admin">
     <a class="skip-link" href="#reservationsDeck">Към основното съдържание</a>
@@ -185,17 +185,6 @@
             </div>
             <div class="outbound-status" id="outboundNotificationStatus" role="status" aria-live="polite"></div>
             <div class="notifications-list" id="notificationsList" aria-live="polite" aria-relevant="additions text"></div>
-          </section>
-
-          <section class="glass-card hidden" id="productionReadinessPanel">
-            <div class="glass-card__header">
-              <div>
-                <p class="panel__eyebrow">Production</p>
-                <h2>Готовност за live</h2>
-              </div>
-            </div>
-            <div class="readiness-summary" id="productionReadinessSummary" aria-live="polite"></div>
-            <div class="readiness-list" id="productionReadinessList"></div>
           </section>
 
           <section class="glass-card hidden" id="userCreatePanel">
@@ -428,7 +417,65 @@
           </section>
 
           <section class="fleet-pulse hidden" id="fleetPulse" aria-labelledby="fleetPulseTitle" aria-live="polite"></section>
+          <section class="glass-card hidden" id="productionReadinessPanel">
+            <div class="glass-card__header">
+              <div>
+                <p class="panel__eyebrow">Production</p>
+                <h2>Готовност за live</h2>
+              </div>
+            </div>
+            <div class="readiness-summary" id="productionReadinessSummary" aria-live="polite"></div>
+            <div class="readiness-list" id="productionReadinessList"></div>
+          </section>
           <section class="decision-rail hidden" id="decisionRail" aria-labelledby="decisionRailTitle" aria-live="polite"></section>
+          <section class="decision-rail reception-rail hidden" id="receptionRail" aria-labelledby="receptionRailTitle" aria-live="polite"></section>
+          <section class="studio-card" id="calendarStudio">
+            <div class="studio-card__header">
+              <div>
+                <p class="panel__eyebrow">Calendar</p>
+                <h2>Глобален календар</h2>
+                <p class="section-copy">Календарен изглед за approvals, активни курсове и service windows.</p>
+              </div>
+              <div class="calendar-toolbar">
+                <div class="segmented">
+                  <button class="segmented__btn" id="monthPrev" type="button" aria-label="Предишен месец">‹</button>
+                  <button class="segmented__btn segmented__btn--wide" id="todayFocus" type="button">Днес</button>
+                  <button class="segmented__btn" id="monthNext" type="button" aria-label="Следващ месец">›</button>
+                </div>
+                <strong class="calendar-toolbar__label" id="calendarMonthLabel">Месец</strong>
+              </div>
+            </div>
+
+            <div class="calendar-layout">
+              <div class="calendar-board">
+                <div class="calendar-weekdays">
+                  <span>Пн</span>
+                  <span>Вт</span>
+                  <span>Ср</span>
+                  <span>Чт</span>
+                  <span>Пт</span>
+                  <span>Сб</span>
+                  <span>Нд</span>
+                </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
+              </div>
+
+              <aside class="day-panel">
+                <div class="day-panel__header">
+                  <p class="panel__eyebrow">Selected day</p>
+                  <h3 id="selectedDateLabel">Избери ден</h3>
+                  <p class="muted" id="selectedDateMeta">Ще видиш approvals, active trips и върнати автомобили за този ден.</p>
+                </div>
+                <div class="legend">
+                  <span><i class="legend__dot legend__dot--pending"></i> Чака одобрение</span>
+                  <span><i class="legend__dot legend__dot--approved"></i> Одобрена</span>
+                  <span><i class="legend__dot legend__dot--active"></i> Активен курс</span>
+                  <span><i class="legend__dot legend__dot--returned"></i> Върната</span>
+                </div>
+                <div class="day-timeline" id="dayTimeline"></div>
+              </aside>
+            </div>
+          </section>
 
           <section class="glass-card" id="reservationsDeck">
             <div class="glass-card__header glass-card__header--split">
@@ -464,7 +511,6 @@
                 <button class="btn btn--primary" type="button" id="exportReservationsBtn">Експорт CSV</button>
               </div>
             </div>
-            <section class="decision-rail reception-rail hidden" id="receptionRail" aria-labelledby="receptionRailTitle" aria-live="polite"></section>
             <section class="reservation-flow" id="reservationsTimeline" aria-labelledby="reservationsTimelineTitle" aria-live="polite"></section>
             <div class="bulk-action-bar hidden" id="bulkActionBar" role="status" aria-live="polite">
               <strong id="bulkSelectedCount">0 избрани</strong>
@@ -529,54 +575,6 @@
               </div>
             </div>
             <div class="users-grid" id="usersGrid"></div>
-          </section>
-
-          <section class="studio-card" id="calendarStudio">
-            <div class="studio-card__header">
-              <div>
-                <p class="panel__eyebrow">Calendar</p>
-                <h2>Глобален календар</h2>
-                <p class="section-copy">Календарен изглед за approvals, активни курсове и service windows.</p>
-              </div>
-              <div class="calendar-toolbar">
-                <div class="segmented">
-                  <button class="segmented__btn" id="monthPrev" type="button" aria-label="Предишен месец">‹</button>
-                  <button class="segmented__btn segmented__btn--wide" id="todayFocus" type="button">Днес</button>
-                  <button class="segmented__btn" id="monthNext" type="button" aria-label="Следващ месец">›</button>
-                </div>
-                <strong class="calendar-toolbar__label" id="calendarMonthLabel">Месец</strong>
-              </div>
-            </div>
-
-            <div class="calendar-layout">
-              <div class="calendar-board">
-                <div class="calendar-weekdays">
-                  <span>Пн</span>
-                  <span>Вт</span>
-                  <span>Ср</span>
-                  <span>Чт</span>
-                  <span>Пт</span>
-                  <span>Сб</span>
-                  <span>Нд</span>
-                </div>
-                <div class="calendar-grid" id="calendarGrid"></div>
-              </div>
-
-              <aside class="day-panel">
-                <div class="day-panel__header">
-                  <p class="panel__eyebrow">Selected day</p>
-                  <h3 id="selectedDateLabel">Избери ден</h3>
-                  <p class="muted" id="selectedDateMeta">Ще видиш approvals, active trips и върнати автомобили за този ден.</p>
-                </div>
-                <div class="legend">
-                  <span><i class="legend__dot legend__dot--pending"></i> Чака одобрение</span>
-                  <span><i class="legend__dot legend__dot--approved"></i> Одобрена</span>
-                  <span><i class="legend__dot legend__dot--active"></i> Активен курс</span>
-                  <span><i class="legend__dot legend__dot--returned"></i> Върната</span>
-                </div>
-                <div class="day-timeline" id="dayTimeline"></div>
-              </aside>
-            </div>
           </section>
 
           <section class="glass-card hidden" id="reservationPanel">

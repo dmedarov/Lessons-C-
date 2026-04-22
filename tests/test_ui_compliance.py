@@ -57,10 +57,10 @@ def test_static_assets_are_cache_busted_in_templates() -> None:
     assert "NO_CACHE_ASSET_EXTENSIONS" in app_py
     for template in ("templates/index.html", "templates/admin.html"):
         html = _read(template)
-        assert "/static/styles.css?v=20260422-decision-desk" in html
-        assert "/static/i18n.js?v=20260422-decision-desk" in html
-        assert "/static/app.js?v=20260422-decision-desk" in html
-        assert "/static/theme.js?v=20260422-decision-desk" in html
+        assert "/static/styles.css?v=20260422-reception-desk" in html
+        assert "/static/i18n.js?v=20260422-reception-desk" in html
+        assert "/static/app.js?v=20260422-reception-desk" in html
+        assert "/static/theme.js?v=20260422-reception-desk" in html
         assert 'src="/static/i18n.js"' not in html
         assert 'src="/static/app.js"' not in html
 
@@ -408,16 +408,22 @@ def test_admin_decision_rail_promotes_pending_queue_before_table() -> None:
 def test_reception_rail_promotes_key_handoff_before_table() -> None:
     html = _read("templates/admin.html")
     app_js = _read("static/app.js")
+    styles = _read("static/styles.css")
     i18n_js = _read("static/i18n.js")
 
     assert 'id="receptionRail" aria-labelledby="receptionRailTitle" aria-live="polite"' in html
-    assert html.index('id="decisionRail"') < html.index('id="receptionRail"') < html.index('id="reservationsTimeline"')
+    assert html.index('id="decisionRail"') < html.index('id="receptionRail"') < html.index('id="reservationsDeck"')
+    assert html.index('id="receptionRail"') < html.index('id="calendarStudio"')
     assert "receptionRail: document.getElementById(\"receptionRail\")" in app_js
+    assert "calendarStudio: document.getElementById(\"calendarStudio\")" in app_js
     assert "handoffTelemetry: {}" in app_js
     assert "handoffTelemetry: false" in app_js
     assert "function renderReceptionRail()" in app_js
     assert "const showRail = canManageTripHandoff() && surface === \"admin\" && state.token;" in app_js
     assert "function receptionRailItems()" in app_js
+    assert "function receptionRailGroups()" in app_js
+    assert "function receptionCardMarkup(item, cars)" in app_js
+    assert "function receptionRailSection(titleKey, emptyKey, items, cars, extraCount = 0)" in app_js
     assert "function isOverdueReturn(item)" in app_js
     assert "const aOverdue = isOverdueReturn(a);" in app_js
     assert 'overdue ? "receptionRail.overdueReturnBy"' in app_js
@@ -432,9 +438,16 @@ def test_reception_rail_promotes_key_handoff_before_table() -> None:
     assert 'data-reservation-action="${action}"' in app_js
     assert "requesterGsmLine(item)" in app_js
     assert 'action = isActive ? "return" : "start"' in app_js
+    assert '"reservations-deck--handoff-secondary"' in app_js
+    assert '"calendar-studio--handoff-context"' in app_js
     assert 't("receptionRail.eyebrow")' in app_js
+    assert ".reception-rail__stack" in styles
+    assert ".reservations-deck--handoff-secondary .table-wrap" in styles
+    assert "body[data-role=\"fleet_reception\"] #calendarStudio.calendar-studio--handoff-context" in styles
     assert '"receptionRail.emptyTitle": "Няма коли за предаване или връщане"' in i18n_js
-    assert '"receptionRail.copy": "Първо предай или приеми ключове и документи.' in i18n_js
+    assert '"receptionRail.copy": "Първо затвори просрочените връщания, после предай ключове и документи.' in i18n_js
+    assert '"receptionRail.overdueTitle": "Чака връщане"' in i18n_js
+    assert '"receptionRail.handoffTitle": "Чака предаване"' in i18n_js
 
 
 def test_bulk_selection_stays_synchronized_between_timeline_and_table() -> None:
@@ -584,6 +597,7 @@ def test_fleet_pulse_promotes_admin_executive_insights() -> None:
     styles = _read("static/styles.css")
     assert 'id="fleetPulse" aria-labelledby="fleetPulseTitle" aria-live="polite"' in html
     assert html.index('id="fleetPulse"') < html.index('id="reservationsDeck"')
+    assert html.index('id="summaryDeck"') < html.index('id="fleetPulse"') < html.index('id="productionReadinessPanel"') < html.index('id="decisionRail"')
     assert "pulseReservations: []" in app_js
     assert "intelligencePulse: null" in app_js
     assert "telemetry: []" in app_js
@@ -738,6 +752,7 @@ def test_admin_production_readiness_panel_is_present_and_secret_safe() -> None:
     styles = _read("static/styles.css")
 
     assert 'id="productionReadinessPanel"' in html
+    assert html.index('id="fleetPulse"') < html.index('id="productionReadinessPanel"') < html.index('id="decisionRail"')
     assert 'id="productionReadinessSummary"' in html
     assert 'id="productionReadinessList"' in html
     assert "function loadProductionReadiness()" in app_js

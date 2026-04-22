@@ -2659,6 +2659,13 @@ body[data-role="fleet_approver"] .decision-rail:not(.reception-rail) {
   box-shadow: var(--shadow-sm);
 }
 
+body[data-role="fleet_reception"] .reception-rail {
+  margin-top: 0;
+  padding: clamp(var(--sp-4), 3vw, var(--sp-6));
+  border-color: color-mix(in srgb, var(--warning) 24%, var(--line-strong));
+  box-shadow: var(--shadow-sm);
+}
+
 .decision-rail__header,
 .decision-card {
   display: flex;
@@ -2689,6 +2696,35 @@ body[data-role="fleet_approver"] .decision-rail:not(.reception-rail) {
 .decision-rail__list {
   display: grid;
   gap: var(--sp-3);
+}
+
+.reception-rail__stack {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.reception-rail__section {
+  display: grid;
+  gap: var(--sp-3);
+  padding-top: var(--sp-1);
+}
+
+.reception-rail__section + .reception-rail__section {
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-4);
+}
+
+.reception-rail__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.reception-rail__section-header h4,
+.reception-rail__empty {
+  margin: 0;
 }
 
 .decision-card {
@@ -2749,6 +2785,23 @@ body[data-role="fleet_approver"] .decision-rail:not(.reception-rail) {
 }
 
 .reservations-deck--decision-secondary .table-wrap {
+  display: none;
+}
+
+body[data-role="fleet_reception"] #calendarStudio.calendar-studio--handoff-context {
+  order: 4;
+}
+
+.reservations-deck--handoff-secondary {
+  order: 5;
+}
+
+.reservations-deck--handoff-secondary .glass-card__header,
+.reservations-deck--handoff-secondary .mission-filter {
+  opacity: 0.88;
+}
+
+.reservations-deck--handoff-secondary .table-wrap {
   display: none;
 }
 

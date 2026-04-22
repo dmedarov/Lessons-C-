@@ -306,8 +306,8 @@ small, reversible UI slices.
 1. Employee Suggested Booking Hero + clearer "change/manual" fallback. ✅
    shipped 2026-04-22
 2. Approver first-viewport Decision Desk density pass. ✅ shipped 2026-04-22
-3. Reception first-viewport Handoff Desk density pass, with overdue first.
-4. Admin Control Tower next-focus strip.
+3. Reception first-viewport Handoff Desk density pass, with overdue first. ✅ shipped 2026-04-22
+4. Admin Control Tower hierarchy pass: Fleet Pulse + next focus + readiness before settings. ✅ shipped 2026-04-22
 5. Playwright screenshots for all four role-first surfaces.
 6. Only then consider vanilla module extraction for render helpers.
 

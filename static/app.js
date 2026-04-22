@@ -167,6 +167,7 @@ const els = {
   decisionRail: document.getElementById("decisionRail"),
   receptionRail: document.getElementById("receptionRail"),
   fleetPulse: document.getElementById("fleetPulse"),
+  calendarStudio: document.getElementById("calendarStudio"),
   overviewStats: document.getElementById("overviewStats"),
   currentTripHero: document.getElementById("currentTripHero"),
   suggestedBookingHero: document.getElementById("suggestedBookingHero"),
@@ -1215,6 +1216,14 @@ function renderShell() {
   els.reservationsDeck?.classList.toggle(
     "reservations-deck--decision-secondary",
     authenticated && adminSurface && state.currentRole === "fleet_approver"
+  );
+  els.reservationsDeck?.classList.toggle(
+    "reservations-deck--handoff-secondary",
+    authenticated && adminSurface && state.currentRole === "fleet_reception"
+  );
+  els.calendarStudio?.classList.toggle(
+    "calendar-studio--handoff-context",
+    authenticated && adminSurface && state.currentRole === "fleet_reception"
   );
 
   if (!state.hasAdmin && !authenticated) {
@@ -2677,6 +2686,63 @@ function receptionRailItems() {
     });
 }
 
+function receptionRailGroups() {
+  const items = receptionRailItems();
+  return {
+    overdueReturns: items.filter((item) => item.status === "checked_out" && isOverdueReturn(item)),
+    handoffs: items.filter((item) => !(item.status === "checked_out" && isOverdueReturn(item))),
+  };
+}
+
+function receptionCardMarkup(item, cars) {
+  const car = cars.get(item.car_id);
+  const carLabel = car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id });
+  const isActive = item.status === "checked_out";
+  const overdue = isOverdueReturn(item);
+  const action = isActive ? "return" : "start";
+  const label = isActive ? t("action.returnCar") : t("action.startTrip");
+  const timeKey = overdue ? "receptionRail.overdueReturnBy" : isActive ? "receptionRail.returnBy" : "receptionRail.startAt";
+  const timeValue = isActive ? item.end_time : item.start_time;
+  const handoffTelemetry = state.handoffTelemetry[item.car_id];
+  const locationMarkup = state.loading.handoffTelemetry && !handoffTelemetry
+    ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.loading"))}</strong></div>`
+    : telemetryLocationBlock(handoffTelemetry);
+  return `
+    <article class="decision-card reception-card" data-reception-card="${item.id}">
+      <div class="decision-card__main">
+        <div class="decision-card__topline">
+          <strong>${escapeHtml(carLabel)}</strong>
+          <span class="status-pill ${overdue ? "status-pill--danger" : isActive ? "status-pill--warning" : "status-pill--success"}">${escapeHtml(t(`status.${item.status}`))}</span>
+        </div>
+        <p class="decision-card__window">${escapeHtml(item.employee_name)} · ${escapeHtml(t(timeKey, { time: formatDateTime(timeValue) }))}</p>
+        ${requesterGsmLine(item)}
+        ${item.purpose ? `<p class="decision-card__purpose">${escapeHtml(item.purpose)}</p>` : ""}
+        ${locationMarkup}
+      </div>
+      <div class="decision-card__actions">
+        <button class="action-btn action-btn--toggle" type="button" data-reservation-action="${action}" data-id="${item.id}" aria-label="${label} за резервация #${item.id}">${escapeHtml(label)}</button>
+      </div>
+    </article>
+  `;
+}
+
+function receptionRailSection(titleKey, emptyKey, items, cars, extraCount = 0) {
+  return `
+    <section class="reception-rail__section" aria-label="${escapeHtml(t(titleKey))}">
+      <div class="reception-rail__section-header">
+        <h4>${escapeHtml(t(titleKey))}</h4>
+        <span class="status-pill status-pill--muted">${escapeHtml(pluralRecord(items.length + extraCount))}</span>
+      </div>
+      ${
+        items.length
+          ? `<div class="decision-rail__list">${items.map((item) => receptionCardMarkup(item, cars)).join("")}</div>`
+          : `<p class="muted reception-rail__empty">${escapeHtml(t(emptyKey))}</p>`
+      }
+      ${extraCount ? `<p class="muted decision-rail__more">${escapeHtml(t("receptionRail.more", { count: extraCount }))}</p>` : ""}
+    </section>
+  `;
+}
+
 function renderReceptionRail() {
   if (!els.receptionRail) return;
   const showRail = canManageTripHandoff() && surface === "admin" && state.token;
@@ -2698,9 +2764,12 @@ function renderReceptionRail() {
   }
 
   const cars = carMap();
-  const handoffItems = receptionRailItems();
-  const visible = handoffItems.slice(0, 4);
-  const extraCount = Math.max(handoffItems.length - visible.length, 0);
+  const { overdueReturns, handoffs } = receptionRailGroups();
+  const handoffItems = [...overdueReturns, ...handoffs];
+  const overdueVisible = overdueReturns.slice(0, 3);
+  const handoffVisible = handoffs.slice(0, 3);
+  const overdueExtraCount = Math.max(overdueReturns.length - overdueVisible.length, 0);
+  const handoffExtraCount = Math.max(handoffs.length - handoffVisible.length, 0);
 
   if (!handoffItems.length && isFullAdmin()) {
     toggleHidden(els.receptionRail, true);
@@ -2731,38 +2800,10 @@ function renderReceptionRail() {
         <button class="btn btn--ghost" type="button" data-intent-action="view-active-trips">${escapeHtml(t("intent.action.viewActiveTrips"))}</button>
       </div>
     </div>
-    <div class="decision-rail__list">
-      ${visible.map((item) => {
-        const car = cars.get(item.car_id);
-        const carLabel = car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id });
-        const isActive = item.status === "checked_out";
-        const overdue = isOverdueReturn(item);
-        const action = isActive ? "return" : "start";
-        const label = isActive ? t("action.returnCar") : t("action.startTrip");
-        const timeKey = overdue ? "receptionRail.overdueReturnBy" : isActive ? "receptionRail.returnBy" : "receptionRail.startAt";
-        const timeValue = isActive ? item.end_time : item.start_time;
-        const handoffTelemetry = state.handoffTelemetry[item.car_id];
-        const locationMarkup = state.loading.handoffTelemetry && !handoffTelemetry
-          ? `<div class="pickup-location"><strong>${escapeHtml(t("pickup.loading"))}</strong></div>`
-          : telemetryLocationBlock(handoffTelemetry);
-        return `
-          <article class="decision-card reception-card" data-reception-card="${item.id}">
-            <div>
-              <strong>${escapeHtml(carLabel)}</strong>
-              <p>${escapeHtml(item.employee_name)} · ${escapeHtml(t(timeKey, { time: formatDateTime(timeValue) }))}</p>
-              ${requesterGsmLine(item)}
-              <span class="status-pill ${overdue ? "status-pill--danger" : isActive ? "status-pill--warning" : "status-pill--success"}">${escapeHtml(t(`status.${item.status}`))}</span>
-              ${item.purpose ? `<p class="decision-card__purpose">${escapeHtml(item.purpose)}</p>` : ""}
-              ${locationMarkup}
-            </div>
-            <div class="decision-card__actions">
-              <button class="action-btn action-btn--toggle" type="button" data-reservation-action="${action}" data-id="${item.id}" aria-label="${label} за резервация #${item.id}">${escapeHtml(label)}</button>
-            </div>
-          </article>
-        `;
-      }).join("")}
+    <div class="reception-rail__stack">
+      ${receptionRailSection("receptionRail.overdueTitle", "receptionRail.overdueEmpty", overdueVisible, cars, overdueExtraCount)}
+      ${receptionRailSection("receptionRail.handoffTitle", "receptionRail.handoffEmpty", handoffVisible, cars, handoffExtraCount)}
     </div>
-    ${extraCount ? `<p class="muted decision-rail__more">${escapeHtml(t("receptionRail.more", { count: extraCount }))}</p>` : ""}
   `;
 }
 

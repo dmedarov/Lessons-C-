@@ -140,7 +140,8 @@ operations assistant for internal mobility**, което е:
 - **Reception:** **Handoff Desk** е overdue-first. Просрочено връщане е първи
   сигнал, после approved handoffs с pickup/GPS context, после календар.
 - **Admin:** **Control Tower** е pulse-first. Fleet Pulse, next operational
-  focus и readiness warnings са над users/fleet/settings.
+  focus и readiness warnings са над users/fleet/settings и преди всички
+  конфигурационни панели.
 - **Components:** приемаме HeroActionCard, DecisionCard, HandoffCard,
   PulseStrip, InsightList и NextBusyDayCard като product contracts, но без
   frontend framework и без build step.
@@ -177,8 +178,14 @@ operations assistant for internal mobility**, което е:
 - Shipped: Approver Decision Desk board-first pass. Decision Rail вече е пред
   reservations модула, показва GSM/причина/urgency и прави bulk select без
   директно bulk approve.
-- Next: Reception Handoff Desk density pass, Admin Control Tower next-focus
-  strip, then vanilla JS module split.
+- Shipped: Reception Handoff Desk / Admin Control Tower hierarchy pass.
+  Reception Rail вече е отделен first-viewport блок с две ясни секции:
+  просрочени връщания и текущи handoff-и; календарът идва след него, а
+  reservations ledger е tertiary context. Production readiness панелът вече е
+  в main admin rail след Fleet Pulse и next focus, преди decision/settings
+  потока.
+- Next: Admin Control Tower next-focus strip refinement, then vanilla JS module
+  split.
 
 ## Phase 5: Production Discipline
 
