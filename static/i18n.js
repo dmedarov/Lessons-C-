@@ -369,6 +369,7 @@ const bg = {
   "readiness.next.restore_drill": "Пусни `make prod-backup` и `make prod-restore-drill BACKUP=...`, за да има свеж restore marker.",
   "readiness.next.netfleet": "Добави NetFleet ключ от Admin UI, ако live pickup координати са нужни за ден 1.",
   "readiness.next.notifications": "Остави като съзнателна бележка или конфигурирай SMTP/Slack/Teams канал.",
+  "readiness.next.notification_recipients": "Попълни липсващите user email-и или задай SMTP_TO_EMAIL като shared fallback inbox.",
   "telemetry.latest": "Последна GPS позиция",
   "telemetry.coordinates": "Координати: {lat}, {lon}",
   "telemetry.speed": "Скорост: {speed} км/ч",

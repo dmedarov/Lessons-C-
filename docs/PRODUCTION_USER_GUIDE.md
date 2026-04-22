@@ -192,9 +192,11 @@ cutover спира, докато alert-ът не бъде потвърден и�
 | `CORS origin` | Домейнът липсва, е wildcard или е example. | Задай реалния адрес, например `CORS_ALLOW_ORIGINS=https://fleetflow.company.bg`. |
 | `PostgreSQL image` | Използван е `latest`, което може да счупи стар volume при major upgrade. | Остави `POSTGRES_IMAGE=postgres:16` или друг умишлено избран major pin. |
 
-`NetFleet GPS` и `Outbound notifications` са warning-и, не блокери. Може да
-стартираш без тях, ако решението е съзнателно: GPS ключът се добавя от Admin UI,
-а in-app нотификациите работят и без SMTP/Slack/Teams.
+`NetFleet GPS`, `Outbound notifications` и `Notification recipients` са
+warning-и, не блокери. Може да стартираш без тях, ако решението е съзнателно:
+GPS ключът се добавя от Admin UI, in-app нотификациите работят и без
+SMTP/Slack/Teams, а при включен SMTP readiness панелът ще подскаже ако липсват
+user email-и или shared fallback mailbox.
 
 ### SMTP и Teams известия
 

@@ -2357,6 +2357,16 @@ If time is limited, execute items 1-4 before any new feature work.
   write the admin password, access token or cookie into git or into the output
   markdown artifact.
 
+### 2026-04-23 - SMTP recipient coverage readiness signal
+
+- **Goal:** Catch the quiet failure mode where SMTP is technically configured
+  but real operators still miss mail because user email fields are empty.
+- **Backend:** `production_readiness.py` now adds `notification_recipients`,
+  warning when operational roles lack personal email or when active users lack
+  email and there is no `SMTP_TO_EMAIL` fallback mailbox.
+- **UX:** The Control Tower readiness panel gets a concrete next step for
+  recipient coverage instead of a generic default hint.
+
 ### 2026-04-23 - Shared restore-drill runtime readiness
 
 - **Goal:** Remove the last quiet gap between shell-based cutover evidence and

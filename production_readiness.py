@@ -347,6 +347,9 @@ def evaluate_runtime_readiness() -> dict:
 
     checks = evaluate_env_readiness(runtime_env(), include_netfleet=False)
     users_with_email = 0
+    active_users = 0
+    users_missing_email = 0
+    critical_ops_missing_email = 0
 
     try:
         with get_conn() as conn:
@@ -362,6 +365,35 @@ def evaluate_runtime_readiness() -> dict:
                     SELECT COUNT(*) AS n
                     FROM users
                     WHERE active=1 AND email IS NOT NULL AND TRIM(email) != ''
+                    """
+                ).fetchone()["n"]
+            )
+            active_users = int(
+                conn.execute(
+                    """
+                    SELECT COUNT(*) AS n
+                    FROM users
+                    WHERE active=1
+                    """
+                ).fetchone()["n"]
+            )
+            users_missing_email = int(
+                conn.execute(
+                    """
+                    SELECT COUNT(*) AS n
+                    FROM users
+                    WHERE active=1 AND (email IS NULL OR TRIM(email) = '')
+                    """
+                ).fetchone()["n"]
+            )
+            critical_ops_missing_email = int(
+                conn.execute(
+                    """
+                    SELECT COUNT(*) AS n
+                    FROM users
+                    WHERE active=1
+                      AND role IN ('fleet_admin', 'fleet_approver', 'fleet_reception')
+                      AND (email IS NULL OR TRIM(email) = '')
                     """
                 ).fetchone()["n"]
             )
@@ -473,6 +505,53 @@ def evaluate_runtime_readiness() -> dict:
             outbound_detail,
         )
     )
+
+    if settings.smtp_host and settings.smtp_from_email:
+        if critical_ops_missing_email > 0:
+            checks.append(
+                _warn(
+                    "notification_recipients",
+                    "Notification recipients",
+                    "One or more operational users are missing personal email addresses.",
+                    (
+                        f"{critical_ops_missing_email} operational users have no email. "
+                        "Outbound notifications will rely on shared fallback inbox."
+                    ),
+                )
+            )
+        elif users_missing_email > 0 and not settings.smtp_to_email:
+            checks.append(
+                _warn(
+                    "notification_recipients",
+                    "Notification recipients",
+                    "Some active users have no email and no SMTP fallback mailbox is configured.",
+                    (
+                        f"{users_missing_email}/{active_users} active users have no email and SMTP_TO_EMAIL is empty. "
+                        "Set SMTP_TO_EMAIL or complete missing user emails."
+                    ),
+                )
+            )
+        else:
+            checks.append(
+                _pass(
+                    "notification_recipients",
+                    "Notification recipients",
+                    "SMTP recipient coverage is acceptable.",
+                    (
+                        "SMTP recipient coverage is acceptable (user email routing and/or shared fallback inbox)."
+                    ),
+                    required=False,
+                )
+            )
+    else:
+        checks.append(
+            _warn(
+                "notification_recipients",
+                "Notification recipients",
+                "SMTP is not configured; recipient coverage check is informational only.",
+                "SMTP не е включен; проверката за получатели е само информативна.",
+            )
+        )
 
     ready = all(check.status != "fail" for check in checks if check.required)
     return {

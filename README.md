@@ -74,6 +74,7 @@
   едновременно следващия ход и контекста защо той е приоритетен.
 - NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а. UI показва last-seen/freshness label, разграничава "ключът липсва" от "NetFleet временно не отговаря" и прави ясно дали локацията е надеждна за вземане на автомобила; reception вижда локация за approved/active handoff коли.
 - Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string, включително warning ако има само един active `fleet_admin` и отделен freshness сигнал за последния backup/restore drill marker.
+- SMTP recipient coverage: readiness панелът предупреждава, ако operational роли нямат personal email или няма fallback mailbox при включен SMTP.
 - Production operator next steps: readiness blocker/warning картите показват
   кратък конкретен следващ ход за CORS, DB password/URL, backup/admin/NetFleet
   и други cutover настройки, вместо само статус.

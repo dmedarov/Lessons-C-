@@ -1529,13 +1529,25 @@ def test_ops_readiness_is_admin_only_and_does_not_leak_secrets(client: TestClien
     assert data["ready"] is False
     assert data["app_env"] == "dev"
     assert data["database_backend"] == "sqlite"
-    assert {"app_env", "database_connection", "active_admin", "admin_redundancy", "restore_drill", "netfleet", "notifications"} <= ids
+    assert {
+        "app_env",
+        "database_connection",
+        "active_admin",
+        "admin_redundancy",
+        "restore_drill",
+        "netfleet",
+        "notifications",
+        "notification_recipients",
+    } <= ids
     redundancy = next(item for item in data["items"] if item["id"] == "admin_redundancy")
     assert redundancy["status"] == "warn"
     assert "само един активен администратор" in redundancy["detail"]
     restore_drill = next(item for item in data["items"] if item["id"] == "restore_drill")
     assert restore_drill["status"] == "warn"
     assert "restore drill marker" in restore_drill["detail"]
+    recipients = next(item for item in data["items"] if item["id"] == "notification_recipients")
+    assert recipients["status"] == "warn"
+    assert "SMTP не е включен" in recipients["detail"]
     assert not any("test-secret-key" in str(item) for item in data["items"])
     assert not any("DATABASE_URL" in item["detail"] and "://" in item["detail"] for item in data["items"])
 
