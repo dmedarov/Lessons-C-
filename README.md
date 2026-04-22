@@ -262,7 +262,9 @@ admins, реален CORS домейн, наблюдавана NetFleet връз
 Пълният 99/100 gate е отделен в
 [`docs/PRODUCTION_READINESS_ASSESSMENT.md`](docs/PRODUCTION_READINESS_ASSESSMENT.md)
 и tactical checklist-а в
-[`ROADMAP_IMPROVEMENTS.md`](ROADMAP_IMPROVEMENTS.md).
+[`ROADMAP_IMPROVEMENTS.md`](ROADMAP_IMPROVEMENTS.md). Реалният cutover checklist
+и evidence шаблон са в
+[`docs/PRODUCTION_CUTOVER_CHECKLIST.md`](docs/PRODUCTION_CUTOVER_CHECKLIST.md).
 
 Полезни production команди:
 

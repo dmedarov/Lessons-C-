@@ -116,6 +116,11 @@ notifications in the current stream, returned trips dominating the workflow,
 single-admin continuity risk disappearing from readiness, or status
 communicated only through icon/color. Both are treated as go-live blockers.
 
+The remaining external cutover work is now centralized in
+`docs/PRODUCTION_CUTOVER_CHECKLIST.md`, so the production URL rehearsal,
+GitHub Security review and final signoff are handled as one operator packet
+instead of scattered notes.
+
 ## Remaining Work To 99/100
 
 To honestly score **99/100**, complete the dedicated

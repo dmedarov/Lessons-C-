@@ -58,6 +58,10 @@ make go-live-check APP_URL=http://127.0.0.1:8000
 доказателство, локалните release тестове и live health/readiness/active-admin/
 public overview smoke срещу подадения `APP_URL`.
 
+След реалния production run попълни
+[`PRODUCTION_CUTOVER_CHECKLIST.md`](PRODUCTION_CUTOVER_CHECKLIST.md), за да
+запишеш URL rehearsal-а, GitHub Security/Dependabot статуса и финалния signoff.
+
 Текущата readiness оценка е **91/100 за контролиран production pilot**.
 Go/no-go правилата са в
 [`docs/PRODUCTION_READINESS_ASSESSMENT.md`](PRODUCTION_READINESS_ASSESSMENT.md).
@@ -129,6 +133,8 @@ Outstanding blockers/warnings се показват първи, а провер�
 
 Операторският минимум преди cutover остава `make go-live-check`; инженерният
 минимум за UI/role/security промяна е targeted тест плюс `make qa-premium`.
+Финалният операторски handoff документ е
+[`PRODUCTION_CUTOVER_CHECKLIST.md`](PRODUCTION_CUTOVER_CHECKLIST.md).
 
 ## 3.2 Secret leak stop signal
 

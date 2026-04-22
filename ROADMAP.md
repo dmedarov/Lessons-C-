@@ -382,6 +382,9 @@ operations assistant for internal mobility**, което е:
 - Final go-live gate: `make go-live-check APP_URL=...` requires production env
   readiness, fresh restore-drill evidence, local release gates and live
   health/readiness/active-admin/public overview smoke before real use.
+- External cutover pack: `docs/PRODUCTION_CUTOVER_CHECKLIST.md` is the operator
+  packet for the real production URL rehearsal, GitHub Security/Dependabot
+  review and final GO/STOP signoff.
 - Structured production logs: access logs now switch to JSON in production and
   include request id, route, status and latency without secret values. The
   dedicated `fleetflow.access` logger writes one clean stdout JSON line per

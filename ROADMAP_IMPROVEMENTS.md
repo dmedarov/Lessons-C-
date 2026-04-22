@@ -2314,6 +2314,22 @@ If time is limited, execute items 1-4 before any new feature work.
 
 ## Done
 
+### 2026-04-23 - External cutover checklist pack
+
+- **Goal:** Turn the last manual production steps into a repeatable operator
+  artifact instead of scattered chat/docs reminders.
+- **Docs:** added `docs/PRODUCTION_CUTOVER_CHECKLIST.md` with one place for the
+  real production URL rehearsal, backup/restore evidence, GitHub
+  Security/Dependabot review, secret-rotation metadata and final GO/STOP
+  signoff.
+- **Reality check:** documented that the current local environment can see repo
+  metadata (`dmedarov/Lessons-C-`) but does not expose GitHub Security alert
+  details directly, and `gh` CLI is not installed; those checks remain manual
+  in the GitHub web UI.
+- **Integration:** README, Production User Guide and Production Readiness
+  Assessment now point to the new cutover checklist as the execution pack for
+  the external steps that remain before 99/100 confidence.
+
 ### 2026-04-23 - Shared restore-drill runtime readiness
 
 - **Goal:** Remove the last quiet gap between shell-based cutover evidence and

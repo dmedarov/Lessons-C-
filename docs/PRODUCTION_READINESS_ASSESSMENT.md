@@ -209,11 +209,26 @@ pilot-ready към 99/100, трябва всички точки по-долу д
    make go-live-check APP_URL=<production-url>
    ```
 
+   За самия execution/evidence използвай
+   [`PRODUCTION_CUTOVER_CHECKLIST.md`](PRODUCTION_CUTOVER_CHECKLIST.md), вместо
+   да държиш cutover notes разпилени.
+
 5. **At least two active admins.**
    За реално ползване препоръката е минимум двама active `fleet_admin`, плюс
    отделни `fleet_approver` и `fleet_reception`, ако процесът е разделен.
    `/ops/readiness` вече показва `admin_redundancy` warning при само един active
    admin и pass при двама или повече.
+
+## External cutover pack
+
+Използвай
+[`PRODUCTION_CUTOVER_CHECKLIST.md`](PRODUCTION_CUTOVER_CHECKLIST.md) като
+операторски пакет за:
+
+- реалния production URL rehearsal;
+- GitHub Security / Dependabot manual review;
+- secret rotation metadata;
+- final GO / STOP signoff.
 
 ## Latest local evidence
 
