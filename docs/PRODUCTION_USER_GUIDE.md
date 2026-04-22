@@ -104,6 +104,8 @@ make logs
 
 Панелът използва същия restore-drill marker като `make go-live-check`, така че
 Admin UI и shell cutover проверката не могат да се разминават тихо.
+Outstanding blockers/warnings се показват първи, а проверените OK проверки са
+прибрани в secondary collapsible секция, за да не потъва реалният next move.
 
 Практическа go-live оценка:
 

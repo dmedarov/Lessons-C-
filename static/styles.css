@@ -2562,6 +2562,76 @@ select {
   font-size: 0.82rem;
 }
 
+.readiness-summary__focus {
+  display: grid;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+}
+
+.readiness-summary__eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.readiness-summary__focus-list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.readiness-summary__focus-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  color: var(--ink-strong);
+  font-size: 0.82rem;
+}
+
+.readiness-summary__focus-item strong {
+  font-size: 0.84rem;
+}
+
+.readiness-summary__focus-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.readiness-summary__focus-status--fail {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.readiness-summary__focus-status--warn {
+  color: var(--warning-strong);
+  background: var(--warning-soft);
+}
+
+.readiness-summary__focus-status--pass {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.readiness-summary__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .readiness-summary--pass {
   border-color: var(--success-border);
   background: var(--success-soft);
@@ -2580,6 +2650,32 @@ select {
 .readiness-list {
   display: grid;
   gap: var(--sp-2);
+}
+
+.readiness-pass-group {
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.readiness-pass-group summary {
+  cursor: pointer;
+  color: var(--ink-strong);
+  font-size: 0.84rem;
+  font-weight: 700;
+  list-style: none;
+}
+
+.readiness-pass-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.readiness-pass-group__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
 }
 
 .readiness-item {

@@ -369,7 +369,9 @@ operations assistant for internal mobility**, което е:
   there is only one active `fleet_admin`, keeping the two-admin continuity rule
   visible before full go-live. The same runtime panel now also surfaces
   restore-drill freshness from `.fleetflow/restore-drill-ok.json`, so Control
-  Tower and `make go-live-check` share one source of truth.
+  Tower and `make go-live-check` share one source of truth. Outstanding
+  blockers/warnings are rendered first, while pass checks stay collapsible and
+  secondary to reduce operator noise.
 - PostgreSQL image is pinned to major version 16 by default; do not use
   `latest` against a persistent production volume without a planned dump/restore
   major upgrade.

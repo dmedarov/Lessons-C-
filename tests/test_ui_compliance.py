@@ -877,14 +877,24 @@ def test_admin_production_readiness_panel_is_present_and_secret_safe() -> None:
     assert 'id="productionReadinessList"' in html
     assert "function loadProductionReadiness()" in app_js
     assert "function renderProductionReadiness()" in app_js
+    assert "function sortedReadinessItems(items = [])" in app_js
+    assert "function readinessItemMarkup(item)" in app_js
+    assert "function readinessFocusMarkup(items = [])" in app_js
     assert "function readinessCountsText(failed, warnings)" in app_js
     assert "function readinessNextStep(item)" in app_js
     assert 'apiFetch("/ops/readiness"' in app_js
     assert '"readiness.notReady": "Има блокери преди live"' in i18n_js
+    assert '"readiness.focusTitle": "Най-важното сега"' in i18n_js
+    assert '"readiness.focusClear": "Няма открити runtime блокери; останалите проверки са за справка."' in i18n_js
+    assert '"readiness.passedToggle": "Проверени проверки ({count})"' in i18n_js
     assert '"readiness.next.cors": "Замени example/wildcard с реалния production домейн."' in i18n_js
     assert '"readiness.next.admin_redundancy": "Добави втори активен fleet_admin за continuity."' in i18n_js
     assert '"readiness.next.restore_drill": "Пусни `make prod-backup` и `make prod-restore-drill BACKUP=...`, за да има свеж restore marker."' in i18n_js
     assert '"readiness.warnings.one": "{count} бележка"' in i18n_js
+    assert ".readiness-summary__focus" in styles
+    assert ".readiness-summary__focus-list" in styles
+    assert ".readiness-pass-group" in styles
+    assert ".readiness-pass-group__list" in styles
     assert ".readiness-item--fail span" in styles
     assert ".readiness-item__next" in styles
     assert "SECRET_KEY" not in html

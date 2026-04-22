@@ -1536,6 +1536,12 @@ function readinessStatusClass(status) {
   return "readiness-item--fail";
 }
 
+function readinessStatusPriority(status) {
+  if (status === "fail") return 0;
+  if (status === "warn") return 1;
+  return 2;
+}
+
 function readinessCountsText(failed, warnings) {
   const blockerText = t(failed === 1 ? "readiness.blockers.one" : "readiness.blockers.many", { count: failed });
   const warningText = t(warnings === 1 ? "readiness.warnings.one" : "readiness.warnings.many", { count: warnings });
@@ -1549,6 +1555,49 @@ function readinessNextStep(item) {
     return t("readiness.next.default");
   }
   return t(key);
+}
+
+function sortedReadinessItems(items = []) {
+  return [...items].sort((a, b) => {
+    const statusDelta = readinessStatusPriority(a.status) - readinessStatusPriority(b.status);
+    if (statusDelta !== 0) return statusDelta;
+    const requiredDelta = Number(Boolean(b.required)) - Number(Boolean(a.required));
+    if (requiredDelta !== 0) return requiredDelta;
+    return String(a.label || "").localeCompare(String(b.label || ""), "bg");
+  });
+}
+
+function readinessItemMarkup(item) {
+  return `
+    <article class="readiness-item ${readinessStatusClass(item.status)}">
+      <div>
+        <strong>${escapeHtml(item.label)}</strong>
+        <p>${escapeHtml(item.detail)}</p>
+        ${readinessNextStep(item) ? `<p class="readiness-item__next">${escapeHtml(readinessNextStep(item))}</p>` : ""}
+      </div>
+      <span>${escapeHtml(t(`readiness.status.${item.status}`))}</span>
+    </article>
+  `;
+}
+
+function readinessFocusMarkup(items = []) {
+  const topItems = items.filter((item) => item.status !== "pass").slice(0, 3);
+  if (!topItems.length) {
+    return `<p class="readiness-summary__note">${escapeHtml(t("readiness.focusClear"))}</p>`;
+  }
+  return `
+    <div class="readiness-summary__focus">
+      <p class="readiness-summary__eyebrow">${escapeHtml(t("readiness.focusTitle"))}</p>
+      <ul class="readiness-summary__focus-list" aria-label="${escapeHtml(t("readiness.focusTitle"))}">
+        ${topItems.map((item) => `
+          <li class="readiness-summary__focus-item">
+            <span class="readiness-summary__focus-status readiness-summary__focus-status--${item.status}">${escapeHtml(t(`readiness.status.${item.status}`))}</span>
+            <strong>${escapeHtml(item.label)}</strong>
+          </li>
+        `).join("")}
+      </ul>
+    </div>
+  `;
 }
 
 function renderProductionReadiness() {
@@ -1570,6 +1619,9 @@ function renderProductionReadiness() {
 
   const failed = data.items.filter((item) => item.status === "fail").length;
   const warnings = data.items.filter((item) => item.status === "warn").length;
+  const sortedItems = sortedReadinessItems(data.items);
+  const outstandingItems = sortedItems.filter((item) => item.status !== "pass");
+  const passedItems = sortedItems.filter((item) => item.status === "pass");
   const summaryKey = data.ready ? (warnings ? "readiness.readyWithWarnings" : "readiness.ready") : "readiness.notReady";
   const summaryClass = data.ready ? (warnings ? "readiness-summary--warn" : "readiness-summary--pass") : "readiness-summary--fail";
 
@@ -1577,17 +1629,23 @@ function renderProductionReadiness() {
   els.productionReadinessSummary.innerHTML = `
     <strong>${escapeHtml(t(summaryKey))}</strong>
     <span>${escapeHtml(readinessCountsText(failed, warnings))}</span>
+    ${readinessFocusMarkup(sortedItems)}
   `;
-  els.productionReadinessList.innerHTML = data.items.map((item) => `
-    <article class="readiness-item ${readinessStatusClass(item.status)}">
-      <div>
-        <strong>${escapeHtml(item.label)}</strong>
-        <p>${escapeHtml(item.detail)}</p>
-        ${readinessNextStep(item) ? `<p class="readiness-item__next">${escapeHtml(readinessNextStep(item))}</p>` : ""}
-      </div>
-      <span>${escapeHtml(t(`readiness.status.${item.status}`))}</span>
-    </article>
-  `).join("");
+  els.productionReadinessList.innerHTML = `
+    ${outstandingItems.map((item) => readinessItemMarkup(item)).join("")}
+    ${
+      passedItems.length
+        ? `
+          <details class="readiness-pass-group">
+            <summary>${escapeHtml(t("readiness.passedToggle", { count: passedItems.length }))}</summary>
+            <div class="readiness-pass-group__list">
+              ${passedItems.map((item) => readinessItemMarkup(item)).join("")}
+            </div>
+          </details>
+        `
+        : ""
+    }
+  `;
   renderOutboundNotificationStatus();
 }
 

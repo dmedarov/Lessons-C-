@@ -100,7 +100,9 @@ also includes `make prod-check`, a fresh `make prod-backup`,
 `make prod-restore-drill BACKUP=...` and a green
 `make go-live-check APP_URL=http://127.0.0.1:8001`. Runtime `/ops/readiness`
 now exposes the same restore-drill freshness as a dedicated admin-visible
-signal, so the Control Tower panel and shell cutover gate use one truth. The
+signal, so the Control Tower panel and shell cutover gate use one truth.
+Outstanding blockers/warnings render first and the pass checks stay secondary,
+so the operator sees the next real cutover move immediately. The
 latest Docker artifact was
 pushed as `dmedarov/fleetflow:latest`, digest
 `sha256:96ef7229f656b5993653aab20ad7db4ebc78d6cc6215e8d07c2cb060070a2853`.

@@ -77,6 +77,9 @@
 - Production operator next steps: readiness blocker/warning картите показват
   кратък конкретен следващ ход за CORS, DB password/URL, backup/admin/NetFleet
   и други cutover настройки, вместо само статус.
+- Calm readiness hierarchy: Control Tower показва първо outstanding blockers и
+  warnings, а проверените OK проверки са secondary/collapsible, за да не
+  заглушават следващия ход.
 - Pickup location: служителят вижда къде да вземе колата само за своя одобрена/активна резервация.
 - Status bar-ът показва чакащи, активни курсове и реално свободни коли (активни коли минус активни курсове).
 - Реален месечен календарен изглед за планиране и натоварване по дни.

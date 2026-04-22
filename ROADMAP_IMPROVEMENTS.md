@@ -2335,6 +2335,21 @@ If time is limited, execute items 1-4 before any new feature work.
 - **Verification:** `node --check static/i18n.js`; `pytest tests/test_app.py
   tests/test_ui_compliance.py tests/test_prod_readiness.py -q` -> 125 passed.
 
+### 2026-04-23 - Calm readiness ordering in Control Tower
+
+- **Goal:** Keep production readiness actionable instead of visually flat.
+- **UX:** The Control Tower readiness panel now surfaces outstanding
+  blockers/warnings first and moves pass checks into a collapsible secondary
+  section.
+- **Implementation:** `static/app.js` now sorts readiness items by status and
+  criticality, renders a compact "Най-важното сега" summary, and keeps checked
+  items behind a `details` disclosure. `static/styles.css` adds the matching
+  calm hierarchy styling.
+- **Docs/tests:** README, ROADMAP, Production User Guide, UI/UX audit and
+  Executive Code Summary now describe the quieter readiness hierarchy.
+- **Verification:** `node --check static/app.js`; `node --check static/i18n.js`;
+  `pytest tests/test_ui_compliance.py -q` -> 50 passed.
+
 ### 2026-04-21 - Admin users density and readiness next steps
 
 - **Goal:** Improve pre-production operator polish without adding new modules.
