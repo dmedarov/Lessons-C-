@@ -130,18 +130,21 @@ Employee Suggested Booking Hero вече е shipped: показва се сам�
 
 **Цел:** admin има full control, но интерфейсът остава подреден.
 
-1. Започва от Fleet Pulse и production readiness.
+1. Започва от Control Tower next-focus hero, Fleet Pulse и production
+   readiness.
 2. Вижда overdue returns като първи next signal, после Decision Rail и
    Reception Rail, когато има operational работа.
-3. Управлява потребители, роли, автомобили, blackout-и, NetFleet ключ и
+3. Hero картата показва един primary ход и кратък insight list, преди admin да
+   отвори settings/forms.
+4. Управлява потребители, роли, автомобили, blackout-и, NetFleet ключ и
    production settings.
-4. Коригира email/GSM от бутона **Контакт** в user картата; всяка промяна
+5. Коригира email/GSM от бутона **Контакт** в user картата; всяка промяна
    остава в audit историята.
-5. Импортира служители от таблица с `Име / Фамилия / GSM`, без да записва
+6. Импортира служители от таблица с `Име / Фамилия / GSM`, без да записва
    чип/тахограф данни в FleetFlow.
-6. За role change и admin handoff добавя причина, за да има audit trail.
-7. Използва `make go-live-check` и Admin readiness panel преди live.
-8. Тества SMTP/Teams от Notifications секцията и следи delivery резултата без
+7. За role change и admin handoff добавя причина, за да има audit trail.
+8. Използва `make go-live-check` и Admin readiness panel преди live.
+9. Тества SMTP/Teams от Notifications секцията и следи delivery резултата без
    да вижда secret стойности.
 
 **Надеждност:**

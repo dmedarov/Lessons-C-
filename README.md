@@ -63,6 +63,9 @@
 - Timeline-first reservations: employee/approver/reception/admin виждат lifecycle cards преди таблицата, с действия само според ролята и secondary table fallback.
 - Role-aware calendar: operational календарът за `fleet_reception` показва approved handoffs и active returns от глобалния snapshot, независимо от филтъра на таблицата.
 - Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола, `X/Y` свежи GPS позиции и compact Fleet Intelligence insight-и.
+- Admin Next Focus Hero: Control Tower започва с hero-level next-focus карта с
+  един primary action, status badge и тих `InsightList`, така че admin вижда
+  едновременно следващия ход и контекста защо той е приоритетен.
 - NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а. UI показва last-seen/freshness label, разграничава "ключът липсва" от "NetFleet временно не отговаря" и прави ясно дали локацията е надеждна за вземане на автомобила; reception вижда локация за approved/active handoff коли.
 - Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string, включително warning ако има само един active `fleet_admin`.
 - Production operator next steps: readiness blocker/warning картите показват

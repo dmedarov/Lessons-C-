@@ -72,6 +72,9 @@ handoffs, the calendar comes after the handoff desk, and the reservation ledger
 is demoted to tertiary context. Full admin now lands on a cleaner Control Tower
 order where Fleet Pulse, next focus and production readiness appear before the
 settings/forms stack.
+The next-focus block itself is now closer to a premium operator card than a
+generic dashboard tile: one primary move, one status badge and a short insight
+list that explains why the action matters right now.
 
 Admin employee maintenance is now repeatable: the Admin UI can paste the source
 employee table, use `Име + Фамилия + GSM`, create/update `employee` accounts,

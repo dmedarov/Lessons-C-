@@ -57,10 +57,10 @@ def test_static_assets_are_cache_busted_in_templates() -> None:
     assert "NO_CACHE_ASSET_EXTENSIONS" in app_py
     for template in ("templates/index.html", "templates/admin.html"):
         html = _read(template)
-        assert "/static/styles.css?v=20260422-reception-desk" in html
-        assert "/static/i18n.js?v=20260422-reception-desk" in html
-        assert "/static/app.js?v=20260422-reception-desk" in html
-        assert "/static/theme.js?v=20260422-reception-desk" in html
+        assert "/static/styles.css?v=20260422-next-focus" in html
+        assert "/static/i18n.js?v=20260422-next-focus" in html
+        assert "/static/app.js?v=20260422-next-focus" in html
+        assert "/static/theme.js?v=20260422-next-focus" in html
         assert 'src="/static/i18n.js"' not in html
         assert 'src="/static/app.js"' not in html
 
@@ -171,7 +171,15 @@ def test_intent_driven_summary_exposes_one_primary_next_action() -> None:
     for template in ("templates/index.html", "templates/admin.html"):
         html = _read(template)
         assert 'id="nextSignalActions" aria-label="Следващ ход"' in html
+    admin_html = _read("templates/admin.html")
+    assert 'id="nextFocusCard"' in admin_html
+    assert 'id="nextSignalBadge"' in admin_html
+    assert 'id="nextSignalInsights"' in admin_html
+    assert admin_html.index('id="nextFocusCard"') < admin_html.index('id="modeCard"')
     assert "function setIntentActions(actions = [])" in app_js
+    assert "function setNextFocusBadge(label = \"\", tone = \"muted\")" in app_js
+    assert "function setNextFocusInsights(items = [])" in app_js
+    assert "function operationalNextFocusInsights({ pending, approved, overdueReturns, activeTrips })" in app_js
     assert 'data-primary-intent="true"' in app_js
     assert 'name: "review-pending", labelKey: "intent.action.reviewPending", primary: true' in app_js
     assert 'name: "book-now", labelKey: "intent.action.bookNow", primary: true' in app_js
@@ -187,7 +195,12 @@ def test_intent_driven_summary_exposes_one_primary_next_action() -> None:
     assert '"ui.surface.decisionDesk": "Decision Desk"' in i18n_js
     assert '"ui.surface.handoffDesk": "Handoff Desk"' in i18n_js
     assert '"ui.surface.employeeDesk": "Моят курс / Нова заявка"' in i18n_js
+    assert '"summary.nextFocus.badge.decide": "Решение"' in i18n_js
+    assert '"summary.nextFocus.readinessFailInsight": "{count} live блокера остават отворени."' in i18n_js
     assert 'els.modeHeading.textContent = t("ui.surface.employeeDesk");' in app_js
+    assert ".summary-card--hero" in styles
+    assert ".summary-card__header" in styles
+    assert ".summary-insight-list" in styles
     assert ".summary-card__actions .btn" in styles
     assert "min-height: 44px;" in styles
 

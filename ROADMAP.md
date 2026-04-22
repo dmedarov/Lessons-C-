@@ -184,8 +184,10 @@ operations assistant for internal mobility**, което е:
   reservations ledger е tertiary context. Production readiness панелът вече е
   в main admin rail след Fleet Pulse и next focus, преди decision/settings
   потока.
-- Next: Admin Control Tower next-focus strip refinement, then vanilla JS module
-  split.
+- Shipped: Admin Next Focus Hero refinement. Control Tower вече използва
+  HeroActionCard + InsightList композиция: един водещ ход, status badge и до
+  три тихи operational сигнала под него, без да се пипа lifecycle логиката.
+- Next: vanilla JS module split.
 
 ## Phase 5: Production Discipline
 

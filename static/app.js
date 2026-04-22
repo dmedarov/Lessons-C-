@@ -186,7 +186,9 @@ const els = {
   modeHeading: document.getElementById("modeHeading"),
   modeCopy: document.getElementById("modeCopy"),
   nextSignalTitle: document.getElementById("nextSignalTitle"),
+  nextSignalBadge: document.getElementById("nextSignalBadge"),
   nextSignalCopy: document.getElementById("nextSignalCopy"),
+  nextSignalInsights: document.getElementById("nextSignalInsights"),
   nextSignalActions: document.getElementById("nextSignalActions"),
   reservationSearch: document.getElementById("reservationSearch"),
   reservationStartDate: document.getElementById("reservationStartDate"),
@@ -1580,6 +1582,52 @@ function setIntentActions(actions = []) {
     .join("");
 }
 
+function setNextFocusBadge(label = "", tone = "muted") {
+  if (!els.nextSignalBadge) return;
+  if (!label) {
+    els.nextSignalBadge.textContent = "";
+    els.nextSignalBadge.className = "status-pill status-pill--muted hidden";
+    return;
+  }
+  els.nextSignalBadge.className = `status-pill status-pill--${tone}`;
+  els.nextSignalBadge.textContent = label;
+  els.nextSignalBadge.classList.remove("hidden");
+}
+
+function setNextFocusInsights(items = []) {
+  if (!els.nextSignalInsights) return;
+  const visibleItems = items.filter(Boolean).slice(0, 3);
+  toggleHidden(els.nextSignalInsights, !visibleItems.length);
+  els.nextSignalInsights.innerHTML = visibleItems
+    .map((item) => `<li class="summary-insight-list__item">${escapeHtml(item)}</li>`)
+    .join("");
+}
+
+function readinessCounts() {
+  const items = state.productionReadiness?.items || [];
+  return {
+    failed: items.filter((item) => item.status === "fail").length,
+    warnings: items.filter((item) => item.status === "warn").length,
+  };
+}
+
+function operationalNextFocusInsights({ pending, approved, overdueReturns, activeTrips }) {
+  const insights = [];
+  if (overdueReturns) insights.push(t("summary.nextFocus.overdueInsight", { count: overdueReturns }));
+  if (pending) insights.push(t("summary.nextFocus.pendingInsight", { count: pending }));
+  if (approved) insights.push(t("summary.nextFocus.handoffInsight", { count: approved }));
+  if (activeTrips) insights.push(t("summary.nextFocus.activeInsight", { count: activeTrips }));
+  if (isFullAdmin()) {
+    const { failed, warnings } = readinessCounts();
+    if (failed) {
+      insights.unshift(t("summary.nextFocus.readinessFailInsight", { count: failed }));
+    } else if (warnings) {
+      insights.push(t("summary.nextFocus.readinessWarnInsight", { count: warnings }));
+    }
+  }
+  return insights;
+}
+
 function updateSummary() {
   if (!state.currentUser) {
     els.modeHeading.textContent = "Влез в системата";
@@ -1588,6 +1636,8 @@ function updateSummary() {
     els.nextSignalCopy.textContent = state.hasAdmin
       ? "Влез с наличен профил, за да заредиш данните."
       : "Създай първия fleet admin, за да инициализираш системата.";
+    setNextFocusBadge(t("summary.nextFocus.badge.setup"), "muted");
+    setNextFocusInsights([]);
     setIntentActions([]);
     return;
   }
@@ -1611,7 +1661,10 @@ function updateSummary() {
       els.modeHeading.textContent = t("ui.surface.handoffDesk");
       els.modeCopy.textContent = "Първо просрочени връщания, после предаване на ключове и документи.";
     }
+    const baseInsights = operationalNextFocusInsights({ pending, approved, overdueReturns, activeTrips });
     if (canManageTripHandoff() && overdueReturns) {
+      setNextFocusBadge(t("summary.nextFocus.badge.overdue"), "danger");
+      setNextFocusInsights(baseInsights);
       els.nextSignalTitle.textContent = receptionTitle("receptionOverdueReturnTitle", overdueReturns);
       els.nextSignalCopy.textContent = t("intent.receptionOverdueReturnCopy");
       setIntentActions([
@@ -1621,6 +1674,8 @@ function updateSummary() {
       return;
     }
     if (canApproveReservations() && pending) {
+      setNextFocusBadge(t("summary.nextFocus.badge.decide"), "warning");
+      setNextFocusInsights(baseInsights);
       els.nextSignalTitle.textContent = t("intent.adminDecisionTitle", { count: pending });
       els.nextSignalCopy.textContent = t("intent.adminDecisionCopy");
       setIntentActions([
@@ -1630,6 +1685,8 @@ function updateSummary() {
       return;
     }
     if (canManageTripHandoff() && approved) {
+      setNextFocusBadge(t("summary.nextFocus.badge.handoff"), "success");
+      setNextFocusInsights(baseInsights);
       els.nextSignalTitle.textContent = receptionTitle("receptionApprovedTitle", approved);
       els.nextSignalCopy.textContent = t("intent.receptionApprovedCopy");
       setIntentActions([
@@ -1639,6 +1696,8 @@ function updateSummary() {
       return;
     }
     if (canManageTripHandoff() && activeTrips) {
+      setNextFocusBadge(t("summary.nextFocus.badge.active"), "warning");
+      setNextFocusInsights(baseInsights);
       els.nextSignalTitle.textContent = receptionTitle("receptionActiveTitle", activeTrips);
       els.nextSignalCopy.textContent = t("intent.receptionActiveCopy");
       setIntentActions([
@@ -1647,6 +1706,8 @@ function updateSummary() {
       ]);
       return;
     }
+    setNextFocusBadge(t("summary.nextFocus.badge.calm"), "muted");
+    setNextFocusInsights(baseInsights);
     els.nextSignalTitle.textContent = t("intent.adminCalmTitle");
     els.nextSignalCopy.textContent = t("intent.adminCalmCopy");
     setIntentActions(isFullAdmin() ? [{ name: "view-fleet", labelKey: "intent.action.viewFleet", primary: true }] : []);
@@ -1664,6 +1725,8 @@ function updateSummary() {
   els.modeHeading.textContent = t("ui.surface.employeeDesk");
   els.modeCopy.textContent = "Личен изглед с ясна история на заявките, активните курсове и нотификациите, които те касаят.";
   if (activeTrip) {
+    setNextFocusBadge(t("summary.nextFocus.badge.active"), "warning");
+    setNextFocusInsights([t("summary.nextFocus.employeeActiveInsight")]);
     els.nextSignalTitle.textContent = t("intent.employeeActiveTitle");
     els.nextSignalCopy.textContent = t("intent.employeeActiveCopy", { end: formatDateTime(activeTrip.end_time) });
     setIntentActions([
@@ -1672,6 +1735,8 @@ function updateSummary() {
     return;
   }
   if (nextApproved) {
+    setNextFocusBadge(t("summary.nextFocus.badge.ready"), "success");
+    setNextFocusInsights([t("summary.nextFocus.employeeApprovedInsight")]);
     els.nextSignalTitle.textContent = t("intent.employeeApprovedTitle");
     els.nextSignalCopy.textContent = t("intent.employeeApprovedCopy", { start: formatDateTime(nextApproved.start_time) });
     setIntentActions([
@@ -1680,6 +1745,8 @@ function updateSummary() {
     return;
   }
   if (pendingRequest) {
+    setNextFocusBadge(t("summary.nextFocus.badge.decide"), "warning");
+    setNextFocusInsights([t("summary.nextFocus.employeePendingInsight")]);
     els.nextSignalTitle.textContent = t("intent.employeePendingTitle");
     els.nextSignalCopy.textContent = t("intent.employeePendingCopy", { start: formatDateTime(pendingRequest.start_time) });
     setIntentActions([
@@ -1687,6 +1754,8 @@ function updateSummary() {
     ]);
     return;
   }
+  setNextFocusBadge(t("summary.nextFocus.badge.calm"), "muted");
+  setNextFocusInsights([t("summary.nextFocus.employeeFreeInsight")]);
   els.nextSignalTitle.textContent = t("intent.employeeFreeTitle");
   els.nextSignalCopy.textContent = t("intent.employeeFreeCopy");
   setIntentActions([

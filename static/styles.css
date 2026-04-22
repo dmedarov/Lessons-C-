@@ -2372,6 +2372,49 @@ select {
   min-height: 180px;
 }
 
+.summary-card--hero {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 90%, var(--brand) 10%), var(--surface-strong));
+  border-color: color-mix(in srgb, var(--brand) 22%, var(--line-strong));
+}
+
+.summary-card--support {
+  background: var(--surface-raised);
+}
+
+.summary-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.summary-insight-list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.summary-insight-list__item {
+  padding-left: var(--sp-4);
+  position: relative;
+  color: var(--ink);
+}
+
+.summary-insight-list__item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand) 60%, var(--warning) 40%);
+}
+
 .summary-card__actions {
   display: flex;
   flex-wrap: wrap;
