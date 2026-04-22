@@ -49,6 +49,9 @@
 - Role surface naming: `fleet_admin` работи в **Control Tower**, `fleet_approver`
   в **Decision Desk**, `fleet_reception` в **Handoff Desk**, а employee вижда
   **Моят курс / Нова заявка**.
+- Accepted next UX direction: employee става suggestion-first, approver/reception
+  стават board-first, admin става pulse-first; manual forms, tables and settings
+  остават налични, но не са първият cognitive load.
 - Admin Decision Rail: `/admin` започва с най-спешните pending заявки, директни approve/reject действия и bulk approve за роли с право на решение, преди таблицата.
 - Reception Rail: `/admin` показва одобрените курсове за предаване и активните курсове за връщане най-горе за `fleet_reception`/`fleet_admin`, с директни start/return действия преди таблицата; след approval reception получава отделен handoff сигнал `Курс чака ключове`.
 - Timeline-first reservations: employee/approver/reception/admin виждат lifecycle cards преди таблицата, с действия само според ролята и secondary table fallback.

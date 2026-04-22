@@ -253,6 +253,63 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   before the next database-heavy slice so bootstrap SQL, runtime upgrades and
   Alembic head cannot drift silently.
 
+### Accepted Apple/NASA/Tesla surface blueprint (2026-04-22)
+
+This is the accepted subset of the "internal tool Apple/NASA/Tesla would
+approve" proposal. Treat it as the next product direction, but execute it as
+small, reversible UI slices.
+
+**Accepted now:**
+
+1. **Employee = suggestion-first hero**
+   - Current Trip Hero remains first when a trip exists.
+   - If no approved/active trip exists, show a Suggested Booking Hero above
+     the manual form.
+   - Manual booking form remains available, but becomes fallback/change mode,
+     not the first cognitive load.
+2. **Approver = Decision Desk**
+   - Decision Rail/cards own the first viewport.
+   - Table and filters are secondary "open all" tools.
+   - Keep GSM, purpose, requested time and car visible in the card.
+3. **Reception = Handoff Desk**
+   - Overdue returns always outrank normal handoffs.
+   - Approved handoffs show pickup/GPS context where permitted.
+   - Calendar moves below the operational rail.
+4. **Admin = Control Tower**
+   - Fleet Pulse, next operational focus and readiness summary come before
+     users/fleet/settings.
+   - Admin remains powerful, but settings must not be the first impression.
+5. **Component contracts**
+   - `HeroActionCard`: title, subtitle, status, one primary action, optional
+     secondary action.
+   - `DecisionCard`: requester, date/time, car, GSM, approve/reject.
+   - `HandoffCard`: car, due/overdue state, pickup state, start/return.
+   - `PulseStrip`, `InsightList`, `NextBusyDayCard` remain compact and
+     text-backed.
+
+**Deferred until after controlled production pilot:**
+
+- Full `static/app.js` module split. It is still desired, but do it only after
+  role-first surface hierarchy is stable, or when a new change would otherwise
+  require broad edits in the monolith. Keep it vanilla modules and no bundler.
+- Materialized intelligence snapshots / heavy analytics. Keep Fleet
+  Intelligence explainable and lightweight until real usage proves the need.
+
+**Rejected for now:**
+
+- React/Vue/framework rewrite, frontend build pipeline, animated landing page,
+  decorative visual effects, heavy BI dashboard, GPS tracking workflows, AI
+  chat, or extra role sprawl before live usage demands it.
+
+**Implementation order:**
+
+1. Employee Suggested Booking Hero + clearer "change/manual" fallback.
+2. Approver first-viewport Decision Desk density pass.
+3. Reception first-viewport Handoff Desk density pass, with overdue first.
+4. Admin Control Tower next-focus strip.
+5. Playwright screenshots for all four role-first surfaces.
+6. Only then consider vanilla module extraction for render helpers.
+
 ### 99/100 Premium Robust Production Gate
 
 This is the exact gate for upgrading the readiness claim from controlled pilot

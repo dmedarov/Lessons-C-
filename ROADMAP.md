@@ -125,6 +125,29 @@ operations assistant for internal mobility**, което е:
 ### Goal
 Да изглежда спокойно, точно и high-trust, с проверими Apple/NASA/USWDS guardrails.
 
+### Accepted Product Leap
+
+Следващата UI/UX вълна е **surface hierarchy**, не нова функционална маса.
+Приемаме blueprint-а в тази форма:
+
+- **Employee:** suggestion-first hero. Current Trip Hero остава първи, когато
+  има approved/active курс; ако няма курс, Suggested Booking Hero става първи,
+  а manual form/table/calendar слизат надолу като fallback/context.
+- **Approver:** **Decision Desk** е board-first. Първият viewport показва
+  pending decision cards с GSM, цел, автомобил и approve/reject; таблицата е
+  secondary "виж всички", не landing surface.
+- **Reception:** **Handoff Desk** е overdue-first. Просрочено връщане е първи
+  сигнал, после approved handoffs с pickup/GPS context, после календар.
+- **Admin:** **Control Tower** е pulse-first. Fleet Pulse, next operational
+  focus и readiness warnings са над users/fleet/settings.
+- **Components:** приемаме HeroActionCard, DecisionCard, HandoffCard,
+  PulseStrip, InsightList и NextBusyDayCard като product contracts, но без
+  frontend framework и без build step.
+
+Отлагаме големия frontend module split до след стабилен production pilot или
+до първата UI промяна, която реално стане рискована в `static/app.js`. Той
+остава vanilla JS modules, без React rewrite.
+
 ### Scope
 - отделни admin и employee surfaces
 - ясна visual hierarchy
@@ -135,11 +158,15 @@ operations assistant for internal mobility**, което е:
 - Apple HIG layout/buttons/accessibility правила: 44 px touch targets,
   press/focus states, no overlap, readable hierarchy, resilient larger text
 - NASA-inspired palette и 508/WCAG contrast matrix
+- surface names and layout hierarchy: **Моят курс / Нова заявка**,
+  **Decision Desk**, **Handoff Desk**, **Control Tower**
 
 ### Success metric
 - employee може да направи заявка без обучение
 - admin може да одобрява и управлява флота без да “лови” действия из интерфейса
 - UI change не влиза без screenshots, keyboard pass и contrast evidence
+- first viewport не е table-first за нито една роля
+- всяка роля има един доминиращ next move, без competing primary actions
 
 ## Phase 5: Production Discipline
 

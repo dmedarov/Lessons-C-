@@ -20,6 +20,14 @@ UI naming за production handoff:
 - `fleet_reception`: **Handoff Desk**
 - `employee`: **Моят курс / Нова заявка**
 
+Следващият accepted UI план не променя permissions; променя само first
+viewport hierarchy:
+
+- employee: Current Trip Hero или Suggested Booking Hero преди manual form;
+- approver: Decision cards преди таблица;
+- reception: overdue returns, после handoffs, после календар;
+- admin: Fleet Pulse + next focus + readiness преди settings.
+
 Никоя роля не вижда реални infrastructure secrets: NetFleet key, DB password,
 `SECRET_KEY`, webhook-и и tokens никога не се echo-ват в UI.
 
