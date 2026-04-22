@@ -64,15 +64,15 @@ routers/
   cars.py                    fleet CRUD + telemetry proxy/config + blackout windows
   notifications.py           user inbox
   ops.py                     admin-only production readiness preflight
-  reservations.py            964-line full lifecycle state machine and reservation query surface
+  reservations.py            1004-line full lifecycle state machine and reservation query surface
   users.py                   user CRUD + password change + admin handoff
 templates/
   index.html                 employee surface
   admin.html                 admin surface
 static/
-  app.js                     4391-line SPA logic; split before next large UI package
+  app.js                     4814-line SPA logic; split before next large UI package
   i18n.js                    Bulgarian UI copy dictionary + interpolation
-  styles.css                 3233-line design system stylesheet with responsive cockpit UI
+  styles.css                 3485-line design system stylesheet with responsive cockpit UI
 alembic/                     migration scripts
 tests/test_app.py            Core FastAPI TestClient regression cases
 e2e/test_browser_smoke.py    Optional Playwright browser smoke + screenshots
@@ -243,8 +243,8 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
 - PostgreSQL migration smoke, backup and restore posture still need a clear
   operator workflow.
 - The monolithic `static/app.js` should be split before the frontend grows much
-  further; it is now 4391 lines and `static/styles.css` is 3233 lines.
-- `routers/reservations.py` is now 964 lines and carries too many concerns:
+  further; it is now 4814 lines and `static/styles.css` is 3485 lines.
+- `routers/reservations.py` is now 1004 lines and carries too many concerns:
   creation, conflict checks, lifecycle transitions, suggestions, bulk decisions,
   listing and export. Keep endpoints stable, but extract service modules before
   adding more reservation behavior.
@@ -305,7 +305,7 @@ small, reversible UI slices.
 
 1. Employee Suggested Booking Hero + clearer "change/manual" fallback. ✅
    shipped 2026-04-22
-2. Approver first-viewport Decision Desk density pass.
+2. Approver first-viewport Decision Desk density pass. ✅ shipped 2026-04-22
 3. Reception first-viewport Handoff Desk density pass, with overdue first.
 4. Admin Control Tower next-focus strip.
 5. Playwright screenshots for all four role-first surfaces.
@@ -380,7 +380,7 @@ Use it before choosing the next implementation task.
 | Product model | Role-separated pool process is clear: employee, approver, reception, admin. | Extra roles/features can make the app feel like ERP. | Preserve the four-role model; add permissions only when a real pool workflow requires them. |
 | Backend API | FastAPI routers, auth rebinding, refresh rotation, readiness and audit trail are strong. | `routers/reservations.py` has too many responsibilities. | Extract reservation services in small slices without changing routes or schemas. |
 | Frontend | Intent-driven cockpit, rails, timeline and NetFleet context are already premium. | `static/app.js` is too large for safe autonomous edits. | Create module boundaries before the next large UI addition. |
-| CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies risky token pairs and density on key role surfaces. | 3233-line stylesheet still makes overlap regressions easy. | Keep density evidence green, then split component CSS if churn continues. |
+| CSS/design system | Responsive cockpit styling and compliance principles exist, and Chromium now verifies risky token pairs and density on key role surfaces. | 3485-line stylesheet still makes overlap regressions easy. | Keep density evidence green, then split component CSS if churn continues. |
 | Database | Alembic production path and PostgreSQL smoke exist. | Runtime bootstrap/upgrades in `db.py` can drift from migrations. | Add schema parity tests for SQLite bootstrap, PostgreSQL bootstrap and Alembic head. |
 | E2E evidence | Playwright smoke now runs separate public, contrast, employee, approver, admin, mobile, reception, overdue-return, responsive density and destructive recovery checks. | Manual screen-reader and real production URL evidence are still external. | Add configured/unconfigured NetFleet screenshots and record real cutover smoke. |
 | NetFleet | Server-side key handling, scoped employee/reception pickup context and freshness wording are correct. | Real operators may still want an address/geocoding layer later. | Keep GPS read-only; consider address enrichment only after live use proves it helps. |
@@ -1951,11 +1951,11 @@ belong to `fleet_reception` or `fleet_admin`, not employee.
 
 ### 9.3 Admin decision rail
 
-**Status:** Started on 2026-04-20. Admin surface now renders
-`#decisionRail` before the bulk action bar/table, promotes the top 3 pending
-reservations by start time, exposes direct approve/reject actions per card and
-provides an "Одобри всички" action that selects the full pending queue before
-using the existing bulk approval flow.
+**Status:** Shipped and hardened on 2026-04-22. Admin surface now renders
+`#decisionRail` before the reservation module, promotes pending reservations by
+start time, exposes requester GSM/reason/urgency and direct approve/reject
+actions per card. The rail-level bulk action selects the pending queue and
+focuses the action bar; it no longer silently runs approve-all.
 
 - **Goal:** Admin starts with the top 3 pending decisions and batch action,
   while the full table becomes secondary.
@@ -2280,7 +2280,7 @@ from the last 60 minutes instead of raw NetFleet events.
    flow, employee pickup location after approval and reception handoff location
    with the real key configured, plus the calm fallback when it is absent.
 5. **10.3 Split `static/app.js` into modules** - do this before large frontend
-   additions; the file is already 4374 lines.
+   additions; the file is already 4814 lines.
 6. **10.4 reservation service extraction** - keep endpoints stable while
     moving lifecycle/domain logic out of the router.
 7. **5.5 Playwright e2e + 5.9 comprehensive tests** - browser-level confidence
@@ -2412,7 +2412,7 @@ If time is limited, execute items 1-4 before any new feature work.
   made mobile KPI cards a compact 3-column status strip so useful fleet
   context appears earlier.
 - **Cache freshness:** bumped versioned static URLs to
-  `20260422-suggested-hero`.
+  `20260422-decision-desk`.
 - **Role surface names:** the next safe UI hierarchy step starts with stable
   names from the blueprint: `Control Tower`, `Decision Desk`, `Handoff Desk`
   and `Моят курс / Нова заявка`, without moving permissions or lifecycle logic.
@@ -2466,8 +2466,8 @@ If time is limited, execute items 1-4 before any new feature work.
   fresh backup/restore drill evidence, checked Dependabot alert, real CORS
   domain, at least two active admins, observed NetFleet connectivity and one
   monitored live week without high-severity flow defects.
-- **Code size snapshot:** 15,776 production app/script/template/style lines;
-  21,427 code lines with automated tests/e2e; 27,963 tracked project lines
+- **Code size snapshot:** 16,132 production app/script/template/style lines;
+  21,814 code lines with automated tests/e2e; 28,085 tracked project lines
   including docs/config/workflows.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
@@ -2812,9 +2812,9 @@ If time is limited, execute items 1-4 before any new feature work.
   approved reservation into a Current Trip Hero with one primary view action,
   moving the most important trip out of the table without giving employee
   start/return transition control.
-- **Phase 9.3 started:** Admin surface now promotes the top 3 pending
-  decisions into a Decision Rail before the table, with direct approve/reject
-  actions and a bulk approve path for the whole pending queue.
+- **Phase 9.3 shipped/hardened:** Admin/approver surface now promotes pending
+  decisions into a Decision Rail before the reservation module, with direct
+  approve/reject actions and a safer bulk-select -> action-bar path.
 - **Phase 9.4 started:** Admin surface now includes Fleet Pulse and optional
   NetFleet live GPS coordinates via Admin UI DB setting or runtime env.
   Employee free-mode booking now has one-tap quick-booking through the same
@@ -3246,6 +3246,26 @@ Five independent improvements shipped as one coherent commit:
   `/reservations/suggest` fetch, edit fallback, pending signal and i18n keys.
   Playwright employee smoke asserts the hero is visible before booking and
   hidden after a pending request is created.
+
+### 2026-04-22 — Approver Decision Desk board-first pass
+
+- **Goal:** Make `fleet_approver` land on a real decision surface instead of a
+  table/filter module.
+- **UX:** `#decisionRail` now renders before `#reservationsDeck`; pure
+  approvers see Decision Desk cards first and the table is hidden from the
+  first viewport. Cards show requester, GSM, reason/goal, car, time window and
+  urgency text.
+- **Safety:** The rail-level bulk button is now **Избери всички**, not direct
+  approve-all. It selects pending reservations and focuses the bulk action bar;
+  actual approve/reject still requires the explicit bar action and reject still
+  requires a reason.
+- **Data:** The rail merges the operational reservation snapshot with the
+  current pending reservation list and de-duplicates by id, so it is not
+  accidentally emptied by table filters/search or load-order timing.
+- **Evidence:** UI compliance assertions cover placement, reason/urgency copy,
+  safe select-all behavior and hidden table fallback for approvers. Browser
+  smoke now asserts Decision Rail appears before `#reservationsDeck`, includes
+  GSM/reason text and keeps keyboard selection tied to the bulk action bar.
 
 ### 2026-04-19 — Items 2.10–2.12: blackout edit, car notes, test notification (commit `16443ad`)
 

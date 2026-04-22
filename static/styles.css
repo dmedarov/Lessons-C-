@@ -2652,12 +2652,25 @@ select {
   background: var(--surface-strong);
 }
 
+body[data-role="fleet_approver"] .decision-rail:not(.reception-rail) {
+  margin-top: 0;
+  padding: clamp(var(--sp-4), 3vw, var(--sp-6));
+  border-color: color-mix(in srgb, var(--brand) 28%, var(--line-strong));
+  box-shadow: var(--shadow-sm);
+}
+
 .decision-rail__header,
 .decision-card {
   display: flex;
   justify-content: space-between;
   gap: var(--sp-4);
   align-items: flex-start;
+}
+
+.decision-rail__hint {
+  margin: calc(var(--sp-2) * -1) 0 0;
+  color: var(--muted);
+  max-width: 760px;
 }
 
 .decision-rail__actions,
@@ -2685,6 +2698,34 @@ select {
   background: var(--surface-muted);
 }
 
+.decision-card--decision {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-raised) 92%, var(--brand) 8%), var(--surface-raised));
+}
+
+.decision-card__main {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.decision-card__topline {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.decision-card__car,
+.decision-card__window {
+  margin: 0;
+}
+
+.decision-card__window {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .decision-card p {
   margin: var(--sp-1) 0;
 }
@@ -2694,8 +2735,21 @@ select {
   overflow-wrap: anywhere;
 }
 
+.decision-card__purpose--missing {
+  color: var(--warning);
+}
+
 .decision-rail__more {
   margin: 0;
+}
+
+.reservations-deck--decision-secondary .glass-card__header,
+.reservations-deck--decision-secondary .mission-filter {
+  opacity: 0.88;
+}
+
+.reservations-deck--decision-secondary .table-wrap {
+  display: none;
 }
 
 .session-summary,

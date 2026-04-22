@@ -57,10 +57,10 @@ def test_static_assets_are_cache_busted_in_templates() -> None:
     assert "NO_CACHE_ASSET_EXTENSIONS" in app_py
     for template in ("templates/index.html", "templates/admin.html"):
         html = _read(template)
-        assert "/static/styles.css?v=20260422-suggested-hero" in html
-        assert "/static/i18n.js?v=20260422-suggested-hero" in html
-        assert "/static/app.js?v=20260422-suggested-hero" in html
-        assert "/static/theme.js?v=20260422-suggested-hero" in html
+        assert "/static/styles.css?v=20260422-decision-desk" in html
+        assert "/static/i18n.js?v=20260422-decision-desk" in html
+        assert "/static/app.js?v=20260422-decision-desk" in html
+        assert "/static/theme.js?v=20260422-decision-desk" in html
         assert 'src="/static/i18n.js"' not in html
         assert 'src="/static/app.js"' not in html
 
@@ -383,19 +383,26 @@ def test_admin_decision_rail_promotes_pending_queue_before_table() -> None:
     i18n_js = _read("static/i18n.js")
     styles = _read("static/styles.css")
     assert 'id="decisionRail" aria-labelledby="decisionRailTitle" aria-live="polite"' in html
-    assert html.index('id="decisionRail"') < html.index('id="bulkActionBar"')
+    assert html.index('id="decisionRail"') < html.index('id="reservationsDeck"')
     assert "function renderDecisionRail()" in app_js
-    assert 'const visible = pendingItems.slice(0, 3);' in app_js
+    assert "function pendingDecisionItems()" in app_js
+    assert "[...state.pulseReservations, ...state.reservations]" in app_js
+    assert "const seen = new Set();" in app_js
+    assert 'const visibleLimit = state.currentRole === "fleet_approver" ? 5 : 3;' in app_js
     assert 'data-decision-rail-select-all' in app_js
     assert 'setAllPendingReservationsSelected(true);' in app_js
-    assert 'bulkReservationDecision("approve").catch' in app_js
+    assert 'els.bulkApproveBtn?.focus();' in app_js
     assert 'data-decision-card="${item.id}"' in app_js
     assert "requesterGsmLine(item)" in app_js
+    assert "decisionPurposeLine(item)" in app_js
+    assert "function decisionUrgency(item)" in app_js
     assert 't("decisionRail.eyebrow")' in app_js
-    assert '"decisionRail.approveAll": "Одобри всички"' in i18n_js
+    assert '"decisionRail.selectAll": "Избери всички"' in i18n_js
+    assert '"decisionRail.reasonMissing": "Причина: не е въведена. Провери заявителя преди решение."' in i18n_js
     assert '"decisionRail.emptyCopy": "Опашката е чиста.' in i18n_js
     assert ".decision-rail__actions .btn" in styles
     assert ".decision-card__actions .action-btn" in styles
+    assert ".reservations-deck--decision-secondary .table-wrap" in styles
 
 
 def test_reception_rail_promotes_key_handoff_before_table() -> None:

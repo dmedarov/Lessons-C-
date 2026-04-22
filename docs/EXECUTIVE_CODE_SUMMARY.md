@@ -27,9 +27,9 @@ committed ключ трябва първо да се ротира при дос�
 
 | Metric | Value |
 | --- | ---: |
-| Production app/script/template/style lines | 15,776 |
-| Code lines including tests/e2e | 21,427 |
-| Tracked project lines including docs/config/workflows | 27,963 |
+| Production app/script/template/style lines | 16,132 |
+| Code lines including tests/e2e | 21,814 |
+| Tracked project lines including docs/config/workflows | 28,085 |
 | Tracked relevant project files | 90 |
 | Automated test functions | 190 |
 | FastAPI route declarations | 57 |
@@ -62,9 +62,11 @@ employee lifecycle buttons, scoped pickup location, 24-hour time, `dd.mm.yyyy`
 dates, text-backed statuses, and recovery paths for destructive actions. Recent
 hardening also distinguishes "NetFleet key missing" from "NetFleet configured
 but temporarily unavailable", showing **Няма връзка** instead of misleading
-setup copy. Approver bulk selection now behaves as one reliable control across
-timeline and table: Space on the timeline checkbox mirrors the table checkbox,
-selected card/row state and bulk action bar immediately.
+setup copy. Approver Decision Desk is now board-first: pending decision cards
+sit before the reservation module and show GSM, reason, car, time window and
+urgency text. The rail-level bulk button only selects pending requests and
+focuses the action bar; approve/reject still require the explicit bulk action,
+and reject requires a reason.
 
 Admin employee maintenance is now repeatable: the Admin UI can paste the source
 employee table, use `Име + Фамилия + GSM`, create/update `employee` accounts,

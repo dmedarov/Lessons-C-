@@ -162,6 +162,7 @@ const els = {
   model: document.getElementById("model"),
   carsGrid: document.getElementById("carsGrid"),
   reservationsTableBody: document.getElementById("reservationsTableBody"),
+  reservationsDeck: document.getElementById("reservationsDeck"),
   reservationsTimeline: document.getElementById("reservationsTimeline"),
   decisionRail: document.getElementById("decisionRail"),
   receptionRail: document.getElementById("receptionRail"),
@@ -1184,6 +1185,7 @@ function renderShell() {
   const fullAdmin = isFullAdmin();
   const operationalMode = isOperationalRole();
   const adminSurface = state.surface === "admin";
+  document.body.dataset.role = state.currentRole || "anonymous";
   let employeeAdminDenied = false;
   try {
     employeeAdminDenied = sessionStorage.getItem("fleetflow.employeeAdminDenied") === "1";
@@ -1210,6 +1212,10 @@ function renderShell() {
   toggleHidden(els.handoffForm?.closest(".glass-card"), !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.blackoutForm?.closest(".glass-card"), !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.blackoutsList?.closest(".glass-card"), !authenticated || !fullAdmin || !adminSurface);
+  els.reservationsDeck?.classList.toggle(
+    "reservations-deck--decision-secondary",
+    authenticated && adminSurface && state.currentRole === "fleet_approver"
+  );
 
   if (!state.hasAdmin && !authenticated) {
     els.sessionBadge.className = "status-pill status-pill--muted";
@@ -2529,6 +2535,54 @@ function renderReservationFlow(cars, canBulk) {
   `;
 }
 
+function pendingDecisionItems() {
+  const sources = isOperationalRole()
+    ? [...state.pulseReservations, ...state.reservations]
+    : state.reservations;
+  const seen = new Set();
+  return sources
+    .filter((item) => item.status === "pending")
+    .filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    })
+    .sort((a, b) => {
+      const aStart = new Date(a.start_time);
+      const bStart = new Date(b.start_time);
+      return aStart - bStart;
+    });
+}
+
+function decisionUrgency(item) {
+  const now = new Date();
+  const start = new Date(item.start_time);
+  const hoursUntilStart = (start - now) / 36e5;
+  if (hoursUntilStart <= 4) {
+    return {
+      className: "status-pill--danger",
+      label: t("decisionRail.urgency.now"),
+    };
+  }
+  if (hoursUntilStart <= 24) {
+    return {
+      className: "status-pill--warning",
+      label: t("decisionRail.urgency.today"),
+    };
+  }
+  return {
+    className: "status-pill--muted",
+    label: t("decisionRail.urgency.normal"),
+  };
+}
+
+function decisionPurposeLine(item) {
+  const purpose = item.purpose?.trim();
+  return purpose
+    ? `<p class="decision-card__purpose"><strong>${escapeHtml(t("decisionRail.reasonLabel"))}</strong> ${escapeHtml(purpose)}</p>`
+    : `<p class="decision-card__purpose decision-card__purpose--missing">${escapeHtml(t("decisionRail.reasonMissing"))}</p>`;
+}
+
 function renderDecisionRail() {
   if (!els.decisionRail) return;
   const showRail = canApproveReservations() && surface === "admin" && state.token;
@@ -2550,10 +2604,9 @@ function renderDecisionRail() {
   }
 
   const cars = carMap();
-  const pendingItems = state.reservations
-    .filter((item) => item.status === "pending")
-    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-  const visible = pendingItems.slice(0, 3);
+  const pendingItems = pendingDecisionItems();
+  const visibleLimit = state.currentRole === "fleet_approver" ? 5 : 3;
+  const visible = pendingItems.slice(0, visibleLimit);
   const extraCount = Math.max(pendingItems.length - visible.length, 0);
 
   if (!pendingItems.length) {
@@ -2575,22 +2628,27 @@ function renderDecisionRail() {
         <p class="section-copy">${escapeHtml(t("decisionRail.copy"))}</p>
       </div>
       <div class="decision-rail__actions">
-        <button class="btn btn--primary" type="button" data-decision-rail-select-all>${escapeHtml(t("decisionRail.approveAll"))}</button>
+        <button class="btn btn--primary" type="button" data-decision-rail-select-all>${escapeHtml(t("decisionRail.selectAll"))}</button>
         <button class="btn btn--ghost" type="button" data-intent-action="review-pending">${escapeHtml(t("intent.action.reviewPending"))}</button>
       </div>
     </div>
+    <p class="decision-rail__hint">${escapeHtml(t("decisionRail.hint"))}</p>
     <div class="decision-rail__list">
       ${visible.map((item) => {
         const car = cars.get(item.car_id);
         const carLabel = car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: item.car_id });
+        const urgency = decisionUrgency(item);
         return `
-          <article class="decision-card" data-decision-card="${item.id}">
-            <div>
-              <strong>${escapeHtml(item.employee_name)}</strong>
+          <article class="decision-card decision-card--decision" data-decision-card="${item.id}">
+            <div class="decision-card__main">
+              <div class="decision-card__topline">
+                <strong>${escapeHtml(item.employee_name)}</strong>
+                <span class="status-pill ${urgency.className}">${escapeHtml(urgency.label)}</span>
+              </div>
               ${requesterGsmLine(item)}
-              <p>${escapeHtml(carLabel)}</p>
-              <span class="muted">${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</span>
-              ${item.purpose ? `<p class="decision-card__purpose">${escapeHtml(item.purpose)}</p>` : ""}
+              <p class="decision-card__car">${escapeHtml(carLabel)}</p>
+              <p class="decision-card__window">${formatDateTime(item.start_time)} → ${formatDateTime(item.end_time)}</p>
+              ${decisionPurposeLine(item)}
             </div>
             <div class="decision-card__actions">
               <button class="action-btn action-btn--approve" type="button" data-reservation-action="approve" data-id="${item.id}" aria-label="${t("action.approve")} резервация #${item.id}">${t("action.approve")}</button>
@@ -4682,7 +4740,11 @@ document.addEventListener("click", (event) => {
 
   if (decisionRailSelectAllButton) {
     setAllPendingReservationsSelected(true);
-    bulkReservationDecision("approve").catch((error) => showMessage(t("action.bulkApprove"), error.message));
+    renderReservations();
+    window.setTimeout(() => {
+      els.bulkActionBar?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      els.bulkApproveBtn?.focus();
+    }, 120);
     return;
   }
   if (intentButton) {

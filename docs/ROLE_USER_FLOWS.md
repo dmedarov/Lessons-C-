@@ -83,18 +83,22 @@ Employee Suggested Booking Hero вече е shipped: показва се сам�
 **Цел:** одобряващият решава заявки, без да администрира системата.
 
 1. Отваря `/admin`.
-2. Вижда Decision Rail с най-важните pending заявки.
+2. Вижда Decision Desk cards като първи работен блок, преди таблицата.
 3. Вижда GSM номера на заявителя, когато е въведен.
-4. Одобрява директно или отказва с причина.
-5. При празна причина dialog-ът показва български error, маркира полето с
+4. Вижда причина/цел, автомобил, период и urgency marker без да сканира редове.
+5. Одобрява директно или отказва с причина.
+6. Bulk flow-ът първо избира заявките и показва action bar; няма директен
+   approve-all от hero бутона.
+7. При празна причина dialog-ът показва български error, маркира полето с
    `aria-invalid` и връща фокуса в textarea.
-6. След действие получава кратък success/error feedback.
-7. При нова заявка получава in-app/SMTP сигнал, ако каналът е конфигуриран.
+8. След действие получава кратък success/error feedback.
+9. При нова заявка получава in-app/SMTP сигнал, ако каналът е конфигуриран.
 
 **Надеждност:**
 
 - няма достъп до user management, NetFleet ключ и readiness;
 - няма start/return бутони;
+- таблицата не е първият cognitive load за `fleet_approver`;
 - reject recovery е покрит с Playwright screenshot
   `destructive-reject-recovery.png`.
 
@@ -199,8 +203,9 @@ Latest verification:
 
 - Не добавяй повече от един primary action на surface.
 - Не показвай таблица като първи избор, ако rail/card/timeline върши работата.
-- При approver bulk decisions timeline card и table row selection трябва да
-  останат синхронизирани, включително при keyboard-only Space activation.
+- При approver bulk decisions timeline card selection трябва да показва един
+  bulk action bar. Таблицата е скрита за чистия `fleet_approver` first viewport,
+  така че не трябва да се разчита на table checkbox като primary control.
 - Не показвай role controls на роля, която няма право да ги използва.
 - Не връщай read notifications, returned, rejected или cancelled записи в
   основния оперативен поток.

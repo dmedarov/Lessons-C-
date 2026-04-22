@@ -134,8 +134,9 @@ operations assistant for internal mobility**, което е:
   има approved/active курс; ако няма курс, Suggested Booking Hero става първи,
   а manual form/table/calendar слизат надолу като fallback/context.
 - **Approver:** **Decision Desk** е board-first. Първият viewport показва
-  pending decision cards с GSM, цел, автомобил и approve/reject; таблицата е
-  secondary "виж всички", не landing surface.
+  pending decision cards с GSM, причина, автомобил, urgency и approve/reject;
+  bulk flow-ът първо избира, после потвърждава approve/reject. Таблицата е
+  secondary context, не landing surface.
 - **Reception:** **Handoff Desk** е overdue-first. Просрочено връщане е първи
   сигнал, после approved handoffs с pickup/GPS context, после календар.
 - **Admin:** **Control Tower** е pulse-first. Fleet Pulse, next operational
@@ -173,8 +174,11 @@ operations assistant for internal mobility**, което е:
 - Shipped: Employee Suggested Booking Hero за free mode без pending/approved/
   active работа. Hero-то използва `/reservations/suggest`, показва car/time/
   reason, дава един primary **Резервирай сега** и secondary **Промени**.
-- Next: Approver Decision Desk density pass, Reception Handoff Desk density
-  pass, Admin Control Tower next-focus strip.
+- Shipped: Approver Decision Desk board-first pass. Decision Rail вече е пред
+  reservations модула, показва GSM/причина/urgency и прави bulk select без
+  директно bulk approve.
+- Next: Reception Handoff Desk density pass, Admin Control Tower next-focus
+  strip, then vanilla JS module split.
 
 ## Phase 5: Production Discipline
 
@@ -301,9 +305,9 @@ operations assistant for internal mobility**, което е:
   reception handoff desk, or full admin cockpit depending on role. Irrelevant
   panels such as user management, NetFleet key and readiness stay hidden unless
   the role is `fleet_admin`.
-- Admin Decision Rail: `/admin` now promotes the top 3 pending decisions above
-  the bulk bar/table, with direct approve/reject actions and a bulk approve
-  path for roles with approval capability.
+- Approver Decision Desk: `/admin` now promotes pending decision cards above
+  the reservation module, with GSM, reason, urgency, direct approve/reject and
+  a safer bulk-select -> action-bar approve/reject path.
 - Reception Rail: `/admin` now promotes approved handoffs and checked-out
   returns above the lifecycle cards/table for `fleet_reception` and
   `fleet_admin`, using the global operational snapshot so the next key/document
@@ -386,8 +390,9 @@ operations assistant for internal mobility**, което е:
   destructive-action recovery screenshots for reject required-reason, return
   confirmation, user deactivate, role change, admin handoff and blackout
   deactivate. Approver keyboard bulk-selection now has browser evidence:
-  Space on a timeline checkbox synchronizes the duplicate table checkbox,
-  selected card/row state and bulk action bar. The dialog system uses custom
+  Space on a timeline checkbox selects the decision and reveals the bulk action
+  bar; pure approver first viewport no longer depends on a table checkbox.
+  The dialog system uses custom
   validation (`novalidate`) so errors are Bulgarian, focused and
   `aria-invalid` instead of browser-native validation bubbles. Role-by-role
   user flows are documented in `docs/ROLE_USER_FLOWS.md`; production readiness
@@ -473,10 +478,10 @@ visible modules.
 
 ### Current risks to address before broad production use
 
-- **Frontend size:** `static/app.js` is 4374 lines and `static/styles.css` is
-  3233 lines. New UX work should stop growing the monolith and start extracting
+- **Frontend size:** `static/app.js` is 4814 lines and `static/styles.css` is
+  3485 lines. New UX work should stop growing the monolith and start extracting
   stable vanilla modules.
-- **Reservation router size:** `routers/reservations.py` is 964 lines and owns
+- **Reservation router size:** `routers/reservations.py` is 1004 lines and owns
   creation, conflict checks, suggestions, lifecycle, bulk decisions, listing
   and export. Split service logic after the next small hardening pass.
 - **Schema duality:** `db.py` still supports runtime `CREATE TABLE IF NOT

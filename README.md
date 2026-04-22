@@ -55,7 +55,10 @@
 - Employee Suggested Booking Hero: когато служителят няма pending/approved/active
   работа, първият operational блок предлага най-близкия добър слот с един
   primary action **Резервирай сега** и secondary **Промени** към manual form.
-- Admin Decision Rail: `/admin` започва с най-спешните pending заявки, директни approve/reject действия и bulk approve за роли с право на решение, преди таблицата.
+- Approver Decision Desk: `/admin` за `fleet_approver` започва с board-first
+  decision cards преди таблица/филтри, показва GSM, причина, автомобил, период
+  и urgency marker. Bulk flow-ът първо избира заявките, после изисква отделно
+  потвърждение за approve/reject; отказът винаги изисква причина.
 - Reception Rail: `/admin` показва одобрените курсове за предаване и активните курсове за връщане най-горе за `fleet_reception`/`fleet_admin`, с директни start/return действия преди таблицата; след approval reception получава отделен handoff сигнал `Курс чака ключове`.
 - Timeline-first reservations: employee/approver/reception/admin виждат lifecycle cards преди таблицата, с действия само според ролята и secondary table fallback.
 - Role-aware calendar: operational календарът за `fleet_reception` показва approved handoffs и active returns от глобалния snapshot, независимо от филтъра на таблицата.
