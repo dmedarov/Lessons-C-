@@ -84,7 +84,7 @@ user's email/GSM from the card without rerunning the bulk import.
 ## Quality Evidence
 
 Local quality gates are strong. `make qa-premium` runs production dependency
-audit, tracked-file secret scan, Python compile, 174 pytest cases, JS syntax
+audit, tracked-file secret scan, Python compile, 181 pytest cases, JS syntax
 checks and 16 Playwright browser checks. Browser evidence covers public, employee, approver, reception
 and admin flows, responsive density, contrast guardrails, calendar/reception
 visibility, approver keyboard bulk-selection, admin contact correction and

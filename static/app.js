@@ -103,6 +103,7 @@ const els = {
   sessionMeta: document.getElementById("sessionMeta"),
   heroCaption: document.getElementById("heroCaption"),
   guidanceCard: document.getElementById("guidanceCard"),
+  notificationDeck: document.getElementById("notificationDeck"),
   reservationForm: document.getElementById("reservationForm"),
   quickBookPanel: document.getElementById("quickBookPanel"),
   quickBookBtn: document.getElementById("quickBookBtn"),
@@ -168,6 +169,7 @@ const els = {
   receptionRail: document.getElementById("receptionRail"),
   fleetPulse: document.getElementById("fleetPulse"),
   calendarStudio: document.getElementById("calendarStudio"),
+  fleetDeck: document.getElementById("fleetDeck"),
   overviewStats: document.getElementById("overviewStats"),
   currentTripHero: document.getElementById("currentTripHero"),
   suggestedBookingHero: document.getElementById("suggestedBookingHero"),
@@ -833,19 +835,40 @@ function isAwaitingPickup(item) {
   return item?.status === "approved" && !item?.checked_out_at && new Date(item.start_time) <= new Date();
 }
 
+const PRESENTATION_STATUS = {
+  checked_out: { tagClass: "checked_out", priority: 0 },
+  approved: { tagClass: "approved", priority: 1 },
+  awaiting_pickup: { tagClass: "approved", priority: 1 },
+  pending: { tagClass: "pending", priority: 2 },
+  returned: { tagClass: "returned", priority: 3 },
+  rejected: { tagClass: "rejected", priority: 4 },
+  cancelled: { tagClass: "cancelled", priority: 5 },
+};
+
 function presentationStatusKey(item) {
   return isAwaitingPickup(item) ? "awaiting_pickup" : item.status;
 }
 
-function statusTag(status) {
+function presentationStatusState(status) {
   const key = typeof status === "string" ? status : presentationStatusKey(status);
-  const className = key === "awaiting_pickup" ? "approved" : key;
-  return `<span class="status-tag status-tag--${className}">${t(`status.${key}`)}</span>`;
+  const fallback = PRESENTATION_STATUS.pending;
+  const definition = PRESENTATION_STATUS[key] || fallback;
+  return {
+    key,
+    tagClass: definition.tagClass,
+    priority: definition.priority,
+    labelKey: `status.${key}`,
+    shortLabelKey: `status.short.${key}`,
+  };
+}
+
+function statusTag(status) {
+  const presentation = presentationStatusState(status);
+  return `<span class="status-tag status-tag--${presentation.tagClass}">${t(presentation.labelKey)}</span>`;
 }
 
 function lifecycleLabel(status) {
-  const key = typeof status === "string" ? status : presentationStatusKey(status);
-  return t(`status.${key}`);
+  return t(presentationStatusState(status).labelKey);
 }
 
 function lifecycleMeter(item) {
@@ -889,13 +912,17 @@ function lifecycleMeter(item) {
 function calendarPill(item, car, options = {}) {
   const compact = Boolean(options.compact);
   const label = item.plate_number || (car ? car.plate_number : `Car ${item.car_id}`);
+  const presentation = presentationStatusState(item);
   const segment = item.calendar_segment;
   const segmentText = segment?.range && segment.kind ? t(`calendar.range${segment.kind}`) : "";
   const segmentClass = segment?.range ? ` calendar-pill--range calendar-pill--range-${segment.kind.toLowerCase()}` : "";
   const compactClass = compact ? " calendar-pill--compact" : "";
-  const visibleLabel = compact || !segmentText ? label : `${label} · ${segmentText}`;
-  const accessibleLabel = segmentText ? `${label} · ${segmentText}` : label;
-  return `<span class="calendar-pill calendar-pill--${item.status}${segmentClass}${compactClass}" title="${escapeHtml(accessibleLabel)}" aria-label="${escapeHtml(accessibleLabel)}"><span class="calendar-pill__label">${escapeHtml(visibleLabel)}</span></span>`;
+  const statusText = lifecycleLabel(item);
+  const visibleLabel = compact
+    ? `${t(presentation.shortLabelKey)} · ${label}`
+    : [label, statusText, segmentText].filter(Boolean).join(" · ");
+  const accessibleLabel = [label, statusText, segmentText].filter(Boolean).join(" · ");
+  return `<span class="calendar-pill calendar-pill--${presentation.key}${segmentClass}${compactClass}" title="${escapeHtml(accessibleLabel)}" aria-label="${escapeHtml(accessibleLabel)}"><span class="calendar-pill__label">${escapeHtml(visibleLabel)}</span></span>`;
 }
 
 function carMap() {
@@ -910,12 +937,12 @@ function operationalReservationSource() {
   return state.pulseReservations.length || state.loading.pulseReservations ? state.pulseReservations : state.reservations;
 }
 
-function carOperationalState(carId) {
-  const relevant = operationalReservationSource()
-    .filter((item) => item.car_id === carId && ["approved", "checked_out"].includes(item.status))
+function carOperationalState(car, reservations = operationalReservationSource()) {
+  const relevant = reservations
+    .filter((item) => item.car_id === car.id && ["approved", "checked_out"].includes(item.status))
     .sort((a, b) => {
-      const left = presentationStatusKey(a) === "awaiting_pickup" ? 0 : a.status === "checked_out" ? 1 : 2;
-      const right = presentationStatusKey(b) === "awaiting_pickup" ? 0 : b.status === "checked_out" ? 1 : 2;
+      const left = presentationStatusState(a).priority;
+      const right = presentationStatusState(b).priority;
       if (left !== right) return left - right;
       return new Date(a.start_time) - new Date(b.start_time);
     });
@@ -960,20 +987,26 @@ function calendarSegmentFor(index, total) {
 }
 
 function calendarItemPriority(item) {
-  const statusPriority = {
-    checked_out: 0,
-    approved: 1,
-    pending: 2,
-    returned: 3,
-    rejected: 4,
-    cancelled: 5,
-  };
+  const presentation = presentationStatusState(item);
   return [
     item.calendar_segment?.range ? 0 : 1,
-    statusPriority[item.status] ?? 9,
+    presentation.priority,
     new Date(item.start_time).getTime() || 0,
     item.id || 0,
   ];
+}
+
+function rerenderOperationalSurfaces() {
+  renderFleetPulse();
+  renderReceptionRail();
+  renderCars();
+  renderCalendar();
+  renderDayTimeline();
+}
+
+function applyPulseReservations(items = []) {
+  state.pulseReservations = items;
+  rerenderOperationalSurfaces();
 }
 
 function sortCalendarItems(items) {
@@ -1240,6 +1273,8 @@ function renderShell() {
   toggleHidden(els.passwordPanel, !authenticated);
   toggleHidden(els.summaryDeck, !authenticated);
   toggleHidden(els.guidanceCard, authenticated);
+  toggleHidden(els.notificationDeck, !authenticated);
+  toggleHidden(els.reservationsDeck, !authenticated);
   toggleHidden(els.userCreatePanel, !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.employeeImportPanel, !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.carPanel, !authenticated || !fullAdmin || !adminSurface);
@@ -1322,16 +1357,22 @@ function updateOverview() {
   const publicOverview = !state.token ? state.publicOverview : null;
   const activeCars = publicOverview?.active_cars ?? state.cars.filter((car) => car.active).length;
   const pending = publicOverview?.pending_requests ?? overviewReservations.filter((item) => item.status === "pending").length;
+  const approved = publicOverview?.approved_handoffs ?? overviewReservations.filter((item) => item.status === "approved").length;
   const activeTrips = publicOverview?.active_trips ?? overviewReservations.filter((item) => item.status === "checked_out").length;
-  const availableCars = publicOverview?.available_cars ?? Math.max(activeCars - activeTrips, 0);
+  const availableCars = publicOverview?.available_cars ?? Math.max(activeCars - approved - activeTrips, 0);
 
   const kpiPending = document.getElementById("kpiPending");
+  const kpiApproved = document.getElementById("kpiApproved");
   const kpiActive = document.getElementById("kpiActive");
   const kpiAvailable = document.getElementById("kpiAvailable");
 
   if (kpiPending) {
     kpiPending.querySelector(".stat-card__value").textContent = pending;
     kpiPending.classList.toggle("stat-card--urgent", pending > 0);
+  }
+  if (kpiApproved) {
+    kpiApproved.querySelector(".stat-card__value").textContent = approved;
+    kpiApproved.classList.toggle("stat-card--handoff", approved > 0);
   }
   if (kpiActive) {
     kpiActive.querySelector(".stat-card__value").textContent = activeTrips;
@@ -2155,6 +2196,7 @@ function renderUsers() {
 function renderCars() {
   const carsToShow = state.cars.filter((car) => (state.carFilter === "active" ? car.active : true));
   const telemetry = telemetryByPlate();
+  const reservations = operationalReservationSource();
   els.carsGrid.innerHTML = "";
 
   if (state.loading.cars) {
@@ -2176,7 +2218,7 @@ function renderCars() {
     const card = document.createElement("article");
     card.className = "car-card";
     const operationalState = car.active
-      ? carOperationalState(car.id)
+      ? carOperationalState(car, reservations)
       : { labelKey: "car.state.inactive", noteKey: "car.stateNote.inactive", tagClass: "cancelled" };
     const gps = telemetry.get(String(car.plate_number || "").trim().toUpperCase());
     const telemetryMarkup = gps
@@ -3399,28 +3441,18 @@ async function loadReservations() {
 
 async function loadFleetPulseReservations() {
   if (!state.token || !isOperationalRole()) {
-    state.pulseReservations = [];
-    renderFleetPulse();
-    renderReceptionRail();
-    renderCalendar();
-    renderDayTimeline();
+    applyPulseReservations([]);
     return;
   }
 
   setLoading("pulseReservations", true);
-  renderFleetPulse();
-  renderReceptionRail();
-  renderCalendar();
-  renderDayTimeline();
+  rerenderOperationalSurfaces();
   try {
     const data = await apiFetch("/reservations?limit=500", { headers: authHeaders() });
-    state.pulseReservations = data.items;
+    applyPulseReservations(data.items);
   } finally {
     setLoading("pulseReservations", false);
-    renderFleetPulse();
-    renderReceptionRail();
-    renderCalendar();
-    renderDayTimeline();
+    rerenderOperationalSurfaces();
   }
 }
 
@@ -4105,7 +4137,7 @@ async function handleLogout() {
   setSession(null, null);
   state.notifications = [];
   state.reservations = [];
-  state.pulseReservations = [];
+  applyPulseReservations([]);
   state.publicCalendar = [];
   await loadPublicOverview();
   await loadPublicCalendar();
@@ -4130,8 +4162,6 @@ async function handleLogout() {
   renderCurrentTripHero();
   renderSuggestedBookingHero();
   renderDecisionRail();
-  renderReceptionRail();
-  renderFleetPulse();
   renderNetfleetConfig();
   renderSmartPrefill();
   renderUsers();

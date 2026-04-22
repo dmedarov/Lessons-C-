@@ -71,9 +71,13 @@
             правата и оперативната опашка.
           </p>
 
-          <div class="stats-grid stats-grid--3" id="overviewStats">
+          <div class="stats-grid stats-grid--4" id="overviewStats">
             <article class="stat-card" id="kpiPending">
               <span class="stat-card__label">Чакащи одобрение</span>
+              <strong class="stat-card__value">0</strong>
+            </article>
+            <article class="stat-card" id="kpiApproved">
+              <span class="stat-card__label">Чака вземане</span>
               <strong class="stat-card__value">0</strong>
             </article>
             <article class="stat-card" id="kpiActive">
@@ -468,13 +472,14 @@
 
               <aside class="day-panel">
                 <div class="day-panel__header">
-                  <p class="panel__eyebrow">Selected day</p>
+                  <p class="panel__eyebrow">Избран ден</p>
                   <h3 id="selectedDateLabel">Избери ден</h3>
-                  <p class="muted" id="selectedDateMeta">Ще видиш approvals, active trips и върнати автомобили за този ден.</p>
+                  <p class="muted" id="selectedDateMeta">Ще видиш чакащи одобрение, чакащи вземане, активни курсове и върнати автомобили за този ден.</p>
                 </div>
                 <div class="legend">
                   <span><i class="legend__dot legend__dot--pending"></i> Чака одобрение</span>
-                  <span><i class="legend__dot legend__dot--approved"></i> Одобрена</span>
+                  <span><i class="legend__dot legend__dot--awaiting-pickup"></i> Чака вземане</span>
+                  <span><i class="legend__dot legend__dot--approved"></i> Одобрена резервация</span>
                   <span><i class="legend__dot legend__dot--active"></i> Активен курс</span>
                   <span><i class="legend__dot legend__dot--returned"></i> Върната</span>
                 </div>

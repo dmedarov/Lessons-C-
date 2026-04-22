@@ -281,7 +281,9 @@ def test_status_bar_reports_free_cars_not_only_active_cars() -> None:
     for template in ("templates/index.html", "templates/admin.html"):
         html = _read(template)
         assert '<span class="stat-card__label">Свободни коли</span>' in html
-    assert "Math.max(activeCars - activeTrips, 0)" in app_js
+        assert '<span class="stat-card__label">Чака вземане</span>' in html
+    assert "Math.max(activeCars - approved - activeTrips, 0)" in app_js
+    assert 'const approved = publicOverview?.approved_handoffs' in app_js
 
 
 def test_public_overview_feeds_pre_login_status_bar() -> None:
@@ -291,8 +293,10 @@ def test_public_overview_feeds_pre_login_status_bar() -> None:
     assert 'apiFetch("/public/overview")' in app_js
     assert "const publicOverview = !state.token ? state.publicOverview : null;" in app_js
     assert "publicOverview?.pending_requests" in app_js
+    assert "publicOverview?.approved_handoffs" in app_js
     assert "publicOverview?.active_trips" in app_js
     assert "publicOverview?.available_cars" in app_js
+    assert 'kpiApproved.querySelector(".stat-card__value").textContent = approved;' in app_js
     assert 'kpiAvailable.querySelector(".stat-card__value").textContent = availableCars;' in app_js
 
 
@@ -339,10 +343,16 @@ def test_car_cards_show_operational_state_not_just_pool_flag() -> None:
     styles = _read("static/styles.css")
 
     assert "function operationalReservationSource()" in app_js
-    assert "function carOperationalState(carId)" in app_js
+    assert "function presentationStatusState(status)" in app_js
+    assert "function carOperationalState(car, reservations = operationalReservationSource())" in app_js
     assert '"car.state.available": "Свободна"' in i18n_js
     assert '"car.stateNote.awaiting_pickup": "Курсът е одобрен, но колата още чака вземане от рецепция."' in i18n_js
     assert ".status-tag--available" in styles
+    assert "const reservations = operationalReservationSource();" in app_js
+    assert "carOperationalState(car, reservations)" in app_js
+    assert "function rerenderOperationalSurfaces()" in app_js
+    assert "renderFleetPulse();\n  renderReceptionRail();\n  renderCars();\n  renderCalendar();\n  renderDayTimeline();" in app_js
+    assert "function applyPulseReservations(items = [])" in app_js
 
 
 def test_employee_requests_are_prioritized_before_calendar_and_inbox() -> None:
@@ -605,6 +615,67 @@ def test_reservation_timeline_is_primary_before_table() -> None:
     assert ".reservation-flow-card__rail" in styles
 
 
+def test_public_calendar_pills_are_text_backed_for_operational_states() -> None:
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+
+    assert "const presentation = presentationStatusState(item);" in app_js
+    assert "const statusText = lifecycleLabel(item);" in app_js
+    assert '`${t(presentation.shortLabelKey)} · ${label}`' in app_js
+    assert 'calendar-pill--${presentation.key}' in app_js
+    assert ".calendar-pill--awaiting_pickup" in styles
+    assert '"status.short.awaiting_pickup": "Вземане"' in i18n_js
+    assert '"status.short.checked_out": "Активен"' in i18n_js
+
+
+def test_calendar_legend_and_priority_distinguish_awaiting_pickup_from_active_trip() -> None:
+    app_js = _read("static/app.js")
+    styles = _read("static/styles.css")
+    index_html = _read("templates/index.html")
+    admin_html = _read("templates/admin.html")
+
+    assert "const PRESENTATION_STATUS = {" in app_js
+    assert 'awaiting_pickup: { tagClass: "approved", priority: 1 }' in app_js
+    assert "const presentation = presentationStatusState(item);" in app_js
+    assert "presentation.priority" in app_js
+    assert "Избран ден" in index_html
+    assert "Избран ден" in admin_html
+    assert "чакащи одобрение, чакащи вземане, активни курсове и върнати автомобили" in index_html
+    assert "чакащи одобрение, чакащи вземане, активни курсове и върнати автомобили" in admin_html
+    assert "legend__dot--awaiting-pickup" in index_html
+    assert "legend__dot--awaiting-pickup" in admin_html
+    assert ".legend__dot--awaiting-pickup" in styles
+
+
+def test_public_surface_is_simplified_before_login_without_hiding_contextual_overview() -> None:
+    app_js = _read("static/app.js")
+    e2e = _read("e2e/test_browser_smoke.py")
+
+    assert 'notificationDeck: document.getElementById("notificationDeck")' in app_js
+    assert 'fleetDeck: document.getElementById("fleetDeck")' in app_js
+    assert "toggleHidden(els.notificationDeck, !authenticated);" in app_js
+    assert "toggleHidden(els.reservationsDeck, !authenticated);" in app_js
+    assert "toggleHidden(els.guidanceCard, authenticated);" in app_js
+    assert "toggleHidden(els.summaryDeck, !authenticated);" in app_js
+    assert "public-desktop.png" in e2e
+    assert 'expect(desktop_page.locator("#notificationDeck")).to_be_hidden()' in e2e
+    assert 'expect(desktop_page.locator("#reservationsDeck")).to_be_hidden()' in e2e
+    assert 'expect(desktop_page.locator("#calendarGrid")).to_contain_text("Вземане ·"' in e2e
+
+
+def test_operational_state_pipeline_is_single_source_for_pulse_driven_surfaces() -> None:
+    app_js = _read("static/app.js")
+
+    assert "function rerenderOperationalSurfaces()" in app_js
+    assert "function applyPulseReservations(items = [])" in app_js
+    assert "state.pulseReservations = items;" in app_js
+    assert "rerenderOperationalSurfaces();" in app_js
+    assert "setLoading(\"pulseReservations\", true);" in app_js
+    assert "applyPulseReservations(data.items);" in app_js
+    assert "setLoading(\"pulseReservations\", false);" in app_js
+
+
 def test_playwright_e2e_harness_is_documented_and_separate_from_unit_suite() -> None:
     makefile = _read("Makefile")
     pyproject = _read("pyproject.toml")
@@ -618,12 +689,25 @@ def test_playwright_e2e_harness_is_documented_and_separate_from_unit_suite() -> 
     assert "$(PYTHON) -m pytest e2e -q || test $$? -eq 5" in makefile
     assert "E2E_ARTIFACT_DIR" in e2e
     assert "employee-desktop.png" in e2e
+    assert "public-desktop.png" in e2e
     assert "admin-desktop.png" in e2e
     assert "admin-contact-correction.png" in e2e
     assert "approver-reject-with-gsm.png" in e2e
     assert "reception-start-return-flow.png" in e2e
     assert "employee-mobile.png" in e2e
     assert "test-results/" in gitignore
+
+
+def test_manual_keyboard_accessibility_doc_covers_all_roles() -> None:
+    doc = _read("docs/ROLE_KEYBOARD_ACCESSIBILITY.md")
+
+    assert "Public orientation" in doc
+    assert "Employee" in doc
+    assert "Approver" in doc
+    assert "Reception" in doc
+    assert "Admin" in doc
+    assert "PILOT GO" in doc
+    assert "screen-reader check" in doc
 
 
 def test_fleet_pulse_promotes_admin_executive_insights() -> None:

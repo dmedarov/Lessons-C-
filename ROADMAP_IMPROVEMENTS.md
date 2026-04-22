@@ -222,6 +222,10 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   rehearsal, fresh restore-drill marker, checked Dependabot alert, real CORS
   domain, two active admins, observed NetFleet connectivity and one monitored
   production week without high-severity role-flow defects.
+- Current launch signal is explicit: **PILOT GO** for controlled internal
+  rollout after final env + live go-live check, **STOP** for broad unattended
+  rollout until external security alerts, restore-drill evidence and the first
+  monitored live week are closed.
 
 ### Active product gaps
 
@@ -234,7 +238,16 @@ task is explicitly a refactor or a bug fix against the shipped behavior.
   destructive-action recovery proof for reject, return, user deactivate, role
   change, admin handoff and blackout deactivate. The next coverage gap is
   manual screen-reader confirmation and configured/unconfigured NetFleet
-  screenshots.
+  screenshots. Public orientation evidence now also includes a desktop public
+  screenshot with separate `Чака вземане` and hidden inbox/ledger modules.
+- The frontend now has a small but explicit state-driven operational contract:
+  pulse data is applied through a central helper and pulse-facing surfaces rerender
+  together. Keep extending this direction instead of adding new implicit reads
+  from `state.pulseReservations`.
+- Public pre-login surface is now intentionally reduced to login/setup plus
+  orientation modules (KPI strip, calendar, fleet). The next polish target is
+  evidence that this lighter surface stays clearer than the authenticated role
+  desks on desktop and mobile.
 - Production observability now has structured request logs; next hardening is
   external alert delivery and an operator-facing log retention/export decision.
 - Intelligence snapshots/materialized insights remain intentionally deferred

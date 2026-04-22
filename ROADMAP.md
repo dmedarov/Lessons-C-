@@ -187,7 +187,11 @@ operations assistant for internal mobility**, което е:
 - Shipped: Admin Next Focus Hero refinement. Control Tower вече използва
   HeroActionCard + InsightList композиция: един водещ ход, status badge и до
   три тихи operational сигнала под него, без да се пипа lifecycle логиката.
-- Next: vanilla JS module split.
+- Shipped: state-driven operational truth pass. Pulse-driven surfaces вече
+  минават през централен rerender pipeline, а presentation state-ът
+  `Чака вземане` е канонизиран в helper layer за fleet cards, calendar pills,
+  legend и priority ordering.
+- Next: manual keyboard/accessibility pass + final production URL rehearsal.
 
 ## Phase 5: Production Discipline
 
@@ -339,11 +343,15 @@ operations assistant for internal mobility**, което е:
 - Admin Intelligence Pulse: `/admin/intelligence/pulse` powers compact derived
   insights under Fleet Pulse without adding background jobs or heavy BI.
 - Pre-login public overview: `/public/overview` feeds the hero status bar with
-  aggregate pending/active/available counts before login, while detailed
-  operational records remain authenticated.
+  aggregate pending/awaiting-pickup/active/available counts before login,
+  while detailed operational records remain authenticated.
 - Pre-login public calendar: `/public/calendar` feeds month/day calendar
   occupancy before login with status, plate number and model, while requester,
   purpose, GSM, GPS, reservation ids and lifecycle actions remain authenticated.
+  The selected-day legend now distinguishes `Чака вземане` from `Активен курс`.
+  Public shell stays orientation-only before login: login/setup, KPI strip,
+  calendar and fleet remain visible, while inbox and reservation ledger stay
+  hidden until authentication.
 - NetFleet telemetry: server-side proxy reads latest GPS events by plate number
   from the admin-managed DB setting or `NETFLEET_API_KEY`; the key never
   reaches browser code and the UI never echoes the current secret. Admins see
@@ -516,17 +524,20 @@ visible modules.
 
 ## Next Recommended Slices
 
-1. Confirm GitHub Actions **Production Gates** and inspect the open GitHub
-   Dependabot alert directly; local `pip-audit` and Docker Scout evidence is
-   clean, so do not chase phantom upgrades without the alert details.
-2. Run the real production rehearsal with final `.env`, backup/restore drill
+1. Run the real production rehearsal with final `.env`, backup/restore drill
    and `make go-live-check APP_URL=<production-url>`.
+2. Confirm GitHub Actions **Production Gates** and inspect the open GitHub
+   Dependabot/secret alerts directly; local `pip-audit` and current-tree secret
+   scan are clean, so decisions now depend on the external alert details.
 3. Keep the responsive density pass green and inspect the current screenshots
    for weak hierarchy before each production handoff.
-4. Split `static/app.js` into small vanilla JS modules before the next large UI
+4. Run the manual keyboard/accessibility pass from
+   `docs/ROLE_KEYBOARD_ACCESSIBILITY.md` on the production-like stack and then
+   on the final production URL.
+5. Split `static/app.js` into small vanilla JS modules before the next large UI
    package. Suggested boundaries: API/session, shell/overview, reservations
    lifecycle, calendar, admin users/fleet/settings, notifications/dialogs.
-5. Split reservation domain logic out of `routers/reservations.py` into service
+6. Split reservation domain logic out of `routers/reservations.py` into service
    modules without changing endpoint contracts.
 6. Add session-management UI and refresh-token cleanup job after the role flows
    are stable.

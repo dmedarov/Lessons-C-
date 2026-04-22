@@ -435,22 +435,127 @@ def _seed_reception_work(server: str) -> dict:
 
 
 def test_public_orientation_surface(browser: Browser, server: str, artifact_dir: Path) -> None:
-    context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
-    page = context.new_page()
-    page.goto(f"{server}/", wait_until="domcontentloaded")
-    expect(page.locator("#kpiPending .stat-card__value")).to_have_text("0", timeout=10_000)
-    expect(page.locator("#kpiActive .stat-card__value")).to_have_text("0")
-    expect(page.locator("#kpiAvailable .stat-card__value")).to_have_text("5")
-    expect(page.locator("#calendarStudio")).to_be_visible()
-    expect(page.locator("body")).not_to_contain_text("calendar.calmDayTitle")
-    expect(page.locator("body")).not_to_contain_text("calendar.nextBusyDay")
-    expect(page.locator("body")).not_to_contain_text("Текстът не е наличен")
-    page.screenshot(path=artifact_dir / "public-mobile.png", full_page=True)
+    admin_token = _api_login(server, "admin", "AdminPass123")
+    _api_json(
+        server,
+        "/users",
+        "POST",
+        admin_token,
+        {
+            "username": "reception",
+            "display_name": "Reception Keys",
+            "password": "ReceptionPass123",
+            "role": "fleet_reception",
+        },
+    )
+    reception_token = _api_login(server, "reception", "ReceptionPass123")
+    employee_token = _api_login(server, "ivan", "IvanPass123")
+    base_start = (datetime.now().astimezone() + timedelta(minutes=30)).replace(second=0, microsecond=0)
+    approved_reservation = _api_json(
+        server,
+        "/reservations",
+        "POST",
+        employee_token,
+        {
+            "car_id": 1,
+            "start_time": base_start.isoformat(),
+            "end_time": (base_start + timedelta(hours=2)).isoformat(),
+            "purpose": "Public awaiting pickup evidence",
+        },
+    )
+    active_reservation = _api_json(
+        server,
+        "/reservations",
+        "POST",
+        employee_token,
+        {
+            "car_id": 2,
+            "start_time": base_start.isoformat(),
+            "end_time": (base_start + timedelta(hours=3)).isoformat(),
+            "purpose": "Public active evidence",
+        },
+    )
+    assert isinstance(approved_reservation, dict)
+    assert isinstance(active_reservation, dict)
+    _api_json(server, f"/reservations/{approved_reservation['id']}/approve", "POST", admin_token, {})
+    _api_json(server, f"/reservations/{active_reservation['id']}/approve", "POST", admin_token, {})
+    _api_json(server, f"/reservations/{active_reservation['id']}/start", "POST", reception_token, {"note": "Keys handed over"})
 
-    page.goto(f"{server}/admin", wait_until="domcontentloaded")
-    expect(page.locator("#kpiAvailable .stat-card__value")).to_have_text("5", timeout=10_000)
-    expect(page.locator("#sessionPanel")).to_be_hidden()
-    context.close()
+    desktop_context = browser.new_context(viewport={"width": 1440, "height": 1000})
+    mock_now = int((base_start + timedelta(minutes=15)).timestamp() * 1000)
+    desktop_page = desktop_context.new_page()
+    desktop_page.add_init_script(
+        f"""
+        (() => {{
+          const fixedNow = {mock_now};
+          const RealDate = Date;
+          class MockDate extends RealDate {{
+            constructor(...args) {{
+              if (args.length === 0) {{
+                super(fixedNow);
+              }} else {{
+                super(...args);
+              }}
+            }}
+            static now() {{
+              return fixedNow;
+            }}
+          }}
+          window.Date = MockDate;
+        }})();
+        """
+    )
+    desktop_page.goto(f"{server}/", wait_until="domcontentloaded")
+    expect(desktop_page.locator("#kpiPending .stat-card__value")).to_have_text("0", timeout=10_000)
+    expect(desktop_page.locator("#kpiApproved .stat-card__value")).to_have_text("1", timeout=10_000)
+    expect(desktop_page.locator("#kpiActive .stat-card__value")).to_have_text("1")
+    expect(desktop_page.locator("#kpiAvailable .stat-card__value")).to_have_text("3")
+    expect(desktop_page.locator("#notificationDeck")).to_be_hidden()
+    expect(desktop_page.locator("#reservationsDeck")).to_be_hidden()
+    expect(desktop_page.locator("#calendarStudio")).to_be_visible()
+    expect(desktop_page.locator("#fleetDeck")).to_be_visible()
+    expect(desktop_page.locator("#calendarGrid")).to_contain_text("Вземане ·", timeout=10_000)
+    expect(desktop_page.locator("#calendarGrid")).to_contain_text("Активен ·", timeout=10_000)
+    desktop_page.screenshot(path=artifact_dir / "public-desktop.png", full_page=True)
+    desktop_context.close()
+
+    mobile_context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
+    mobile_page = mobile_context.new_page()
+    mobile_page.add_init_script(
+        f"""
+        (() => {{
+          const fixedNow = {mock_now};
+          const RealDate = Date;
+          class MockDate extends RealDate {{
+            constructor(...args) {{
+              if (args.length === 0) {{
+                super(fixedNow);
+              }} else {{
+                super(...args);
+              }}
+            }}
+            static now() {{
+              return fixedNow;
+            }}
+          }}
+          window.Date = MockDate;
+        }})();
+        """
+    )
+    mobile_page.goto(f"{server}/", wait_until="domcontentloaded")
+    expect(mobile_page.locator("#kpiApproved .stat-card__value")).to_have_text("1", timeout=10_000)
+    expect(mobile_page.locator("#kpiActive .stat-card__value")).to_have_text("1")
+    expect(mobile_page.locator("#kpiAvailable .stat-card__value")).to_have_text("3")
+    expect(mobile_page.locator("#calendarStudio")).to_be_visible()
+    expect(mobile_page.locator("body")).not_to_contain_text("calendar.calmDayTitle")
+    expect(mobile_page.locator("body")).not_to_contain_text("calendar.nextBusyDay")
+    expect(mobile_page.locator("body")).not_to_contain_text("Текстът не е наличен")
+    mobile_page.screenshot(path=artifact_dir / "public-mobile.png", full_page=True)
+
+    mobile_page.goto(f"{server}/admin", wait_until="domcontentloaded")
+    expect(mobile_page.locator("#kpiApproved .stat-card__value")).to_have_text("1", timeout=10_000)
+    expect(mobile_page.locator("#sessionPanel")).to_be_hidden()
+    mobile_context.close()
 
 
 def test_browser_computed_contrast_guard(browser: Browser, server: str) -> None:

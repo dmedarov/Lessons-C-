@@ -1253,6 +1253,7 @@ def test_public_overview_exposes_real_counts_without_auth(client: TestClient) ->
     assert pending.json() == {
         "active_cars": 1,
         "pending_requests": 1,
+        "approved_handoffs": 0,
         "active_trips": 0,
         "available_cars": 1,
     }
@@ -1263,6 +1264,17 @@ def test_public_overview_exposes_real_counts_without_auth(client: TestClient) ->
         headers=_auth(admin),
     )
     assert approve.status_code == 200, approve.text
+
+    approved = client.get("/public/overview")
+    assert approved.status_code == 200, approved.text
+    assert approved.json() == {
+        "active_cars": 1,
+        "pending_requests": 0,
+        "approved_handoffs": 1,
+        "active_trips": 0,
+        "available_cars": 0,
+    }
+
     start = client.post(
         f"/reservations/{reservation_id}/start",
         json={"note": "Handed over"},
@@ -1275,6 +1287,7 @@ def test_public_overview_exposes_real_counts_without_auth(client: TestClient) ->
     assert active.json() == {
         "active_cars": 1,
         "pending_requests": 0,
+        "approved_handoffs": 0,
         "active_trips": 1,
         "available_cars": 0,
     }
@@ -1323,6 +1336,38 @@ def test_public_calendar_exposes_anonymized_operational_slots_without_auth(clien
         "model": "Skoda Octavia",
     }
     assert "employee_name" not in item
+
+
+def test_public_calendar_keeps_approved_not_started_visible_as_approved(client: TestClient) -> None:
+    admin = _bootstrap_admin(client)
+    _create_user(client, admin, "calendar2", "Calendar User Two", "CalendarPass123")
+    employee = _login(client, "calendar2", "CalendarPass123")
+    car_id = _create_car(client, admin, plate="CB3715AA")
+    reservation_id = _create_reservation(
+        client,
+        car_id,
+        employee,
+        "2099-05-12T09:00:00+00:00",
+        "2099-05-12T11:00:00+00:00",
+        "Office visit",
+    )
+    approve = client.post(
+        f"/reservations/{reservation_id}/approve",
+        json={"reason": "Operational approval"},
+        headers=_auth(admin),
+    )
+    assert approve.status_code == 200, approve.text
+
+    res = client.get(
+        "/public/calendar",
+        params={
+            "start": "2099-05-01T00:00:00+00:00",
+            "end": "2099-06-01T00:00:00+00:00",
+        },
+    )
+    assert res.status_code == 200, res.text
+    item = res.json()["items"][0]
+    assert item["status"] == "approved"
     assert "purpose" not in item
     assert "requester_gsm_number" not in item
     assert "id" not in item

@@ -158,11 +158,22 @@ def create_app() -> FastAPI:
                     """
                 ).fetchone()["n"]
             )
+            unavailable_cars = int(
+                conn.execute(
+                    """
+                    SELECT COUNT(DISTINCT car_id) AS n
+                    FROM reservations
+                    WHERE status='approved'
+                      AND returned_at IS NULL
+                    """
+                ).fetchone()["n"]
+            )
         return {
             "active_cars": active_cars,
             "pending_requests": pending_requests,
+            "approved_handoffs": unavailable_cars - active_trips,
             "active_trips": active_trips,
-            "available_cars": max(active_cars - active_trips, 0),
+            "available_cars": max(active_cars - unavailable_cars, 0),
         }
 
     @app.get("/public/calendar", tags=["meta"])

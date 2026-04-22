@@ -19,6 +19,15 @@ infrastructure-secret alert. Оценката 91/100 остава техниче
 production URL rehearsal, преглед на GitHub Dependabot alert-а и поне няколко
 дни наблюдение на служебния процес.
 
+Launch signal today:
+
+- **PILOT GO** за контролиран вътрешен rollout, ако final deployment env мине
+  `make go-live-check APP_URL=<production-url>` и няма отворен real secret /
+  Dependabot blocker.
+- **STOP** за broad unattended production rollout, докато не се затворят
+  външните security сигнали, не се докаже restore drill на final env и не мине
+  поне една наблюдавана седмица без high-severity role-flow дефекти.
+
 Това не е "няма какво да се счупи" оценка. Това е: core процесите, ролите,
 UI guardrails, backup/restore discipline и browser evidence са достатъчно
 зрели за първа реална употреба с внимателен операторски cutover.
@@ -216,7 +225,7 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
 - Full Playwright smoke -> 16 passed.
 - `make qa-premium` -> dependency audit, secret scan, Python compile,
-  174 pytest cases, JS syntax and 16 Playwright browser checks passed.
+  181 pytest cases, JS syntax and 16 Playwright browser checks passed.
 - PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
   containers are healthy.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` after rebuild -> `/health`,
@@ -256,6 +265,12 @@ reliable flows:
   from leaking raw translation keys after deployment;
 - literal `t("...")` calls are checked against `static/i18n.js`, and runtime
   missing translations do not expose raw implementation keys.
+- public login surface is intentionally simplified to login/setup, KPI strip,
+  calendar and fleet orientation; inbox and reservations ledger stay hidden
+  until authentication.
+- manual role keyboard pass is documented in
+  `docs/ROLE_KEYBOARD_ACCESSIBILITY.md` and should be run on the final URL
+  before broad rollout.
 
 The remaining UX risk before broad rollout is not a missing module; it is
 operational observation. Use the first week to collect where employees,
@@ -270,6 +285,8 @@ Go for controlled pilot when:
 - the GitHub Dependabot alert is inspected and resolved/accepted explicitly;
 - there are at least two active admins;
 - NetFleet key is configured or consciously postponed;
+ - public pre-login screen shows separate `Чака вземане` and does not count
+   approved-but-not-started cars as free;
 
 99/100 е честна цел едва след реален production URL rehearsal, свеж
 backup/restore drill evidence, проверен GitHub Dependabot alert, минимум двама

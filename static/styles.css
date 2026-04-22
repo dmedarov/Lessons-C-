@@ -657,6 +657,10 @@ h3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.stats-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .stat-card {
   padding: var(--sp-4);
   border-radius: var(--radius-xl);
@@ -726,6 +730,16 @@ h3 {
   opacity: 1;
 }
 .stat-card--active-trips .stat-card__value { color: var(--brand); }
+
+.stat-card--handoff {
+  border-color: var(--success-border);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--success-soft) 58%, white 42%) 0%, var(--surface-raised) 65%);
+}
+.stat-card--handoff::after {
+  background: linear-gradient(90deg, transparent, var(--success), transparent);
+  opacity: 1;
+}
+.stat-card--handoff .stat-card__value { color: var(--success); }
 
 .stat-card--available {
   border-color: var(--success-border);
@@ -1781,6 +1795,11 @@ select {
   color: var(--success);
 }
 
+.calendar-pill--awaiting_pickup {
+  background: color-mix(in srgb, var(--success-soft) 72%, white 28%);
+  color: color-mix(in srgb, var(--success) 88%, var(--brand-strong) 12%);
+}
+
 .calendar-pill--rejected {
   background: var(--danger-soft);
   color: var(--danger);
@@ -2017,6 +2036,9 @@ select {
 }
 .legend__dot--approved {
   background: var(--success);
+}
+.legend__dot--awaiting-pickup {
+  background: color-mix(in srgb, var(--success) 72%, var(--brand) 28%);
 }
 .legend__dot--rejected {
   background: var(--danger);
@@ -3453,7 +3475,18 @@ body[data-role="fleet_reception"] #calendarStudio.calendar-studio--handoff-conte
     gap: 6px;
   }
 
+  .stats-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
   .stats-grid--3 .stat-card {
+    min-height: 72px;
+    padding: 9px 8px;
+    border-radius: var(--radius-md);
+  }
+
+  .stats-grid--4 .stat-card {
     min-height: 72px;
     padding: 9px 8px;
     border-radius: var(--radius-md);
@@ -3468,6 +3501,18 @@ body[data-role="fleet_reception"] #calendarStudio.calendar-studio--handoff-conte
   }
 
   .stats-grid--3 .stat-card__value {
+    font-size: 1.2rem;
+  }
+
+  .stats-grid--4 .stat-card__label {
+    min-height: 2.2em;
+    margin-bottom: 2px;
+    font-size: 0.58rem;
+    line-height: 1.1;
+    letter-spacing: 0.05em;
+  }
+
+  .stats-grid--4 .stat-card__value {
     font-size: 1.2rem;
   }
 

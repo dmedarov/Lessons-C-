@@ -46,6 +46,9 @@
 - Approved vs active clarity: одобрен, но още непредаден автомобил се показва
   като **Чака вземане**, а не като **Активен курс**; fleet cards също
   разграничават `Свободна / Чака вземане / Активен курс / Неактивна`.
+- State-driven operational truth: pulse-driven surfaces вече минават през
+  централен render pipeline, така че Fleet Pulse, Handoff Desk, календарът и
+  fleet cards да не се разминават след refresh.
 - Employee UX priority: след login заявките/lifecycle са преди календара, формата за нова заявка е преди inbox-а, а обучителните карти се скриват, за да няма UI шум.
 - Calm default inbox/listing: employee default филтърът е **Текущи**, така че върнатите/отказаните/отменените не стоят в оперативния поток; прочетените нотификации се прибират от inbox-а.
 - Role-specific operational surfaces: `/admin` показва Decision Rail за `fleet_approver`, handoff/start/return поток за `fleet_reception`, и пълен control surface само за `fleet_admin`.
@@ -505,8 +508,9 @@ control surface, employee mobile calendar, reception handoff/calendar,
 responsive density evidence, approver keyboard bulk-selection и
 destructive-action keyboard recovery.
 При `E2E_ARTIFACT_DIR` записва:
-`public-mobile.png`, `employee-desktop.png`, `approver-desktop.png`,
-`admin-desktop.png`, `employee-mobile.png` и `reception-desktop.png`.
+`public-desktop.png`, `public-mobile.png`, `employee-desktop.png`,
+`approver-desktop.png`, `admin-desktop.png`, `employee-mobile.png` и
+`reception-desktop.png`.
 Новата calm-flow evidence вълна добавя `density-public-390.png`,
 `density-public-768.png`, `density-employee-390.png`,
 `density-approver-768.png`, `density-reception-768.png`,
@@ -545,6 +549,15 @@ FleetFlow трябва да се усеща като тих operational cockpit.
   календарен контейнер, така че day panel-ът не смалява записите до
   нечетимост на tablet/small desktop. Ако избраният ден е празен, панелът
   предлага следващия ден със запис вместо да оставя потребителя в dead end.
+  Approved, но непредадена кола се показва като **Чака вземане**, а не като
+  **Активен курс** или **Свободна**; публичният overview и публичните calendar
+  pills пазят същата логика с кратък текстов статус.
+- **Public/Admin orientation:** преди login KPI strip-ът вече показва отделно
+  `Чака вземане`, така че approved handoff-ите не се губят между `Активни` и
+  `Свободни`.
+- **Public surface simplification:** преди login остават login/setup, KPI
+  ориентация, календар и флот; inbox и reservations ledger не се показват, за
+  да няма вътрешен operational шум преди автентикация.
 - **Static assets:** HTML, CSS и JS се сервират с `no-cache` guard, а
   templates използват versioned static URLs, за да не се показват i18n ключове
   от стар browser cache след deploy. Липсващите literal `t("...")` ключове
@@ -555,6 +568,8 @@ FleetFlow трябва да се усеща като тих operational cockpit.
 
 Подробният role-by-role документ е
 [`docs/ROLE_USER_FLOWS.md`](docs/ROLE_USER_FLOWS.md).
+Keyboard/accessibility handoff за pilot cutover е в
+[`docs/ROLE_KEYBOARD_ACCESSIBILITY.md`](docs/ROLE_KEYBOARD_ACCESSIBILITY.md).
 
 ## Go-live regression discipline
 
@@ -610,7 +625,7 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 
 Последна premium QA проверка:
 `make qa-premium` -> passed (dependency audit, secret scan, Python compile,
-174 pytest cases, JS syntax, 16 Playwright browser checks). `make smoke-live
+181 pytest cases, JS syntax, 16 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
 `pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,
