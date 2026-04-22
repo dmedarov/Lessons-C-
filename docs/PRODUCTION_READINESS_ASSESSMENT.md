@@ -40,6 +40,8 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 
 1. **Production environment**
    - real `.env` е генериран с `make setup` и няма dev/default secret-и;
+   - `APP_PORT` е избран съзнателно и локалните smoke/helper команди сочат
+     към същия URL;
    - `APP_ENV=production`;
    - `CORS_ALLOW_ORIGINS` съдържа реалния домейн, без wildcard/example;
    - `DATABASE_URL` сочи към PostgreSQL с реалната генерирана парола;

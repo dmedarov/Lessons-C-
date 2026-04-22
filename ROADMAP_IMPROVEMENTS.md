@@ -2367,6 +2367,19 @@ If time is limited, execute items 1-4 before any new feature work.
 - **UX:** The Control Tower readiness panel gets a concrete next step for
   recipient coverage instead of a generic default hint.
 
+### 2026-04-23 - Seamless installation docs and APP_PORT defaults
+
+- **Goal:** Remove the last small install/setup ambiguities before real
+  operator handoff.
+- **Tooling:** `Makefile` now derives the default local `APP_URL` from
+  `APP_PORT` in `.env`, so `make prod`, `make smoke-live`, `make go-live-check`
+  and `make cutover-report` point to the same local URL unless the operator
+  explicitly overrides `APP_URL`.
+- **Docs:** README, Production User Guide, `.env.example` and the cutover/readiness
+  docs now describe one happy path: `make setup`, edit `CORS_ALLOW_ORIGINS`
+  (and optionally `APP_PORT`), `make prod`, `make logs`, then the smoke/cutover
+  helpers.
+
 ### 2026-04-23 - Shared restore-drill runtime readiness
 
 - **Goal:** Remove the last quiet gap between shell-based cutover evidence and

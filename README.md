@@ -139,16 +139,20 @@ docker compose down
 
 ## Production setup simplification
 
-Production flow-ът е умишлено кратък:
+Production flow-ът е умишлено кратък и вече е подреден като happy path без
+скрити решения:
 
 ```bash
 git clone <repo>
 cd <repo>
 make setup
+# редактирай само CORS_ALLOW_ORIGINS; ако 8000 е зает, смени APP_PORT
 make prod
+make logs
 ```
 
-Това е всичко за първо стартиране.
+Това е всичко за първо стартиране. `make logs` ти дава еднократния bootstrap
+token за първия admin, ако още няма такъв.
 
 `make setup`:
 
@@ -157,7 +161,9 @@ make prod
 - генерира автоматично `POSTGRES_PASSWORD` с 32-byte random password;
 - обновява `DATABASE_URL`, така че паролата в него да съвпада с реалния
   `POSTGRES_PASSWORD`;
-- не презаписва съществуващ `.env`, за да не счупи работеща инсталация.
+- не презаписва съществуващ `.env`, за да не счупи работеща инсталация;
+- оставя `APP_PORT=8000` по подразбиране, но можеш спокойно да го смениш преди
+  първото `make prod`, ако портът е зает.
 
 `make prod`:
 
@@ -169,13 +175,24 @@ make prod
   (`POSTGRES_IMAGE`, default `postgres:16`), защото
   `latest` може да направи несъвместим major upgrade на съществуващ volume;
 - изпълнява Alembic миграциите преди старта на приложението;
-- оставя UI-то на `http://localhost:${APP_PORT:-8000}`.
+- вдига UI-то на `http://localhost:<APP_PORT>` и печата същия URL в терминала;
+- работи в синхрон с `make smoke-live`, `make go-live-check` и
+  `make cutover-report`, които по подразбиране ползват същия `APP_PORT` от
+  `.env`.
 
-Преди live deployment смени поне:
+Преди live deployment обикновено стига да промениш само:
 
 ```env
 CORS_ALLOW_ORIGINS=https://your-real-domain.example
 ```
+
+Ако `8000` е зает локално:
+
+```env
+APP_PORT=8001
+```
+
+След това просто пусни пак `make prod`.
 
 GPS сигналите могат да се включат по два начина:
 
@@ -274,8 +291,9 @@ make logs   # app logs, включително bootstrap token при fresh inst
 make down   # спира production/dev compose контейнерите
 make prod-check # проверява .env преди live cutover
 make go-live-check # final gate: env + restore-drill evidence + release-check + live smoke
-make cutover-report APP_URL=http://127.0.0.1:8001 # markdown snapshot за cutover evidence
-CUTOVER_ADMIN_USERNAME=admin CUTOVER_ADMIN_PASSWORD=... make cutover-report APP_URL=http://127.0.0.1:8001 # optional /ops/readiness snapshot
+make smoke-live # локален smoke check на URL-а от APP_PORT в .env
+make cutover-report # локален markdown snapshot за cutover evidence
+CUTOVER_ADMIN_USERNAME=admin CUTOVER_ADMIN_PASSWORD=... make cutover-report # optional /ops/readiness snapshot
 make prod-backup # създава PostgreSQL backup в backups/
 make prod-restore-drill BACKUP=backups/fleetflow-....dump # dry-run restore в отделен project
 make audit-prod # локален audit на pinned production runtime dependencies
@@ -284,7 +302,6 @@ make secrets-scan # проверява tracked файловете за реал�
 make secrets-scan-history # incident scan през всички локални git refs/blob-ове
 make release-check # локални production gates: audit, compile, tests, JS syntax
 make qa-premium # release gates + browser role smoke
-make smoke-live APP_URL=http://127.0.0.1:8001 # health/ready/active admin/public overview на жив stack
 make test   # pytest suite
 make test-e2e # optional Playwright browser smoke
 ```
@@ -305,6 +322,8 @@ Tower UI. Подробната операторска инструкция е в
 `cutover-reports/`. Ако подадеш временни shell env променливи
 `CUTOVER_ADMIN_USERNAME` и `CUTOVER_ADMIN_PASSWORD`, отчетът ще добави и
 authenticated `/ops/readiness` summary без да записва токени или пароли.
+Локално не е нужно да подаваш `APP_URL`: `make smoke-live`,
+`make go-live-check` и `make cutover-report` вече следват `APP_PORT` от `.env`.
 
 ## Bootstrap token при fresh production install
 

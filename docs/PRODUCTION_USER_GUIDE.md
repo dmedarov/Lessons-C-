@@ -10,6 +10,9 @@ setup да остане прост: един `.env`, един контейнер
 git clone <repo>
 cd <repo>
 make setup
+# редактирай само CORS_ALLOW_ORIGINS; ако 8000 е зает, смени APP_PORT
+make prod
+make logs
 ```
 
 `make setup` създава `.env` и автоматично генерира:
@@ -22,11 +25,21 @@ Production compose използва pin-нат PostgreSQL major image. Не см
 `POSTGRES_IMAGE` към `latest` върху работещ volume; major upgrade се прави само
 с отделен backup/restore план.
 
-Преди live промени:
+Преди live обикновено има само една задължителна ръчна промяна:
 
 ```env
 CORS_ALLOW_ORIGINS=https://your-real-domain.example
 ```
+
+Ако `8000` е зает локално, промени и:
+
+```env
+APP_PORT=8001
+```
+
+След `make prod` отвори URL-а, който командата отпечатва. `make smoke-live`,
+`make go-live-check` и `make cutover-report` вече следват същия `APP_PORT` от
+`.env`, ако не им подадеш изрично друг `APP_URL`.
 
 След това провери готовността:
 
@@ -42,17 +55,12 @@ make prod-backup
 make prod-restore-drill BACKUP=backups/fleetflow-YYYYmmddTHHMMSSZ.dump
 ```
 
-Ако проверките са зелени:
-
-```bash
-make prod
-```
-
 След това създай първия admin по следващата секция и чак тогава пусни:
 
 ```bash
-make go-live-check APP_URL=http://127.0.0.1:8000
-make cutover-report APP_URL=http://127.0.0.1:8000
+make smoke-live
+make go-live-check
+make cutover-report
 ```
 
 `make go-live-check` е финалният gate: проверява `.env`, свежото restore-drill
@@ -148,7 +156,14 @@ Outstanding blockers/warnings се показват първи, а провер�
 ```bash
 CUTOVER_ADMIN_USERNAME=admin \
 CUTOVER_ADMIN_PASSWORD='...' \
-make cutover-report APP_URL=https://your-production-url.example
+make cutover-report
+```
+
+За истинския production URL просто override-ни `APP_URL`:
+
+```bash
+make go-live-check APP_URL=https://your-production-url.example
+CUTOVER_ADMIN_USERNAME=admin CUTOVER_ADMIN_PASSWORD='...' make cutover-report APP_URL=https://your-production-url.example
 ```
 
 ## 3.2 Secret leak stop signal

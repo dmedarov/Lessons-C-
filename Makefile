@@ -4,7 +4,9 @@ COMPOSE_PROD := docker compose -f docker-compose.postgres.yml
 COMPOSE_DEV  := docker compose
 PYTHON       := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 PIP_AUDIT    := $(shell if [ -x .venv/bin/pip-audit ]; then echo .venv/bin/pip-audit; else echo pip-audit; fi)
-APP_URL      ?= http://127.0.0.1:8001
+ENV_APP_PORT := $(shell if [ -f .env ]; then sed -n 's/^APP_PORT=//p' .env | tail -n 1; fi)
+APP_PORT_HINT := $(or $(APP_PORT),$(ENV_APP_PORT),8000)
+APP_URL      ?= http://127.0.0.1:$(APP_PORT_HINT)
 
 .PHONY: help setup prod prod-check go-live-check cutover-report prod-backup prod-restore-drill audit-prod audit-prod-full secrets-scan secrets-scan-history release-check qa-premium smoke-live dev down logs test test-e2e guard-env guard-backup
 
@@ -15,7 +17,7 @@ help:
 	@echo "  make prod    Build and start production stack (PostgreSQL + app)"
 	@echo "  make prod-check Validate .env before live production cutover"
 	@echo "  make go-live-check Validate env, restore drill evidence, release gates and live smoke"
-	@echo "  make cutover-report APP_URL=http://... Generate a markdown cutover evidence snapshot (optional CUTOVER_ADMIN_USERNAME/PASSWORD adds /ops/readiness summary)"
+	@echo "  make cutover-report [APP_URL=http://...] Generate a markdown cutover evidence snapshot (defaults to APP_PORT from .env)"
 	@echo "  make prod-backup Create a PostgreSQL backup under backups/"
 	@echo "  make prod-restore-drill BACKUP=backups/file.dump Validate backup in an isolated restore project"
 	@echo "  make audit-prod Audit pinned runtime dependencies"
@@ -24,7 +26,7 @@ help:
 	@echo "  make secrets-scan-history Scan all git refs for real-looking secret values"
 	@echo "  make release-check Run local production release gates"
 	@echo "  make qa-premium Run release gates + browser role smoke"
-	@echo "  make smoke-live APP_URL=http://... Smoke a running app URL"
+	@echo "  make smoke-live [APP_URL=http://...] Smoke a running app URL (defaults to APP_PORT from .env)"
 	@echo "  make dev     Build and start dev stack (SQLite, demo data)"
 	@echo "  make down    Stop all containers"
 	@echo "  make logs    Tail application logs"
@@ -45,13 +47,14 @@ t = t.replace('replace-with-a-strong-db-password', secrets.token_urlsafe(32)); \
 p.write_text(t)"; \
 		echo ""; \
 		echo ".env created — secrets generated automatically."; \
+		echo "Default local URL: http://localhost:$$(sed -n 's/^APP_PORT=//p' .env | tail -n 1)"; \
 		echo "Before going live, set CORS_ALLOW_ORIGINS to your domain."; \
 	fi
 
 prod: guard-env
 	$(COMPOSE_PROD) up --build -d
 	@echo ""
-	@echo "FleetFlow is up → http://localhost:$${APP_PORT:-8000}"
+	@echo "FleetFlow is up → http://localhost:$(APP_PORT_HINT)"
 	@echo "Fresh install? Run 'make logs' to find your one-time bootstrap token."
 
 prod-check: guard-env
@@ -92,7 +95,7 @@ release-check: audit-prod secrets-scan
 qa-premium: release-check test-e2e
 	@echo ""
 	@echo "Premium QA gate passed."
-	@echo "Optional live container smoke: make smoke-live APP_URL=$(APP_URL)"
+	@echo "Optional live container smoke: make smoke-live"
 
 smoke-live:
 	$(PYTHON) scripts/smoke_live.py "$(APP_URL)"
@@ -100,7 +103,7 @@ smoke-live:
 dev: guard-env
 	$(COMPOSE_DEV) up --build -d
 	@echo ""
-	@echo "FleetFlow (dev) → http://localhost:$${APP_PORT:-8000}"
+	@echo "FleetFlow (dev) → http://localhost:$(APP_PORT_HINT)"
 	@echo "Accounts: admin/AdminPass123  ivan/IvanPass123  maria/MariaPass123"
 
 down:

@@ -135,6 +135,21 @@ def test_backup_restore_operator_scripts_are_documented_and_guarded() -> None:
     assert "PRODUCTION_CUTOVER_CHECKLIST.md" in cutover
 
 
+def test_installation_docs_and_makefile_share_the_same_default_app_port_story() -> None:
+    makefile = (ROOT / "Makefile").read_text()
+    readme = (ROOT / "README.md").read_text()
+    guide = (ROOT / "docs/PRODUCTION_USER_GUIDE.md").read_text()
+    env_example = (ROOT / ".env.example").read_text()
+
+    assert "APP_PORT_HINT :=" in makefile
+    assert "APP_URL      ?= http://127.0.0.1:$(APP_PORT_HINT)" in makefile
+    assert "FleetFlow is up → http://localhost:$(APP_PORT_HINT)" in makefile
+    assert "make smoke-live" in readme
+    assert "APP_PORT=8001" in readme
+    assert "следват същия `APP_PORT` от" in guide
+    assert "APP_PORT=8000" in env_example
+
+
 def test_go_live_check_accepts_fresh_restore_drill_marker(tmp_path: Path) -> None:
     marker = tmp_path / "restore-drill-ok.json"
     backup = tmp_path / "fleetflow.dump"

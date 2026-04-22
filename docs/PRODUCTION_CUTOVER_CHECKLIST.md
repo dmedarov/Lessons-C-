@@ -23,6 +23,7 @@
 ## 2. Preflight inputs
 
 - [ ] Реалният `.env` е генериран с `make setup`.
+- [ ] `APP_PORT` е избран съзнателно и отваря правилния локален/production URL.
 - [ ] `APP_ENV=prod`.
 - [ ] `CORS_ALLOW_ORIGINS` е реалният production домейн.
 - [ ] `DEV_SEED_DEMO_DATA=false`.
