@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0b1324" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="FleetFlow — operational mission control for corporate mobility." />
     <title>FleetFlow | Mission control for corporate mobility</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260421-users-density" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260422-surface-notify" />
     <script>
       // Theme bootstrap — runs before first paint to avoid a flash of wrong theme.
       (function () {
@@ -19,9 +19,9 @@
         } catch (_) {}
       })();
     </script>
-    <script defer src="/static/i18n.js?v=20260421-users-density"></script>
-    <script defer src="/static/app.js?v=20260421-users-density"></script>
-    <script defer src="/static/theme.js?v=20260421-users-density"></script>
+    <script defer src="/static/i18n.js?v=20260422-surface-notify"></script>
+    <script defer src="/static/app.js?v=20260422-surface-notify"></script>
+    <script defer src="/static/theme.js?v=20260422-surface-notify"></script>
   </head>
   <body data-surface="employee">
     <a class="skip-link" href="#reservationsDeck">Към основното съдържание</a>
@@ -212,6 +212,8 @@
               <p class="quick-book__hint" id="smartPrefillHint"></p>
             </div>
 
+            <div class="request-outcome hidden" id="requestOutcome" role="status" aria-live="polite"></div>
+
             <form class="stack" id="reservationForm" novalidate>
               <label class="field">
                 <span>Автомобил</span>
@@ -295,7 +297,7 @@
           <section class="summary-deck hidden" id="summaryDeck">
             <article class="glass-card summary-card">
               <p class="panel__eyebrow">Режим</p>
-              <h2 id="modeHeading">Employee workspace</h2>
+              <h2 id="modeHeading">Моят курс / Нова заявка</h2>
               <p class="section-copy" id="modeCopy">
                 Личен operational изглед с фокус върху собствени заявки, активни курсове и нотификации.
               </p>

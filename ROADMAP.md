@@ -17,6 +17,8 @@ operations assistant for internal mobility**, което е:
 - Служебен lifecycle ownership: employee заявява/отменя, approver
   одобрява/отказва, reception отбелязва реално предаване и връщане, admin
   остава full-control override.
+- Ролевите surfaces имат кратки, стабилни имена: **Моят курс / Нова заявка**,
+  **Decision Desk**, **Handoff Desk**, **Control Tower**.
 - Кратки и стойностни нотификации: без шум, без дублиране, без чувствителни данни.
 - Migration-first backend: schema промени минават през Alembic, не през ad-hoc ръчни SQL промени.
 - Security by default: пароли с slow hash, short-lived access token-и, refresh-token rotation, rebinding към текущ user state, least-privilege UI.
@@ -32,7 +34,9 @@ operations assistant for internal mobility**, което е:
 
 ### Notifications
 - Apple HIG насърчава concise, glanceable notifications и избягване на noise/duplicates.
-- За FleetFlow това означава: in-app inbox с кратки operational съобщения само при request, approval/rejection, start, return, cancel.
+- За FleetFlow това означава: in-app inbox с кратки operational съобщения само
+  при request, approval/rejection, reception handoff, start, return, cancel;
+  SMTP следва личния recipient, Teams е shared operational channel.
 
 ### Admin and operational UX
 - Apple HIG и Material guidance сочат към ясна визуална йерархия, спокойни повърхности, малко, но силни действия и status visibility.
@@ -90,8 +94,9 @@ operations assistant for internal mobility**, което е:
 - in-app notification center
 - unread/read state
 - event routing:
-  - admin получава нова заявка
+  - admin/approver получава нова заявка
   - requester получава approve/reject
+  - reception/admin получава handoff сигнал след approval
   - requester получава start/return updates, защото reception отбелязва активен курс и връщане
 - outbound hooks към email/Teams/Slack
 

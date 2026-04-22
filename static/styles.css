@@ -2305,6 +2305,60 @@ select {
   line-height: 1.55;
 }
 
+.request-outcome {
+  display: grid;
+  gap: 6px;
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  background: var(--success-soft);
+  border: 1px solid color-mix(in srgb, var(--success) 26%, var(--line));
+}
+
+.request-outcome strong {
+  color: var(--ink);
+}
+
+.request-outcome p,
+.request-outcome span {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.request-outcome span {
+  color: var(--success-strong);
+  font-weight: 700;
+}
+
+.outbound-status {
+  display: grid;
+  gap: 4px;
+  margin-bottom: var(--sp-3);
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface-muted);
+}
+
+.outbound-status strong {
+  color: var(--ink);
+}
+
+.outbound-status span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.outbound-status--ready {
+  background: var(--success-soft);
+  border-color: color-mix(in srgb, var(--success) 24%, var(--line));
+}
+
+.outbound-status--warn {
+  background: var(--warning-soft);
+  border-color: color-mix(in srgb, var(--warning) 26%, var(--line));
+}
+
 /* -----------------------------------------------------------------------------
    17. Summary / notifications / users
    ----------------------------------------------------------------------------- */

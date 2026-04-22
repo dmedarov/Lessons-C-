@@ -57,10 +57,10 @@ def test_static_assets_are_cache_busted_in_templates() -> None:
     assert "NO_CACHE_ASSET_EXTENSIONS" in app_py
     for template in ("templates/index.html", "templates/admin.html"):
         html = _read(template)
-        assert "/static/styles.css?v=20260421-users-density" in html
-        assert "/static/i18n.js?v=20260421-users-density" in html
-        assert "/static/app.js?v=20260421-users-density" in html
-        assert "/static/theme.js?v=20260421-users-density" in html
+        assert "/static/styles.css?v=20260422-surface-notify" in html
+        assert "/static/i18n.js?v=20260422-surface-notify" in html
+        assert "/static/app.js?v=20260422-surface-notify" in html
+        assert "/static/theme.js?v=20260422-surface-notify" in html
         assert 'src="/static/i18n.js"' not in html
         assert 'src="/static/app.js"' not in html
 
@@ -181,6 +181,11 @@ def test_intent_driven_summary_exposes_one_primary_next_action() -> None:
     assert "function handleIntentAction(button)" in app_js
     assert "function focusReservationRow(id, action = null)" in app_js
     assert '"intent.employeeFreeTitle": "Свободен режим"' in i18n_js
+    assert '"ui.surface.controlTower": "Control Tower"' in i18n_js
+    assert '"ui.surface.decisionDesk": "Decision Desk"' in i18n_js
+    assert '"ui.surface.handoffDesk": "Handoff Desk"' in i18n_js
+    assert '"ui.surface.employeeDesk": "Моят курс / Нова заявка"' in i18n_js
+    assert 'els.modeHeading.textContent = t("ui.surface.employeeDesk");' in app_js
     assert ".summary-card__actions .btn" in styles
     assert "min-height: 44px;" in styles
 
@@ -192,13 +197,36 @@ def test_one_tap_booking_is_available_without_form_scanning() -> None:
     styles = _read("static/styles.css")
     assert 'id="quickBookPanel"' in html
     assert 'id="quickBookBtn"' in html
+    assert 'id="requestOutcome" role="status" aria-live="polite"' in html
     assert html.index('id="quickBookPanel"') < html.index('id="reservationForm"')
     assert "function quickBookReservation()" in app_js
+    assert "function showRequestOutcome(reservation" in app_js
+    assert 'showRequestOutcome(reservation, { source: "quick", carLabel: car });' in app_js
+    assert 'showRequestOutcome(reservation, { source: "manual" });' in app_js
     assert 'apiFetch("/reservations/quick-book"' in app_js
     assert "toggleHidden(els.quickBookPanel, !authenticated || operationalMode);" in app_js
     assert '"quickBook.createdTitle": "Бързата заявка е подадена"' in i18n_js
+    assert '"requestOutcome.nextStep": "Следващият ход е при одобряващия. Не е нужно да натискаш отново."' in i18n_js
+    assert ".request-outcome" in styles
     assert ".quick-book .btn" in styles
     assert "overflow-wrap: anywhere;" in styles
+
+
+def test_outbound_notification_status_is_admin_only_and_actionable() -> None:
+    html = _read("templates/admin.html")
+    app_js = _read("static/app.js")
+    i18n_js = _read("static/i18n.js")
+    styles = _read("static/styles.css")
+
+    assert 'id="outboundNotificationStatus" role="status" aria-live="polite"' in html
+    assert "function renderOutboundNotificationStatus()" in app_js
+    assert 'testNotificationBtn: document.querySelector("[data-test-notification]")' in app_js
+    assert "toggleHidden(els.testNotificationBtn, !authenticated || !fullAdmin || !adminSurface);" in app_js
+    assert 'els.outboundNotificationStatus.className = "outbound-status hidden";' in app_js
+    assert '"outbound.inAppOnlyCopy": "Добави SMTP за персонални email-и или Teams webhook за shared operational канал."' in i18n_js
+    assert '"outbound.readyCopy": "SMTP праща към email-а на получателя; Teams е shared канал. Тествай преди live."' in i18n_js
+    assert ".outbound-status--ready" in styles
+    assert ".outbound-status--warn" in styles
 
 
 def test_smart_prefill_keeps_manual_booking_predictive() -> None:

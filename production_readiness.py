@@ -220,6 +220,7 @@ def evaluate_runtime_readiness() -> dict:
     from db import get_conn
 
     checks = evaluate_env_readiness(runtime_env(), include_netfleet=False)
+    users_with_email = 0
 
     try:
         with get_conn() as conn:
@@ -227,6 +228,15 @@ def evaluate_runtime_readiness() -> dict:
             active_admins = int(
                 conn.execute(
                     "SELECT COUNT(*) AS n FROM users WHERE role='fleet_admin' AND active=1"
+                ).fetchone()["n"]
+            )
+            users_with_email = int(
+                conn.execute(
+                    """
+                    SELECT COUNT(*) AS n
+                    FROM users
+                    WHERE active=1 AND email IS NOT NULL AND TRIM(email) != ''
+                    """
                 ).fetchone()["n"]
             )
         checks.append(
@@ -297,19 +307,34 @@ def evaluate_runtime_readiness() -> dict:
             )
         )
 
+    smtp_configured = bool(
+        settings.smtp_host
+        and settings.smtp_from_email
+        and (settings.smtp_to_email or users_with_email > 0)
+    )
     outbound_configured = any(
         [
-            settings.smtp_host and settings.smtp_from_email and settings.smtp_to_email,
+            smtp_configured,
             settings.slack_webhook_url,
             settings.teams_webhook_url,
         ]
     )
+    if smtp_configured and settings.teams_webhook_url:
+        outbound_detail = "SMTP към потребителски email-и и Microsoft Teams webhook са конфигурирани."
+    elif smtp_configured:
+        outbound_detail = "SMTP е конфигуриран: известията отиват към email-а на получателя или operator fallback mailbox."
+    elif settings.teams_webhook_url:
+        outbound_detail = "Microsoft Teams webhook е конфигуриран за operational известия."
+    elif settings.slack_webhook_url:
+        outbound_detail = "Slack webhook е конфигуриран за operational известия."
+    else:
+        outbound_detail = "Няма SMTP/Slack/Teams канал. In-app нотификациите работят, но външни известия няма."
     checks.append(
         _pass(
             "notifications",
             "Outbound notifications",
             "At least one outbound notification channel is configured.",
-            "Има конфигуриран outbound канал за известия.",
+            outbound_detail,
             required=False,
         )
         if outbound_configured
@@ -317,7 +342,7 @@ def evaluate_runtime_readiness() -> dict:
             "notifications",
             "Outbound notifications",
             "No outbound notification channel is configured.",
-            "Няма SMTP/Slack/Teams канал. In-app нотификациите работят, но външни известия няма.",
+            outbound_detail,
         )
     )
 

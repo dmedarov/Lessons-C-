@@ -77,6 +77,26 @@ def _active_reception_recipient_ids(conn: DbConn) -> list[int]:
     return _active_role_ids(conn, ("fleet_admin", "fleet_reception"))
 
 
+def _create_reception_handoff_notifications(conn: DbConn, row: Any, actor_user_id: int) -> list[int]:
+    targets = [
+        user_id
+        for user_id in _active_reception_recipient_ids(conn)
+        if user_id not in {actor_user_id, int(row["created_by_id"])}
+    ]
+    targets = list(dict.fromkeys(targets))
+    if not targets:
+        return []
+    car_label = f"{row['plate_number']} · {row['model']}"
+    return create_notifications(
+        conn,
+        targets,
+        kind="reception_handoff",
+        title="Курс чака ключове",
+        body=f"{row['employee_name']} · {car_label} за {row['start_time']} е одобрен и чака рецепция.",
+        reservation_id=int(row["id"]),
+    )
+
+
 def _presentation_status(row: Any) -> str:
     status_value = str(row["status"])
     if status_value != "approved":
@@ -520,7 +540,15 @@ def _decide(
                 raise HTTPException(status_code=404, detail="Reservation not found")
             raise HTTPException(status_code=409, detail=f"Only pending reservations can be {new_status}")
 
-        row = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
+        row = conn.execute(
+            """
+            SELECT r.*, c.plate_number, c.model
+            FROM reservations r
+            JOIN cars c ON c.id = r.car_id
+            WHERE r.id=?
+            """,
+            (reservation_id,),
+        ).fetchone()
         _log(conn, reservation_id, auth.user_id, new_status, reason)
         notification_ids.append(
             create_notification(
@@ -532,6 +560,8 @@ def _decide(
                 reservation_id=reservation_id,
             )
         )
+        if new_status == "approved":
+            notification_ids.extend(_create_reception_handoff_notifications(conn, row, auth.user_id))
         response = _serialize_reservation(row)
 
     if notification_ids:
@@ -606,7 +636,15 @@ def _bulk_decide(
                     )
                 continue
 
-            row = conn.execute("SELECT * FROM reservations WHERE id=?", (reservation_id,)).fetchone()
+            row = conn.execute(
+                """
+                SELECT r.*, c.plate_number, c.model
+                FROM reservations r
+                JOIN cars c ON c.id = r.car_id
+                WHERE r.id=?
+                """,
+                (reservation_id,),
+            ).fetchone()
             _log(conn, reservation_id, auth.user_id, new_status, payload.reason)
             notification_ids.append(
                 create_notification(
@@ -618,6 +656,8 @@ def _bulk_decide(
                     reservation_id=reservation_id,
                 )
             )
+            if new_status == "approved":
+                notification_ids.extend(_create_reception_handoff_notifications(conn, row, auth.user_id))
             results.append(
                 BulkDecisionItem(
                     id=reservation_id,

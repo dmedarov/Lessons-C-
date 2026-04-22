@@ -54,7 +54,9 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 
 4. **End-to-end role rehearsal**
    - employee подава заявка;
+   - approver/admin получава новата pending заявка като in-app/SMTP сигнал;
    - approver одобрява/отказва с reason recovery;
+   - reception/admin получава **Курс чака ключове** след approval;
    - reception стартира курс след ключове/документи;
    - reception връща автомобил;
    - admin вижда audit/notifications/readiness без secret leakage;
@@ -70,6 +72,11 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 
 6. **Notification and recovery discipline**
    - in-app notifications не се трупат като шум след прочитане;
+   - SMTP е конфигуриран с `SMTP_HOST`, `SMTP_FROM_EMAIL` и user email-и или
+     `SMTP_TO_EMAIL` fallback;
+   - Teams webhook е проверен, ако част от екипа работи през Teams;
+   - admin test notification доказва `in_app`, `email` и `teams` статуса преди
+     live, без да показва secret стойности;
    - returned/rejected/cancelled записи не доминират текущия employee flow;
    - destructive actions имат keyboard/Escape recovery evidence;
    - invalid forms фокусират точния проблем и пазят въведения текст.
@@ -209,7 +216,7 @@ pilot-ready към 99/100, трябва всички точки по-долу д
 - Targeted Playwright reception calendar + overdue return signal -> 2 passed.
 - Full Playwright smoke -> 16 passed.
 - `make qa-premium` -> dependency audit, secret scan, Python compile,
-  170 pytest cases, JS syntax and 16 Playwright browser checks passed.
+  174 pytest cases, JS syntax and 16 Playwright browser checks passed.
 - PostgreSQL smoke stack was rebuilt on `APP_PORT=8001`; app and database
   containers are healthy.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` after rebuild -> `/health`,

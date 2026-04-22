@@ -769,9 +769,9 @@ Bundle these small items into a single PR to share review overhead:
 - **Depends on:** —
 - **Effort:** S
 
-### 2.12 Бутон „Тест известие" ✅ shipped `16443ad`
+### 2.12 Бутон „Тест известие" ✅ shipped `16443ad`, recipient routing refined 2026-04-21
 
-- **Goal:** Admin може да провери дали каналите за известия (in-app / SMTP / Slack)
+- **Goal:** Admin може да провери дали каналите за известия (in-app / SMTP / Slack / Teams)
   работят, без да прави реална резервация.
 - **Files:** `routers/notifications.py`, `notifications_service.py`,
   `templates/admin.html`, `static/app.js`, `static/i18n.js`
@@ -786,6 +786,10 @@ Bundle these small items into a single PR to share review overhead:
      `notification.testSuccess`, `notification.testFail`.
 - **Acceptance criteria:**
   - With valid SMTP config, admin receives a test email within 30 s.
+  - SMTP sends to `users.email` for the actual in-app recipient; if that field
+    is missing, `SMTP_TO_EMAIL` is the operator fallback.
+  - Teams webhook sends a shared operational card for colleagues monitoring
+    the process there.
   - With invalid config, the UI shows the error without crashing.
 - **Verification:** Manual with live SMTP + intentionally wrong host.
 - **Depends on:** Phase 3.2 async dispatch (already shipped).
@@ -858,6 +862,9 @@ history and a regression checklist for future auth changes.
      inbox consistent); only the external fan-out moves to background.
   2. Wrap each outbound channel in a timeout (5 s) and a try/except that
      records failure to the existing `notification_deliveries` table.
+  2a. Keep recipient semantics role-correct: request -> approver/admin,
+     approval/rejection -> requester, approval -> reception/admin handoff,
+     start/return -> requester + reception operators.
   3. Long-term (optional, document as a follow-up): extract to a proper queue
      (RQ / Celery / arq). Don't do this until load justifies it.
 - **Acceptance criteria:**
@@ -2347,7 +2354,10 @@ If time is limited, execute items 1-4 before any new feature work.
   made mobile KPI cards a compact 3-column status strip so useful fleet
   context appears earlier.
 - **Cache freshness:** bumped versioned static URLs to
-  `20260421-users-density`.
+  `20260422-surface-notify`.
+- **Role surface names:** the next safe UI hierarchy step starts with stable
+  names from the blueprint: `Control Tower`, `Decision Desk`, `Handoff Desk`
+  and `Моят курс / Нова заявка`, without moving permissions or lifecycle logic.
 - **Dependabot hardening:** GitHub dependency graph SBOM still showed
   `actions/checkout@4` and `actions/setup-python@5` from
   `.github/workflows/production-gates.yml`. Updated that workflow to
@@ -2362,7 +2372,7 @@ If time is limited, execute items 1-4 before any new feature work.
   returning to the premium visual system; `tests/test_documentation_contracts.py`
   now blocks old Actions versions from returning.
 - **Verification:** `make qa-premium` -> dependency audit, secret scan, Python compile,
-  170 pytest cases, JS syntax and 16 Playwright browser checks; Python 3.14
+  174 pytest cases, JS syntax and 16 Playwright browser checks; Python 3.14
   container `pip-audit -r requirements-dev.txt` -> no known vulnerabilities;
   `make smoke-live APP_URL=http://127.0.0.1:8001` -> health/ready/setup/public
   overview passed after clean container rebuild; Docker Scout on the rebuilt
@@ -2398,13 +2408,13 @@ If time is limited, execute items 1-4 before any new feature work.
   fresh backup/restore drill evidence, checked Dependabot alert, real CORS
   domain, at least two active admins, observed NetFleet connectivity and one
   monitored live week without high-severity flow defects.
-- **Code size snapshot:** 14,915 production app/script/template/style lines;
-  20,374 code lines with automated tests/e2e; 27,128 tracked project lines
+- **Code size snapshot:** 15,596 production app/script/template/style lines;
+  21,257 code lines with automated tests/e2e; 27,661 tracked project lines
   including docs/config/workflows.
 - **Verification:** `node --check static/app.js`, `node --check
   static/i18n.js`, `pytest tests/test_ui_compliance.py -q` -> 38 passed;
   `make qa-premium` -> dependency audit, secret scan, Python compile,
-  170 pytest cases, JS syntax and 16 Playwright browser checks passed. The local PostgreSQL smoke
+  174 pytest cases, JS syntax and 16 Playwright browser checks passed. The local PostgreSQL smoke
   stack was rebuilt on `APP_PORT=8001`, both containers are healthy, and
   `make smoke-live APP_URL=http://127.0.0.1:8001` passed after rebuild.
 
@@ -3133,6 +3143,31 @@ Five independent improvements shipped as one coherent commit:
 `templates/index.html`.
 
 **Verification:** `pytest -q` → 58 passed (no regressions). `node --check` clean.
+
+### 2026-04-21 — SMTP / Teams recipient routing + request outcome polish
+
+- **SMTP routing:** `notifications_service.NotificationEnvelope` now includes
+  the recipient email. `_send_email()` sends to `users.email` first and falls
+  back to `SMTP_TO_EMAIL` only when the user has no email. This keeps outbound
+  email aligned with the in-app inbox instead of sending every lifecycle signal
+  to one generic mailbox.
+- **Teams:** `TEAMS_WEBHOOK_URL` remains a shared operational channel. The test
+  notification path verifies MessageCard payloads without exposing webhook
+  values in UI or docs.
+- **Role path:** request creation notifies `fleet_admin` / `fleet_approver`.
+  Approval now also creates `reception_handoff` for `fleet_reception` /
+  `fleet_admin`, so reception gets **Курс чака ключове** before start. Requester
+  still receives the decision notification. Start/return keep notifying
+  requester and reception operators.
+- **Readiness:** `/ops/readiness` treats SMTP as configured when `SMTP_HOST` and
+  `SMTP_FROM_EMAIL` exist and either user emails or `SMTP_TO_EMAIL` are present;
+  the detail text distinguishes SMTP, Teams and Slack without leaking secrets.
+- **Employee feedback:** quick-book/manual booking now renders an inline request
+  outcome that says the request is pending and the next move is with the
+  approver, so employees do not press again.
+- **Verification:** targeted pytest covers SMTP-to-user, Teams payload and
+  request -> approver / approval -> requester + reception delivery. JS syntax
+  checks and UI compliance assertions cover the new request outcome surface.
 
 ### 2026-04-19 — Items 2.10–2.12: blackout edit, car notes, test notification (commit `16443ad`)
 

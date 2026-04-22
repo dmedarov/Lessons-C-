@@ -960,6 +960,89 @@ def test_outbound_dispatch_hook_runs_for_notifications(client: TestClient, monke
     assert captured
 
 
+def test_role_outbound_notifications_reach_approver_requester_and_reception(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from dataclasses import replace
+
+    import config
+    import notifications_service
+
+    sent_to: list[str] = []
+
+    class FakeSMTP:
+        def __init__(self, host: str, port: int, timeout: int) -> None:
+            assert host == "smtp.company.bg"
+
+        def __enter__(self) -> "FakeSMTP":
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def send_message(self, message) -> None:
+            sent_to.append(message["To"])
+
+    monkeypatch.setattr(
+        notifications_service,
+        "settings",
+        replace(
+            config.settings,
+            smtp_host="smtp.company.bg",
+            smtp_from_email="fleetflow@company.bg",
+            smtp_to_email="",
+            smtp_use_tls=False,
+        ),
+    )
+    monkeypatch.setattr(notifications_service.smtplib, "SMTP", FakeSMTP)
+
+    admin = _bootstrap_admin(client)
+    _create_user(
+        client,
+        admin,
+        "approver",
+        "Approver User",
+        "ApproverPass123",
+        role="fleet_approver",
+        email="approver@company.bg",
+    )
+    _create_user(
+        client,
+        admin,
+        "reception",
+        "Reception User",
+        "ReceptionPass123",
+        role="fleet_reception",
+        email="reception@company.bg",
+    )
+    _create_user(
+        client,
+        admin,
+        "employee",
+        "Employee User",
+        "EmployeePass123",
+        email="employee@company.bg",
+    )
+    approver = _login(client, "approver", "ApproverPass123")
+    reception = _login(client, "reception", "ReceptionPass123")
+    employee = _login(client, "employee", "EmployeePass123")
+    car_id = _create_car(client, admin, plate="CB8111AA")
+
+    reservation_id = _create_reservation(client, car_id, employee)
+    assert any(item["kind"] == "reservation_requested" for item in _list_notifications(client, approver))
+
+    approve = client.post(
+        f"/reservations/{reservation_id}/approve",
+        json={"reason": "Approved for handoff"},
+        headers=_auth(approver),
+    )
+    assert approve.status_code == 200
+
+    assert any(item["kind"] == "reservation_decision" for item in _list_notifications(client, employee))
+    assert any(item["kind"] == "reception_handoff" for item in _list_notifications(client, reception))
+    assert {"approver@company.bg", "employee@company.bg", "reception@company.bg"} <= set(sent_to)
+
+
 def test_overlap_blocked_for_pending_and_approved(client: TestClient) -> None:
     admin = _bootstrap_admin(client)
     _create_user(client, admin, "ivan", "Ivan Petrov", "IvanPass123")
@@ -1918,6 +2001,95 @@ def test_notification_test_creates_inapp(client: TestClient) -> None:
     # The notification should appear in admin inbox
     inbox = client.get("/notifications", headers=_auth(admin)).json()
     assert any(n["kind"] == "test" for n in inbox)
+
+
+def test_notification_test_sends_smtp_to_user_email(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from dataclasses import replace
+
+    import config
+    import notifications_service
+
+    sent_messages = []
+
+    class FakeSMTP:
+        def __init__(self, host: str, port: int, timeout: int) -> None:
+            assert host == "smtp.company.bg"
+            assert port == 587
+            assert timeout == 5
+
+        def __enter__(self) -> "FakeSMTP":
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def login(self, username: str, password: str) -> None:
+            raise AssertionError("Login should not run without SMTP credentials")
+
+        def send_message(self, message) -> None:
+            sent_messages.append(message)
+
+    monkeypatch.setattr(
+        notifications_service,
+        "settings",
+        replace(
+            config.settings,
+            smtp_host="smtp.company.bg",
+            smtp_from_email="fleetflow@company.bg",
+            smtp_to_email="",
+            smtp_use_tls=False,
+        ),
+    )
+    monkeypatch.setattr(notifications_service.smtplib, "SMTP", FakeSMTP)
+
+    admin = _bootstrap_admin(client)
+    admin_id = client.get("/auth/me", headers=_auth(admin)).json()["id"]
+    update_contact = client.put(
+        f"/users/{admin_id}/contact",
+        json={"email": "admin.user@company.bg", "gsm_number": "+359888000111", "reason": "SMTP routing proof"},
+        headers=_auth(admin),
+    )
+    assert update_contact.status_code == 200
+
+    res = client.post("/notifications/test", headers=_auth(admin))
+    assert res.status_code == 200
+    channels = {channel["name"]: channel["status"] for channel in res.json()["channels"]}
+
+    assert channels["email"] == "sent"
+    assert sent_messages
+    assert sent_messages[0]["To"] == "admin.user@company.bg"
+    assert sent_messages[0]["From"] == "fleetflow@company.bg"
+    assert "[FleetFlow]" in sent_messages[0]["Subject"]
+
+
+def test_notification_test_sends_teams_webhook(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from dataclasses import replace
+
+    import config
+    import notifications_service
+
+    payloads = []
+
+    def fake_post_json(url: str, payload: dict) -> None:
+        payloads.append((url, payload))
+
+    monkeypatch.setattr(
+        notifications_service,
+        "settings",
+        replace(config.settings, teams_webhook_url="https://teams.company.bg/webhook"),
+    )
+    monkeypatch.setattr(notifications_service, "_post_json", fake_post_json)
+
+    admin = _bootstrap_admin(client)
+    res = client.post("/notifications/test", headers=_auth(admin))
+    assert res.status_code == 200
+    channels = {channel["name"]: channel["status"] for channel in res.json()["channels"]}
+
+    assert channels["teams"] == "sent"
+    assert payloads
+    assert payloads[0][0] == "https://teams.company.bg/webhook"
+    assert payloads[0][1]["@type"] == "MessageCard"
+    assert payloads[0][1]["title"] == "FleetFlow — тест известие"
 
 
 def test_notification_test_employee_forbidden(client: TestClient) -> None:

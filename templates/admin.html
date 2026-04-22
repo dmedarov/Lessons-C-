@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0b1324" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="FleetFlow Admin — fleet, blackouts, approvals and user management." />
     <title>FleetFlow Admin | Fleet and user control</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260421-users-density" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260422-surface-notify" />
     <script>
       // Theme bootstrap — runs before first paint to avoid a flash of wrong theme.
       (function () {
@@ -19,9 +19,9 @@
         } catch (_) {}
       })();
     </script>
-    <script defer src="/static/i18n.js?v=20260421-users-density"></script>
-    <script defer src="/static/app.js?v=20260421-users-density"></script>
-    <script defer src="/static/theme.js?v=20260421-users-density"></script>
+    <script defer src="/static/i18n.js?v=20260422-surface-notify"></script>
+    <script defer src="/static/app.js?v=20260422-surface-notify"></script>
+    <script defer src="/static/theme.js?v=20260422-surface-notify"></script>
   </head>
   <body data-surface="admin">
     <a class="skip-link" href="#reservationsDeck">Към основното съдържание</a>
@@ -147,7 +147,7 @@
               <div class="summary-row">
                 <div>
                   <p class="panel__eyebrow">Текущ режим</p>
-                  <h3 id="sessionTitle">Административният режим е готов</h3>
+                  <h3 id="sessionTitle">Control Tower</h3>
                 </div>
                 <span class="status-pill status-pill--admin" id="sessionModePill">fleet_admin</span>
               </div>
@@ -183,6 +183,7 @@
               <button class="chip" id="markAllReadBtn" type="button">Прочети всички</button>
               <button class="chip" type="button" data-test-notification title="Изпрати тест известие до всички конфигурирани канали">Тест</button>
             </div>
+            <div class="outbound-status" id="outboundNotificationStatus" role="status" aria-live="polite"></div>
             <div class="notifications-list" id="notificationsList" aria-live="polite" aria-relevant="additions text"></div>
           </section>
 
@@ -415,7 +416,7 @@
           <section class="summary-deck" id="summaryDeck">
             <article class="glass-card summary-card">
               <p class="panel__eyebrow">Режим</p>
-              <h2 id="modeHeading">Admin workspace</h2>
+              <h2 id="modeHeading">Control Tower</h2>
               <p class="section-copy" id="modeCopy">Отделен surface за правата, сервизните ограничения и глобалния operational контрол.</p>
             </article>
             <article class="glass-card summary-card">

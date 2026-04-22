@@ -11,7 +11,9 @@
 - Защита от застъпващи се резервации в рамките на една транзакция.
 - Audit log за всяко действие по резервация.
 - In-app notifications за ключови lifecycle събития.
-- Outbound notifications към email, Slack и Teams, когато са конфигурирани.
+- Outbound notifications към email, Slack и Teams, когато са конфигурирани:
+  SMTP праща към email-а на конкретния получател, а при липсващ email ползва
+  operator fallback `SMTP_TO_EMAIL`.
 - Bootstrap flow за първия `fleet_admin`, без demo users в production.
 - User management: създаване, activate/deactivate, password change и guarded admin handoff.
 - User contacts: admin може да добавя и коригира optional email и GSM номер към
@@ -44,8 +46,11 @@
 - Employee UX priority: след login заявките/lifecycle са преди календара, формата за нова заявка е преди inbox-а, а обучителните карти се скриват, за да няма UI шум.
 - Calm default inbox/listing: employee default филтърът е **Текущи**, така че върнатите/отказаните/отменените не стоят в оперативния поток; прочетените нотификации се прибират от inbox-а.
 - Role-specific operational surfaces: `/admin` показва Decision Rail за `fleet_approver`, handoff/start/return поток за `fleet_reception`, и пълен control surface само за `fleet_admin`.
+- Role surface naming: `fleet_admin` работи в **Control Tower**, `fleet_approver`
+  в **Decision Desk**, `fleet_reception` в **Handoff Desk**, а employee вижда
+  **Моят курс / Нова заявка**.
 - Admin Decision Rail: `/admin` започва с най-спешните pending заявки, директни approve/reject действия и bulk approve за роли с право на решение, преди таблицата.
-- Reception Rail: `/admin` показва одобрените курсове за предаване и активните курсове за връщане най-горе за `fleet_reception`/`fleet_admin`, с директни start/return действия преди таблицата.
+- Reception Rail: `/admin` показва одобрените курсове за предаване и активните курсове за връщане най-горе за `fleet_reception`/`fleet_admin`, с директни start/return действия преди таблицата; след approval reception получава отделен handoff сигнал `Курс чака ключове`.
 - Timeline-first reservations: employee/approver/reception/admin виждат lifecycle cards преди таблицата, с действия само според ролята и secondary table fallback.
 - Role-aware calendar: operational календарът за `fleet_reception` показва approved handoffs и active returns от глобалния snapshot, независимо от филтъра на таблицата.
 - Fleet Pulse: `/admin` показва executive strip с активни курсове, освобождаване до 1 час, pending решения, най-натоварена кола, `X/Y` свежи GPS позиции и compact Fleet Intelligence insight-и.
@@ -312,6 +317,10 @@ make logs
 1. Попълни `.env` с реални стойности за `SECRET_KEY`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` и `DATABASE_URL`.
    Остави `POSTGRES_IMAGE` pin-нат към major версия, например `postgres:16`.
 2. Ако искаш външни нотификации, попълни и `SMTP_*`, `SLACK_WEBHOOK_URL`, `TEAMS_WEBHOOK_URL`.
+   SMTP е персонален канал: ако `users.email` е попълнен, получателят получава
+   своя email; ако липсва, приложението използва `SMTP_TO_EMAIL` като operator
+   fallback mailbox. Microsoft Teams е подходящ за общ operational channel
+   към екипа, който следи approval/reception процеса.
    Ако искаш live координати, добави ключа през `/admin` или попълни `NETFLEET_API_KEY` в `.env`; `NETFLEET_BASE_URL`
    по подразбиране е `https://api.netfleet.bg:8080`.
    Ако порт `8000` е зает, задай `APP_PORT=8001` или друг свободен порт в `.env`.
@@ -586,7 +595,7 @@ full `E2E_ARTIFACT_DIR=test-results/e2e .venv/bin/python -m pytest e2e -q`
 
 Последна premium QA проверка:
 `make qa-premium` -> passed (dependency audit, secret scan, Python compile,
-170 pytest cases, JS syntax, 16 Playwright browser checks). `make smoke-live
+174 pytest cases, JS syntax, 16 Playwright browser checks). `make smoke-live
 APP_URL=http://127.0.0.1:8001` -> `/health`, `/health/ready` и
 `/public/overview` passed. Новият go-live evidence guard е покрит от
 `pytest tests/test_prod_readiness.py -q` -> 7 passed, включително fresh,

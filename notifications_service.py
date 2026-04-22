@@ -23,6 +23,7 @@ class NotificationEnvelope:
     reservation_id: int | None
     username: str
     display_name: str
+    email: str | None
 
 
 def create_notification(
@@ -85,7 +86,7 @@ def _load_notification(notification_id: int) -> NotificationEnvelope | None:
         row = conn.execute(
             """
             SELECT n.id, n.kind, n.title, n.body, n.created_at, n.reservation_id,
-                   u.username, u.display_name
+                   u.username, u.display_name, u.email
             FROM notifications n
             JOIN users u ON u.id = n.user_id
             WHERE n.id=?
@@ -103,6 +104,7 @@ def _load_notification(notification_id: int) -> NotificationEnvelope | None:
         reservation_id=row["reservation_id"],
         username=str(row["username"]),
         display_name=str(row["display_name"]),
+        email=row["email"] or None,
     )
 
 
@@ -160,14 +162,23 @@ def _send_teams(envelope: NotificationEnvelope) -> None:
     )
 
 
+def _email_recipient(envelope: NotificationEnvelope) -> str | None:
+    return envelope.email or settings.smtp_to_email
+
+
+def _email_configured(envelope: NotificationEnvelope) -> bool:
+    return bool(settings.smtp_host and settings.smtp_from_email and _email_recipient(envelope))
+
+
 def _send_email(envelope: NotificationEnvelope) -> None:
-    if not settings.smtp_host or not settings.smtp_from_email or not settings.smtp_to_email:
+    recipient = _email_recipient(envelope)
+    if not settings.smtp_host or not settings.smtp_from_email or not recipient:
         return
 
     message = EmailMessage()
     message["Subject"] = f"[FleetFlow] {envelope.title}"
     message["From"] = settings.smtp_from_email
-    message["To"] = settings.smtp_to_email
+    message["To"] = recipient
     message.set_content(
         "\n".join(
             [
@@ -214,7 +225,7 @@ def test_dispatch(notification_id: int) -> list[dict]:
         return results
 
     for channel, handler, configured in [
-        ("email", _send_email, bool(settings.smtp_host and settings.smtp_from_email and settings.smtp_to_email)),
+        ("email", _send_email, _email_configured(envelope)),
         ("slack", _send_slack, bool(settings.slack_webhook_url)),
         ("teams", _send_teams, bool(settings.teams_webhook_url)),
     ]:
@@ -239,7 +250,7 @@ def dispatch_outbound_notifications(notification_ids: list[int]) -> None:
             continue
 
         for channel, handler, configured in [
-            ("email", _send_email, bool(settings.smtp_host and settings.smtp_from_email and settings.smtp_to_email)),
+            ("email", _send_email, _email_configured(envelope)),
             ("slack", _send_slack, bool(settings.slack_webhook_url)),
             ("teams", _send_teams, bool(settings.teams_webhook_url)),
         ]:

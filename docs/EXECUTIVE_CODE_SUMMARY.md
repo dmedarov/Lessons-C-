@@ -27,11 +27,11 @@ committed ключ трябва първо да се ротира при дос�
 
 | Metric | Value |
 | --- | ---: |
-| Production app/script/template/style lines | 14,915 |
-| Code lines including tests/e2e | 20,374 |
-| Tracked project lines including docs/config/workflows | 27,128 |
+| Production app/script/template/style lines | 15,596 |
+| Code lines including tests/e2e | 21,257 |
+| Tracked project lines including docs/config/workflows | 27,661 |
 | Tracked relevant project files | 90 |
-| Automated test functions | 186 |
+| Automated test functions | 190 |
 | FastAPI route declarations | 57 |
 | Alembic migrations | 9 |
 | Latest full local QA | `make qa-premium` passed |
@@ -42,15 +42,16 @@ committed ключ трябва първо да се ротира при дос�
 The backend owns the business rules: auth, refresh-token rotation, bootstrap
 admin, role rebinding, reservation lifecycle, bulk approval, blackout windows,
 audit trail, notifications, NetFleet server-side proxy, production readiness
-checks, repeatable employee import and explainable Fleet Intelligence scoring. The database path is
+checks, repeatable employee import and explainable Fleet Intelligence scoring. SMTP delivery follows the same role recipients as the in-app inbox: approvers/admins get new requests, requesters get decisions, and reception/admin gets the handoff signal after approval. Microsoft Teams remains a shared operational webhook for colleagues who monitor the process there. The database path is
 production-aware: Alembic migrations, PostgreSQL compose, backup helper,
 restore-drill helper and a final `make go-live-check` gate.
 
 The frontend is a single-page vanilla JS experience with role-specific
 surfaces. Employees see the next useful move, current/approved trip context,
-calendar occupancy and their own request flow. `fleet_approver` sees decision
-work first. `fleet_reception` sees handoff, active return and overdue-return
-signals first. `fleet_admin` sees Fleet Pulse, readiness, NetFleet setup,
+calendar occupancy and their own request flow under **Моят курс / Нова заявка**.
+`fleet_approver` sees decision work first as **Decision Desk**.
+`fleet_reception` sees handoff, active return and overdue-return signals first
+as **Handoff Desk**. `fleet_admin` sees Fleet Pulse, readiness, NetFleet setup,
 users, fleet configuration and override controls. Public pre-login surfaces
 show availability and calendar occupancy without requester GSM, GPS, private
 purpose or lifecycle actions.
@@ -73,11 +74,13 @@ user's email/GSM from the card without rerunning the bulk import.
 ## Quality Evidence
 
 Local quality gates are strong. `make qa-premium` runs production dependency
-audit, tracked-file secret scan, Python compile, 170 pytest cases, JS syntax
+audit, tracked-file secret scan, Python compile, 174 pytest cases, JS syntax
 checks and 16 Playwright browser checks. Browser evidence covers public, employee, approver, reception
 and admin flows, responsive density, contrast guardrails, calendar/reception
 visibility, approver keyboard bulk-selection, admin contact correction and
-destructive-action recovery.
+destructive-action recovery. Targeted backend tests also cover SMTP routing to
+`users.email`, Teams webhook payloads and the request -> approver / approval ->
+requester + reception notification path.
 A Python 3.14 container audit of
 `requirements-dev.txt` reports no known vulnerabilities after the Dependabot
 pin update. The rebuilt PostgreSQL smoke stack

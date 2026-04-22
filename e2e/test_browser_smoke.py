@@ -472,6 +472,8 @@ def test_employee_quick_booking_surface(browser: Browser, server: str, artifact_
     expect(page.locator('[data-status="open"]')).to_have_attribute("aria-pressed", "true")
     page.locator("#quickBookBtn").click()
     expect(page.locator("#messageTitle")).to_contain_text("Бързата заявка", timeout=10_000)
+    expect(page.locator("#requestOutcome")).to_contain_text("чака одобрение", timeout=10_000)
+    expect(page.locator("#requestOutcome")).to_contain_text("Не е нужно да натискаш отново")
     expect(page.locator("#reservationsTimeline .reservation-flow-card")).to_have_count(1)
     expect(page.locator("#guidanceCard")).to_be_hidden()
     assert _timeline_is_before_table(page)

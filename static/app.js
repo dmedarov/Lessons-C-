@@ -95,6 +95,7 @@ const els = {
   operationalLinks: document.querySelectorAll("[data-operational-link]"),
   sessionBadge: document.getElementById("sessionBadge"),
   notificationBadge: document.getElementById("notificationBadge"),
+  outboundNotificationStatus: document.getElementById("outboundNotificationStatus"),
   sessionTitle: document.getElementById("sessionTitle"),
   sessionModePill: document.getElementById("sessionModePill"),
   sessionMeta: document.getElementById("sessionMeta"),
@@ -104,6 +105,7 @@ const els = {
   quickBookPanel: document.getElementById("quickBookPanel"),
   quickBookBtn: document.getElementById("quickBookBtn"),
   quickBookHint: document.getElementById("quickBookHint"),
+  requestOutcome: document.getElementById("requestOutcome"),
   smartPrefillPanel: document.getElementById("smartPrefillPanel"),
   smartPrefillBtn: document.getElementById("smartPrefillBtn"),
   smartPrefillHint: document.getElementById("smartPrefillHint"),
@@ -124,6 +126,7 @@ const els = {
   usersDeck: document.getElementById("usersDeck"),
   summaryDeck: document.getElementById("summaryDeck"),
   markAllReadBtn: document.getElementById("markAllReadBtn"),
+  testNotificationBtn: document.querySelector("[data-test-notification]"),
   notificationsList: document.getElementById("notificationsList"),
   usersGrid: document.getElementById("usersGrid"),
   carId: document.getElementById("carId"),
@@ -1199,6 +1202,7 @@ function renderShell() {
   toggleHidden(els.carPanel, !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.netfleetForm?.closest(".glass-card"), !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.productionReadinessPanel, !authenticated || !fullAdmin || !adminSurface);
+  toggleHidden(els.testNotificationBtn, !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.usersDeck, !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.handoffForm?.closest(".glass-card"), !authenticated || !fullAdmin || !adminSurface);
   toggleHidden(els.blackoutForm?.closest(".glass-card"), !authenticated || !fullAdmin || !adminSurface);
@@ -1219,7 +1223,15 @@ function renderShell() {
   const roleClass = roleBadgeClass();
   els.sessionBadge.className = `status-pill ${roleClass}`;
   els.sessionBadge.textContent = `${state.currentUser.display_name} · ${t(`role.${state.currentRole}`)}`;
-  els.sessionTitle.textContent = operationalMode ? t(`ui.${state.currentRole}Ready`) : t("ui.employeeReady");
+  if (fullAdmin) {
+    els.sessionTitle.textContent = t("ui.surface.controlTower");
+  } else if (state.currentRole === "fleet_approver") {
+    els.sessionTitle.textContent = t("ui.surface.decisionDesk");
+  } else if (state.currentRole === "fleet_reception") {
+    els.sessionTitle.textContent = t("ui.surface.handoffDesk");
+  } else {
+    els.sessionTitle.textContent = t("ui.surface.employeeDesk");
+  }
   els.sessionModePill.className = `status-pill ${roleClass}`;
   els.sessionModePill.textContent = t(`role.${state.currentRole}`);
   els.sessionMeta.textContent = `${state.currentUser.display_name} (${state.currentUser.username})`;
@@ -1448,6 +1460,7 @@ function renderProductionReadiness() {
   if (state.loading.productionReadiness) {
     els.productionReadinessSummary.innerHTML = `<span class="status-pill status-pill--muted">${escapeHtml(t("readiness.loading"))}</span>`;
     els.productionReadinessList.innerHTML = skeletonCards(2);
+    renderOutboundNotificationStatus();
     return;
   }
 
@@ -1455,6 +1468,7 @@ function renderProductionReadiness() {
   if (!data) {
     els.productionReadinessSummary.innerHTML = `<span class="status-pill status-pill--muted">${escapeHtml(t("readiness.unavailable"))}</span>`;
     els.productionReadinessList.innerHTML = "";
+    renderOutboundNotificationStatus();
     return;
   }
 
@@ -1478,6 +1492,51 @@ function renderProductionReadiness() {
       <span>${escapeHtml(t(`readiness.status.${item.status}`))}</span>
     </article>
   `).join("");
+  renderOutboundNotificationStatus();
+}
+
+function renderOutboundNotificationStatus() {
+  if (!els.outboundNotificationStatus) return;
+  if (!isFullAdmin()) {
+    els.outboundNotificationStatus.className = "outbound-status hidden";
+    els.outboundNotificationStatus.innerHTML = "";
+    return;
+  }
+  const notificationCheck = state.productionReadiness?.items?.find((item) => item.id === "notifications");
+  if (!notificationCheck) {
+    els.outboundNotificationStatus.className = "outbound-status outbound-status--muted";
+    els.outboundNotificationStatus.innerHTML = `
+      <strong>${escapeHtml(t("outbound.title"))}</strong>
+      <span>${escapeHtml(t("outbound.loading"))}</span>
+    `;
+    return;
+  }
+  const configured = notificationCheck.status === "pass";
+  els.outboundNotificationStatus.className = `outbound-status ${configured ? "outbound-status--ready" : "outbound-status--warn"}`;
+  els.outboundNotificationStatus.innerHTML = `
+    <strong>${escapeHtml(t(configured ? "outbound.readyTitle" : "outbound.inAppOnlyTitle"))}</strong>
+    <span>${escapeHtml(t(configured ? "outbound.readyCopy" : "outbound.inAppOnlyCopy"))}</span>
+  `;
+}
+
+function reservationCarLabel(reservation) {
+  const car = state.cars.find((item) => item.id === reservation.car_id);
+  return car ? `${car.plate_number} · ${car.model}` : t("entity.car", { id: reservation.car_id });
+}
+
+function showRequestOutcome(reservation, { source = "manual", carLabel = "" } = {}) {
+  if (!els.requestOutcome || !reservation) return;
+  const car = carLabel || reservationCarLabel(reservation);
+  const titleKey = source === "quick" ? "requestOutcome.quickTitle" : "requestOutcome.manualTitle";
+  els.requestOutcome.innerHTML = `
+    <strong>${escapeHtml(t(titleKey))}</strong>
+    <p>${escapeHtml(t("requestOutcome.pendingCopy", {
+      car,
+      start: formatDateTime(reservation.start_time),
+    }))}</p>
+    <span>${escapeHtml(t("requestOutcome.nextStep"))}</span>
+  `;
+  els.requestOutcome.classList.remove("hidden");
 }
 
 function updateNotificationBadge() {
@@ -1523,16 +1582,16 @@ function updateSummary() {
     const activeTrips = adminReservations.filter((item) => item.status === "checked_out").length;
     const adminSurface = state.surface === "admin";
     if (isFullAdmin()) {
-      els.modeHeading.textContent = adminSurface ? "Admin control surface" : "Admin on employee desk";
+      els.modeHeading.textContent = adminSurface ? t("ui.surface.controlTower") : t("ui.surface.adminOnEmployeeDesk");
       els.modeCopy.textContent = adminSurface
-        ? "Пълен контрол за настройки, флот, потребители и lifecycle."
+        ? "Първо статус, риск и следващ ход. Настройките и full control са под оперативния фокус."
         : "Това е общият desk. За потребители, handoff и blackout-и използвай отделната Admin страница.";
     } else if (state.currentRole === "fleet_approver") {
-      els.modeHeading.textContent = "Approver workspace";
-      els.modeCopy.textContent = "Фокус само върху заявките за решение. Няма настройки, флот конфигурация или ключове.";
+      els.modeHeading.textContent = t("ui.surface.decisionDesk");
+      els.modeCopy.textContent = "Решенията са първи. Няма настройки, флот конфигурация или ключове.";
     } else {
-      els.modeHeading.textContent = "Reception workspace";
-      els.modeCopy.textContent = "Фокус върху реалното предаване и връщане: ключове, документи и активни курсове.";
+      els.modeHeading.textContent = t("ui.surface.handoffDesk");
+      els.modeCopy.textContent = "Първо просрочени връщания, после предаване на ключове и документи.";
     }
     if (canManageTripHandoff() && overdueReturns) {
       els.nextSignalTitle.textContent = receptionTitle("receptionOverdueReturnTitle", overdueReturns);
@@ -1581,7 +1640,7 @@ function updateSummary() {
     .filter((item) => item.status === "approved")
     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0];
 
-  els.modeHeading.textContent = "Employee workspace";
+  els.modeHeading.textContent = t("ui.surface.employeeDesk");
   els.modeCopy.textContent = "Личен изглед с ясна история на заявките, активните курсове и нотификациите, които те касаят.";
   if (activeTrip) {
     els.nextSignalTitle.textContent = t("intent.employeeActiveTitle");
@@ -3692,7 +3751,7 @@ async function handleReservationCreate(event) {
 
   const releaseSubmit = setSubmitBusy(event.currentTarget);
   try {
-    await apiFetch("/reservations", {
+    const reservation = await apiFetch("/reservations", {
       method: "POST",
       headers: authHeaders(),
       body: JSON.stringify({
@@ -3703,7 +3762,8 @@ async function handleReservationCreate(event) {
       }),
     });
     els.purpose.value = "";
-    showMessage("Заявката е подадена", "Резервацията е записана като pending.", "success");
+    showRequestOutcome(reservation, { source: "manual" });
+    showMessage(t("requestOutcome.manualTitle"), t("requestOutcome.toastBody"), "success");
     await refreshData();
     scheduleConflictPreview();
   } catch (error) {
@@ -3749,6 +3809,7 @@ async function quickBookReservation() {
       }),
       "success",
     );
+    showRequestOutcome(reservation, { source: "quick", carLabel: car });
     await refreshData();
   } catch (error) {
     if (els.quickBookHint) {

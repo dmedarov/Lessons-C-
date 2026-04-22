@@ -13,8 +13,30 @@
 | `fleet_reception` | предава/приема ключове и документи | `/admin` Reception Rail | approve/reject, настройки, fleet-wide GPS |
 | `fleet_admin` | конфигурира и наблюдава целия процес | `/admin` full cockpit | няма, но daily queue не трябва да се губи сред настройки |
 
+UI naming за production handoff:
+
+- `fleet_admin`: **Control Tower**
+- `fleet_approver`: **Decision Desk**
+- `fleet_reception`: **Handoff Desk**
+- `employee`: **Моят курс / Нова заявка**
+
 Никоя роля не вижда реални infrastructure secrets: NetFleet key, DB password,
 `SECRET_KEY`, webhook-и и tokens никога не се echo-ват в UI.
+
+## Notification routing
+
+- Employee подава заявка -> `fleet_admin` и `fleet_approver` получават
+  `reservation_requested`.
+- Approver/admin одобрява -> requester получава `reservation_decision`, а
+  `fleet_reception` и `fleet_admin` получават `reception_handoff` / **Курс чака
+  ключове**.
+- Reception стартира курс -> requester и другите reception operators получават
+  `trip_started`.
+- Reception връща автомобил -> requester и reception operators получават
+  `trip_returned`.
+- SMTP delivery следва същите in-app recipients: ако user има `email`, мейлът
+  отива към него; ако няма, fallback е `SMTP_TO_EMAIL`. Teams webhook-ът е
+  shared operational channel, не лична поща.
 
 ## Login routing
 
@@ -55,6 +77,7 @@
 5. При празна причина dialog-ът показва български error, маркира полето с
    `aria-invalid` и връща фокуса в textarea.
 6. След действие получава кратък success/error feedback.
+7. При нова заявка получава in-app/SMTP сигнал, ако каналът е конфигуриран.
 
 **Надеждност:**
 
@@ -75,6 +98,8 @@
 5. При approved курс използва `Започни курс`.
 6. При active курс използва `Върни автомобил`.
 7. Вижда локация само за approved/checked-out handoff коли, не fleet-wide GPS.
+8. След approval получава handoff сигнал **Курс чака ключове** още преди
+   старта на курса.
 
 **Надеждност:**
 
@@ -99,6 +124,8 @@
    чип/тахограф данни в FleetFlow.
 6. За role change и admin handoff добавя причина, за да има audit trail.
 7. Използва `make go-live-check` и Admin readiness panel преди live.
+8. Тества SMTP/Teams от Notifications секцията и следи delivery резултата без
+   да вижда secret стойности.
 
 **Надеждност:**
 
@@ -148,7 +175,7 @@ E2E_ARTIFACT_DIR=test-results/e2e make test-e2e
 Latest verification:
 
 - `make qa-premium` -> passed: dependency audit, secret scan, Python compile,
-  170 pytest cases, JS syntax and 16 Playwright browser checks.
+  174 pytest cases, JS syntax and 16 Playwright browser checks.
 - `make smoke-live APP_URL=http://127.0.0.1:8001` -> passed:
   `/health`, `/health/ready`, `/auth/setup-status` and `/public/overview`.
 

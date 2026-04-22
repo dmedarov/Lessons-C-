@@ -169,6 +169,37 @@ cutover спира, докато alert-ът не бъде потвърден и�
 стартираш без тях, ако решението е съзнателно: GPS ключът се добавя от Admin UI,
 а in-app нотификациите работят и без SMTP/Slack/Teams.
 
+### SMTP и Teams известия
+
+SMTP е полезен за персонални служебни сигнали:
+
+- нова заявка -> admin/approver;
+- одобрение/отказ -> requester;
+- одобрена заявка -> reception/admin като **Курс чака ключове**;
+- старт/връщане -> requester и reception operators.
+
+Минимална production конфигурация:
+
+```env
+SMTP_HOST=smtp.company.bg
+SMTP_PORT=587
+SMTP_FROM_EMAIL=fleetflow@company.bg
+SMTP_USERNAME=fleetflow@company.bg
+SMTP_PASSWORD=
+SMTP_USE_TLS=true
+SMTP_TO_EMAIL=pool-operators@company.bg
+TEAMS_WEBHOOK_URL=
+```
+
+Ако потребителят има попълнен `email`, FleetFlow изпраща към него. Ако няма,
+използва `SMTP_TO_EMAIL` като operator fallback, за да не се губи важен
+служебен сигнал. Teams webhook-ът е shared operational channel за колеги, които
+следят процеса от Teams; не го използвай за чувствителни secret стойности.
+Попълни `SMTP_PASSWORD` и `TEAMS_WEBHOOK_URL` само в реалния `.env` или в
+deployment secret manager, не в документация, screenshot или git commit.
+Преди live admin натиска **Тест** в Notifications секцията и проверява
+резултатите за `in_app`, `email`, `teams`.
+
 ## 4. NetFleet ключ
 
 NetFleet ключът се добавя еднократно от admin:
@@ -191,6 +222,10 @@ NetFleet ключът се добавя еднократно от admin:
 
 FleetFlow е role-separated служебен pool процес:
 
+- employee surface: **Моят курс / Нова заявка**;
+- approver surface: **Decision Desk**;
+- reception surface: **Handoff Desk**;
+- admin surface: **Control Tower**;
 - служителят подава заявка и вижда следващия си ход;
 - `fleet_approver` одобрява или отказва;
 - `fleet_reception` отбелязва началото на активен курс след реално предадени
