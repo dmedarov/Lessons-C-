@@ -883,6 +883,7 @@ def test_admin_production_readiness_panel_is_present_and_secret_safe() -> None:
     assert '"readiness.notReady": "Има блокери преди live"' in i18n_js
     assert '"readiness.next.cors": "Замени example/wildcard с реалния production домейн."' in i18n_js
     assert '"readiness.next.admin_redundancy": "Добави втори активен fleet_admin за continuity."' in i18n_js
+    assert '"readiness.next.restore_drill": "Пусни `make prod-backup` и `make prod-restore-drill BACKUP=...`, за да има свеж restore marker."' in i18n_js
     assert '"readiness.warnings.one": "{count} бележка"' in i18n_js
     assert ".readiness-item--fail span" in styles
     assert ".readiness-item__next" in styles

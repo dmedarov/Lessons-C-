@@ -95,6 +95,7 @@ def test_production_compose_passes_runtime_settings_to_app_container() -> None:
     ):
         assert f"{key}:" in compose
     assert "POSTGRES_IMAGE:-postgres:16" in compose
+    assert "./.fleetflow:/app/.fleetflow:ro" in compose
 
 
 def test_backup_restore_operator_scripts_are_documented_and_guarded() -> None:

@@ -18,8 +18,10 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     monkeypatch.setenv("DB_PATH", str(tmp_path / "fleet.db"))
     monkeypatch.setenv("SECRET_KEY", "test-secret-key")
     monkeypatch.setenv("APP_ENV", "dev")
+    monkeypatch.setenv("RESTORE_DRILL_MARKER", str(tmp_path / "restore-drill-ok.json"))
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("DEV_SEED_DEMO_DATA", raising=False)
+    monkeypatch.delenv("RESTORE_DRILL_MAX_AGE_HOURS", raising=False)
 
     import app as app_module
     import bootstrap_tokens
@@ -1527,10 +1529,13 @@ def test_ops_readiness_is_admin_only_and_does_not_leak_secrets(client: TestClien
     assert data["ready"] is False
     assert data["app_env"] == "dev"
     assert data["database_backend"] == "sqlite"
-    assert {"app_env", "database_connection", "active_admin", "admin_redundancy", "netfleet", "notifications"} <= ids
+    assert {"app_env", "database_connection", "active_admin", "admin_redundancy", "restore_drill", "netfleet", "notifications"} <= ids
     redundancy = next(item for item in data["items"] if item["id"] == "admin_redundancy")
     assert redundancy["status"] == "warn"
     assert "само един активен администратор" in redundancy["detail"]
+    restore_drill = next(item for item in data["items"] if item["id"] == "restore_drill")
+    assert restore_drill["status"] == "warn"
+    assert "restore drill marker" in restore_drill["detail"]
     assert not any("test-secret-key" in str(item) for item in data["items"])
     assert not any("DATABASE_URL" in item["detail"] and "://" in item["detail"] for item in data["items"])
 

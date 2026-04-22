@@ -237,6 +237,9 @@ pilot-ready към 99/100, трябва всички точки по-долу д
   passed and wrote `.fleetflow/restore-drill-ok.json`.
 - `make go-live-check APP_URL=http://127.0.0.1:8001` -> passed against the
   local production-like stack after the restore drill.
+- `/ops/readiness` now reads the same restore-drill marker and exposes a
+  dedicated `restore_drill` item in the Admin readiness panel, so runtime UI
+  and shell cutover evidence share one source of truth.
 - Docker Scout on the rebuilt image -> 0 critical, 0 high, 0 medium, 0 low
   vulnerabilities across 80 packages.
 - Python 3.14 container dev audit -> `pip-audit -r requirements-dev.txt` found

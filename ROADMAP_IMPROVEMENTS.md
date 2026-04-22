@@ -2314,6 +2314,27 @@ If time is limited, execute items 1-4 before any new feature work.
 
 ## Done
 
+### 2026-04-23 - Shared restore-drill runtime readiness
+
+- **Goal:** Remove the last quiet gap between shell-based cutover evidence and
+  the Admin Control Tower readiness panel.
+- **Architecture:** `production_readiness.py` now owns restore-drill parsing,
+  freshness and error handling through `restore_drill_readiness(...)`; both
+  `/ops/readiness` and `scripts/go_live_check.py` reuse that shared source of
+  truth instead of duplicating marker logic.
+- **Runtime UX:** Admin readiness now shows a dedicated `restore_drill` item
+  with pass/warn/fail semantics and a concrete next step when the marker is
+  missing, invalid or stale.
+- **Test isolation:** `tests/test_app.py` now pins `RESTORE_DRILL_MARKER` to a
+  per-test tmp path so CI does not accidentally inherit a developer's local
+  `.fleetflow/restore-drill-ok.json`.
+- **Docs:** README, ROADMAP, Production User Guide, Production Readiness
+  Assessment, UI/UX audit and Executive Code Summary now all mention that the
+  admin readiness panel and `make go-live-check` share the same restore-drill
+  evidence.
+- **Verification:** `node --check static/i18n.js`; `pytest tests/test_app.py
+  tests/test_ui_compliance.py tests/test_prod_readiness.py -q` -> 125 passed.
+
 ### 2026-04-21 - Admin users density and readiness next steps
 
 - **Goal:** Improve pre-production operator polish without adding new modules.
@@ -3319,5 +3340,5 @@ Five independent improvements shipped as one coherent commit:
 
 ---
 
-_Last updated: 2026-04-21. When you ship an item, move it to this `## Done`
+_Last updated: 2026-04-23. When you ship an item, move it to this `## Done`
 section with the commit or PR link._

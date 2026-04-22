@@ -15,6 +15,9 @@ PLACEHOLDER_VALUES = {
     "fleetflow-dev-password",
 }
 
+DEFAULT_RESTORE_DRILL_MARKER = Path(".fleetflow/restore-drill-ok.json")
+DEFAULT_RESTORE_DRILL_MAX_AGE_HOURS = 168
+
 
 @dataclass(frozen=True)
 class ReadinessCheck:
@@ -214,6 +217,129 @@ def runtime_env() -> dict[str, str]:
     }
 
 
+def _parse_utc_datetime(value: str) -> datetime:
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _restore_drill_marker_path(env: dict[str, str]) -> Path:
+    raw = os.getenv("RESTORE_DRILL_MARKER", env.get("RESTORE_DRILL_MARKER", str(DEFAULT_RESTORE_DRILL_MARKER)))
+    return Path(raw)
+
+
+def _restore_drill_max_age_hours(env: dict[str, str]) -> int:
+    raw = os.getenv(
+        "RESTORE_DRILL_MAX_AGE_HOURS",
+        env.get("RESTORE_DRILL_MAX_AGE_HOURS", str(DEFAULT_RESTORE_DRILL_MAX_AGE_HOURS)),
+    )
+    try:
+        return int(raw)
+    except ValueError:
+        return DEFAULT_RESTORE_DRILL_MAX_AGE_HOURS
+
+
+def restore_drill_readiness(
+    env: dict[str, str],
+    *,
+    strict: bool,
+    now: datetime | None = None,
+) -> ReadinessCheck:
+    now = now or datetime.now(timezone.utc)
+    marker_path = _restore_drill_marker_path(env)
+    max_age_hours = _restore_drill_max_age_hours(env)
+    label = "Backup / restore drill"
+    warn_or_fail = _check if strict else None
+
+    def non_pass(
+        check_id: str,
+        message: str,
+        detail: str,
+    ) -> ReadinessCheck:
+        if strict:
+            return _check(
+                check_id,
+                label,
+                False,
+                "Restore drill evidence is fresh.",
+                message,
+                "Restore drill е пресен.",
+                detail,
+            )
+        return _warn(check_id, label, message, detail)
+
+    if not marker_path.exists():
+        return non_pass(
+            "restore_drill",
+            "Restore drill evidence is missing.",
+            "Липсва свеж backup/restore drill marker. Пусни prod-backup и prod-restore-drill.",
+        )
+
+    try:
+        import json
+
+        marker = json.loads(marker_path.read_text())
+    except Exception:
+        return non_pass(
+            "restore_drill",
+            "Restore drill evidence is not valid JSON.",
+            "Restore drill marker-ът е повреден. Пусни нов restore drill.",
+        )
+
+    if marker.get("succeeded") is not True:
+        return non_pass(
+            "restore_drill",
+            "Restore drill evidence does not show a successful restore.",
+            "Последният restore drill не е отбелязан като успешен.",
+        )
+
+    checked_at = marker.get("checked_at")
+    if not isinstance(checked_at, str) or not checked_at:
+        return non_pass(
+            "restore_drill",
+            "Restore drill evidence is missing checked_at.",
+            "Restore drill marker-ът няма checked_at timestamp.",
+        )
+
+    try:
+        checked_at_dt = _parse_utc_datetime(checked_at)
+    except ValueError:
+        return non_pass(
+            "restore_drill",
+            "Restore drill evidence has an invalid checked_at timestamp.",
+            "Restore drill marker-ът има невалиден checked_at timestamp.",
+        )
+
+    age_hours = (now - checked_at_dt).total_seconds() / 3600
+    if age_hours < -1:
+        return non_pass(
+            "restore_drill",
+            "Restore drill evidence timestamp is in the future.",
+            "Restore drill marker-ът е с бъдещ timestamp.",
+        )
+    if max_age_hours > 0 and age_hours > max_age_hours:
+        return non_pass(
+            "restore_drill",
+            f"Restore drill evidence is older than {max_age_hours} hours.",
+            "Restore drill marker-ът е остарял. Пусни нов backup и restore drill.",
+        )
+
+    backup_path = marker.get("backup_path")
+    detail = "Има свеж restore drill marker за този deployment rehearsal."
+    if isinstance(backup_path, str) and backup_path:
+        detail = f"Има свеж restore drill marker. Последният backup е {Path(backup_path).name}."
+    return _pass(
+        "restore_drill",
+        label,
+        "Restore drill evidence is fresh.",
+        detail,
+        required=False,
+    )
+
+
 def evaluate_runtime_readiness() -> dict:
     from app_settings import get_netfleet_config_status
     from config import settings
@@ -306,6 +432,8 @@ def evaluate_runtime_readiness() -> dict:
                 "Live GPS още не е включен. Може да се добави еднократно от Admin UI.",
             )
         )
+
+    checks.append(restore_drill_readiness(runtime_env(), strict=settings.app_env == "prod"))
 
     smtp_configured = bool(
         settings.smtp_host

@@ -73,7 +73,7 @@
   един primary action, status badge и тих `InsightList`, така че admin вижда
   едновременно следващия ход и контекста защо той е приоритетен.
 - NetFleet telemetry: server-side proxy за последни GPS координати по регистрационен номер; API ключът стои само в runtime `.env` или admin-managed DB setting и не стига до browser-а. UI показва last-seen/freshness label, разграничава "ключът липсва" от "NetFleet временно не отговаря" и прави ясно дали локацията е надеждна за вземане на автомобила; reception вижда локация за approved/active handoff коли.
-- Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string, включително warning ако има само един active `fleet_admin`.
+- Admin production readiness panel: `/ops/readiness` проверява live blockers без да показва secret-и, пароли или connection string, включително warning ако има само един active `fleet_admin` и отделен freshness сигнал за последния backup/restore drill marker.
 - Production operator next steps: readiness blocker/warning картите показват
   кратък конкретен следващ ход за CORS, DB password/URL, backup/admin/NetFleet
   и други cutover настройки, вместо само статус.
@@ -159,6 +159,8 @@ make prod
 
 - build-ва production image-а;
 - стартира PostgreSQL + FleetFlow app през `docker-compose.postgres.yml`;
+- mount-ва ignored `.fleetflow/` като read-only в app контейнера, за да вижда
+  същия restore-drill marker като `make go-live-check`;
 - използва pin-нат PostgreSQL major image
   (`POSTGRES_IMAGE`, default `postgres:16`), защото
   `latest` може да направи несъвместим major upgrade на съществуващ volume;
@@ -286,7 +288,9 @@ make test-e2e # optional Playwright browser smoke
 volume-а и записва локално доказателство в игнорираната директория
 `.fleetflow/restore-drill-ok.json`. `make go-live-check` отказва cutover без
 свеж restore-drill marker от последните `RESTORE_DRILL_MAX_AGE_HOURS` часа
-(default 168). Подробната операторска инструкция е в
+(default 168). Admin readiness панелът показва същия marker като отделен
+runtime сигнал, за да няма разминаване между shell cutover check и Control
+Tower UI. Подробната операторска инструкция е в
 [`docs/PRODUCTION_USER_GUIDE.md`](docs/PRODUCTION_USER_GUIDE.md).
 
 ## Bootstrap token при fresh production install
@@ -463,14 +467,15 @@ docker-compose.postgres.yml
 22. **Production cutover check** — `make prod-check` валидира `.env` за real origin, generated secrets, matching `DATABASE_URL`, pinned PostgreSQL image, disabled demo seed и production mode.
 23. **Secret-safe readiness UI** — admin вижда blockers/warnings за live без да получава сурови secret-и, пароли или connection string.
 24. **Backup before migration** — production backup и restore drill са Make targets, backup файловете са извън git, а успешният restore drill записва ignored evidence marker за `make go-live-check`.
-25. **User contact data** — email и GSM номер се пазят в user профила за operational coordination, без да участват в login/auth. Bulk employee import прави поддръжката на служителския списък повторяема от Admin UI, а admin може да коригира контактите на конкретен служител без нов импорт.
-26. **Structured production logs** — access logs са JSON в production и съдържат request id, route, status и latency без secret values.
-27. **Explainable fleet intelligence first** — quick-book uses a thin rules/metrics layer and records `car_assignments`; snapshot tables/jobs stay future work until production usage proves the need.
-28. **Public orientation, private operations** — pre-login UI may show fleet counts and calendar occupancy with plate/model for frictionless orientation; users, trip purpose, GPS, reservation ids and lifecycle actions stay behind auth.
-29. **Production gates** — GitHub Actions пази `master` с Python 3.12/3.14 tests, JS syntax check, full production dependency audit and Docker build; `make release-check` дава стабилен локален guardrail без browser smoke.
-30. **Route/schema guardrails** — тестовете вече пазят FastAPI route registry от duplicate `(method, path)`, проверяват SQLite bootstrap schema, сравняват SQLite/PostgreSQL table-column contracts и assert-ват single Alembic head.
-31. **Premium QA gate** — `make qa-premium` комбинира dependency audit, Python compile, full pytest, JS syntax и browser role smoke; `make smoke-live APP_URL=...` проверява вече вдигнат stack.
-32. **Final go-live gate** — `make go-live-check` валидира production `.env`, свеж restore-drill evidence marker, локалните release gates и live health/readiness/active-admin/public overview smoke срещу `APP_URL`.
+25. **Runtime restore-drill freshness** — `/ops/readiness` и Admin readiness панелът показват отделен сигнал дали последният restore marker е свеж, повреден, липсващ или остарял.
+26. **User contact data** — email и GSM номер се пазят в user профила за operational coordination, без да участват в login/auth. Bulk employee import прави поддръжката на служителския списък повторяема от Admin UI, а admin може да коригира контактите на конкретен служител без нов импорт.
+27. **Structured production logs** — access logs са JSON в production и съдържат request id, route, status и latency без secret values.
+28. **Explainable fleet intelligence first** — quick-book uses a thin rules/metrics layer and records `car_assignments`; snapshot tables/jobs stay future work until production usage proves the need.
+29. **Public orientation, private operations** — pre-login UI may show fleet counts and calendar occupancy with plate/model for frictionless orientation; users, trip purpose, GPS, reservation ids and lifecycle actions stay behind auth.
+30. **Production gates** — GitHub Actions пази `master` с Python 3.12/3.14 tests, JS syntax check, full production dependency audit and Docker build; `make release-check` дава стабилен локален guardrail без browser smoke.
+31. **Route/schema guardrails** — тестовете вече пазят FastAPI route registry от duplicate `(method, path)`, проверяват SQLite bootstrap schema, сравняват SQLite/PostgreSQL table-column contracts и assert-ват single Alembic head.
+32. **Premium QA gate** — `make qa-premium` комбинира dependency audit, Python compile, full pytest, JS syntax и browser role smoke; `make smoke-live APP_URL=...` проверява вече вдигнат stack.
+33. **Final go-live gate** — `make go-live-check` валидира production `.env`, свеж restore-drill evidence marker, локалните release gates и live health/readiness/active-admin/public overview smoke срещу `APP_URL`.
 
 ## Тестове
 

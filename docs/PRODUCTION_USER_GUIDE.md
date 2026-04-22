@@ -95,11 +95,15 @@ make logs
 - реален CORS origin
 - изключен demo seed
 - активен admin
+- свеж restore drill marker
 - NetFleet GPS статус
 - outbound notification канал
 
 Блокерите трябва да са 0 преди реална употреба. Бележките може да останат само
 ако са съзнателно решение, например NetFleet ще се добави по-късно.
+
+Панелът използва същия restore-drill marker като `make go-live-check`, така че
+Admin UI и shell cutover проверката не могат да се разминават тихо.
 
 Практическа go-live оценка:
 
@@ -373,7 +377,9 @@ Restore drill-ът стартира отделен Docker project
 `fleetflow_restore_drill`, възстановява dump-а в отделна база и проверява
 `alembic_version`. След успех записва локален evidence marker в
 `.fleetflow/restore-drill-ok.json`, който е игнориран от git и се използва от
-`make go-live-check`. По подразбиране временният restore project се изтрива
+`make go-live-check`. Production compose mount-ва същата `.fleetflow/`
+директория read-only в app контейнера, така че Admin readiness панелът вижда
+същия marker. По подразбиране временният restore project се изтрива
 след успех. Ако искаш да го инспектираш:
 
 ```bash

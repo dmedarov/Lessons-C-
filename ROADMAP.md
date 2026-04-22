@@ -367,7 +367,9 @@ operations assistant for internal mobility**, което е:
   live blockers/warnings without exposing secret values. Operator instructions
   now live in `docs/PRODUCTION_USER_GUIDE.md`. Runtime readiness now warns when
   there is only one active `fleet_admin`, keeping the two-admin continuity rule
-  visible before full go-live.
+  visible before full go-live. The same runtime panel now also surfaces
+  restore-drill freshness from `.fleetflow/restore-drill-ok.json`, so Control
+  Tower and `make go-live-check` share one source of truth.
 - PostgreSQL image is pinned to major version 16 by default; do not use
   `latest` against a persistent production volume without a planned dump/restore
   major upgrade.

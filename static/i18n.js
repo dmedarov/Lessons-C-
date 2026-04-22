@@ -363,6 +363,7 @@ const bg = {
   "readiness.next.database_connection": "Провери PostgreSQL контейнера, credentials и network връзката.",
   "readiness.next.active_admin": "Създай първия fleet_admin през bootstrap flow.",
   "readiness.next.admin_redundancy": "Добави втори активен fleet_admin за continuity.",
+  "readiness.next.restore_drill": "Пусни `make prod-backup` и `make prod-restore-drill BACKUP=...`, за да има свеж restore marker.",
   "readiness.next.netfleet": "Добави NetFleet ключ от Admin UI, ако live pickup координати са нужни за ден 1.",
   "readiness.next.notifications": "Остави като съзнателна бележка или конфигурирай SMTP/Slack/Teams канал.",
   "telemetry.latest": "Последна GPS позиция",
