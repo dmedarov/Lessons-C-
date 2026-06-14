@@ -1,9 +1,9 @@
 -r requirements.txt
-pytest==9.0.3
+pytest==9.1.0
 httpx==0.28.1
-pip-audit==2.9.0
-playwright==1.58.0
-pre-commit==4.0.1
-ruff==0.8.6
-filelock==3.20.3
-requests==2.33.0
+pip-audit==2.10.1
+playwright==1.60.0
+pre-commit==4.6.0
+ruff==0.15.17
+filelock==3.29.4
+requests==2.34.2
